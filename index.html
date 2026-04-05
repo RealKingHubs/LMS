@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RealKingHubs Academy</title>
+  <meta name="description" content="RealKingHubs Academy LMS for Cloud Engineering, Frontend Engineering, and Backend Engineering." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="site-shell">
+    <section id="landingPage" class="page page-active">
+      <header class="marketing-header">
+        <div class="brand-block">
+          <div class="brand-mark">RK</div>
+          <div>
+            <div class="brand-name">RealKingHubs Academy</div>
+            <div class="brand-subtitle">Professional technology education for career-focused learners</div>
+          </div>
+        </div>
+        <div class="marketing-actions">
+          <button class="btn btn-secondary" type="button" onclick="showAuthPage('login')">Sign in</button>
+          <button class="btn btn-primary" type="button" onclick="showAuthPage('register')">Start learning</button>
+        </div>
+      </header>
+
+      <main class="marketing-main">
+        <section class="hero-grid">
+          <div class="hero-copy">
+            <p class="section-kicker">Structured learning platform</p>
+            <h1>Build real skills in Cloud, Frontend, and Backend Engineering.</h1>
+            <p class="hero-text">
+              Learn through a professional LMS with guided curriculum, revision blocks, exams, live classes,
+              community communication, announcements, and progress tracking that actually reflects what learners complete.
+            </p>
+            <div class="hero-actions">
+              <button class="btn btn-primary" type="button" onclick="showAuthPage('register')">Create account</button>
+              <button class="btn btn-secondary" type="button" onclick="quickDemoLogin('cloud-engineering')">Open demo LMS</button>
+            </div>
+            <div class="hero-metrics">
+              <div class="metric-card">
+                <strong>3 tracks</strong>
+                <span>Cloud, Frontend, Backend</span>
+              </div>
+              <div class="metric-card">
+                <strong>3 semesters</strong>
+                <span>Each semester has 4 months</span>
+              </div>
+              <div class="metric-card">
+                <strong>12 months</strong>
+                <span>Learning, revision, and exams</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-panel">
+            <div class="hero-panel-header">
+              <p>Inside the LMS</p>
+              <h2>Professional learning operations in one place</h2>
+            </div>
+            <div class="hero-panel-grid">
+              <article>
+                <h3>Curriculum</h3>
+                <p>Semester-based roadmap with weekly lessons, revision months, and exam checkpoints.</p>
+              </article>
+              <article>
+                <h3>Live Class</h3>
+                <p>Join scheduled demo classes through embedded iframe sessions and class notes.</p>
+              </article>
+              <article>
+                <h3>Community</h3>
+                <p>Share updates, ask questions, and respond to other learners from one communication room.</p>
+              </article>
+              <article>
+                <h3>Progress</h3>
+                <p>Track completion by week, month, semester, and overall programme progress.</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="tracks-section">
+          <div class="section-heading">
+            <p class="section-kicker">Available programmes</p>
+            <h2>Choose the school that fits your career path</h2>
+          </div>
+          <div id="marketingTracks" class="tracks-grid"></div>
+        </section>
+
+        <section class="marketing-feature-row">
+          <article class="feature-panel wide-panel">
+            <p class="section-kicker">How the calendar works</p>
+            <h2>Each semester balances learning, revision, and exams.</h2>
+            <div class="semester-timeline">
+              <div>
+                <strong>Month 1</strong>
+                <span>Core learning block with guided lessons and weekly tasks.</span>
+              </div>
+              <div>
+                <strong>Month 2</strong>
+                <span>Applied learning with projects, labs, and instructor support.</span>
+              </div>
+              <div>
+                <strong>Month 3</strong>
+                <span>Production practice with portfolio, systems, or deployment focus.</span>
+              </div>
+              <div>
+                <strong>Month 4</strong>
+                <span>Revision month with practice tests, capstone polish, and semester exam.</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="feature-panel">
+            <p class="section-kicker">Platform features</p>
+            <ul class="feature-list">
+              <li>Responsive LMS dashboard for desktop and mobile</li>
+              <li>Embedded training videos and live class iframe player</li>
+              <li>Announcements feed and revision reminders</li>
+              <li>Editable learner profile and settings</li>
+              <li>Community room with persistent demo communication</li>
+            </ul>
+          </article>
+        </section>
+      </main>
+
+      <footer class="landing-footer">
+        <div class="landing-footer-inner">
+          <div>
+            <strong>RealKingHubs Academy</strong>
+            <span>Cloud Engineering, Frontend Engineering, and Backend Engineering for career-focused learners.</span>
+          </div>
+          <div class="landing-footer-links">
+            <span>Structured curriculum</span>
+            <span>Live classes</span>
+            <span>Assessments and announcements</span>
+          </div>
+        </div>
+      </footer>
+    </section>
+
+    <section id="authPage" class="page">
+      <div class="auth-layout">
+        <div class="auth-intro">
+          <div class="brand-block compact-brand">
+            <div class="brand-mark">RK</div>
+            <div>
+              <div class="brand-name">RealKingHubs Academy</div>
+              <div class="brand-subtitle">Account access for learners and demo reviewers</div>
+            </div>
+          </div>
+          <p class="section-kicker">Learning access</p>
+          <h2>Enter the LMS with a real account or create one in minutes.</h2>
+          <p>
+            Use the forms on this page to register a learner profile, choose your track, and continue straight into the dashboard.
+          </p>
+          <div class="auth-side-note">
+            <strong>Demo option</strong>
+            <span>You can also open the dashboard instantly from the landing page to review the full product experience.</span>
+          </div>
+          <button class="btn btn-secondary" type="button" onclick="showLandingPage()">Back to landing</button>
+        </div>
+
+        <div class="auth-card">
+          <div class="auth-tabs">
+            <button id="loginTab" class="auth-tab auth-tab-active" type="button" onclick="switchAuthMode('login')">Sign in</button>
+            <button id="registerTab" class="auth-tab" type="button" onclick="switchAuthMode('register')">Create account</button>
+          </div>
+
+          <div id="authMessage" class="form-message"></div>
+
+          <form id="loginForm" class="auth-form auth-form-active">
+            <div class="field-group">
+              <label for="loginEmail">Email address</label>
+              <input id="loginEmail" type="email" placeholder="you@example.com" />
+            </div>
+            <div class="field-group">
+              <label for="loginPassword">Password</label>
+              <input id="loginPassword" type="password" placeholder="Enter password" />
+            </div>
+            <button class="btn btn-primary btn-block" type="submit">Sign in to dashboard</button>
+          </form>
+
+          <form id="registerForm" class="auth-form">
+            <div class="field-row">
+              <div class="field-group">
+                <label for="registerFirstName">First name</label>
+                <input id="registerFirstName" type="text" placeholder="First name" />
+              </div>
+              <div class="field-group">
+                <label for="registerLastName">Last name</label>
+                <input id="registerLastName" type="text" placeholder="Last name" />
+              </div>
+            </div>
+            <div class="field-group">
+              <label for="registerEmail">Email address</label>
+              <input id="registerEmail" type="email" placeholder="you@example.com" />
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label for="registerTrack">Track</label>
+                <select id="registerTrack"></select>
+              </div>
+              <div class="field-group">
+                <label for="registerTimezone">Timezone</label>
+                <input id="registerTimezone" type="text" placeholder="Africa/Lagos" />
+              </div>
+            </div>
+            <div class="field-group">
+              <label for="registerHeadline">Professional headline</label>
+              <input id="registerHeadline" type="text" placeholder="Aspiring cloud engineer" />
+            </div>
+            <div class="field-group">
+              <label for="registerPassword">Password</label>
+              <input id="registerPassword" type="password" placeholder="Minimum 8 characters" />
+            </div>
+            <button class="btn btn-primary btn-block" type="submit">Create learner account</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section id="appPage" class="page">
+      <div class="app-shell">
+        <aside class="app-sidebar">
+          <div class="sidebar-brand">
+            <div class="brand-mark">RK</div>
+            <div>
+              <div class="brand-name">RealKingHubs Academy</div>
+              <div id="sidebarTrack" class="brand-subtitle">Cloud Engineering</div>
+            </div>
+          </div>
+
+          <div class="sidebar-profile">
+            <div id="sidebarAvatar" class="avatar-frame">RK</div>
+            <div>
+              <strong id="sidebarName">Learner Name</strong>
+              <span id="sidebarEmail">learner@example.com</span>
+            </div>
+          </div>
+
+          <nav id="appNav" class="sidebar-nav-list"></nav>
+
+          <div class="sidebar-footer">
+            <button class="btn btn-secondary btn-block" type="button" onclick="logoutUser()">Log out</button>
+          </div>
+        </aside>
+
+        <div class="app-main">
+          <header class="app-topbar">
+            <div>
+              <p id="pageEyebrow" class="section-kicker">RealKingHubs Academy LMS</p>
+              <h1 id="pageTitle">Dashboard</h1>
+            </div>
+            <div class="topbar-meta">
+              <div class="topbar-chip">
+                <span>Alerts</span>
+                <strong id="topbarAlerts">0</strong>
+              </div>
+              <div class="topbar-chip">
+                <span>Progress</span>
+                <strong id="topbarProgress">0%</strong>
+              </div>
+              <div class="topbar-chip">
+                <span>Current track</span>
+                <strong id="topbarTrack">Cloud Engineering</strong>
+              </div>
+            </div>
+          </header>
+
+          <main id="appContent" class="app-content"></main>
+
+          <footer class="app-footer">
+            <p id="appFooterText">© 2026 RealKingHubs · Learning Management System</p>
+          </footer>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</body>
+</html>
