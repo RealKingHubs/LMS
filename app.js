@@ -6,8 +6,26 @@
   const SUPABASE_URL = 'https://gelpzfafiiudidxmpofo.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlbHB6ZmFmaWl1ZGlkeG1wb2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTIwNzcsImV4cCI6MjA5MDk4ODA3N30.82lZQg6ZYr1SsK9SFsbszby5QEf6HENgnYn1ynS0ZhE';
   const COMMUNITY_SYNC_INTERVAL_MS = 15000;
-  const COMMUNITY_ATTACHMENT_LIMIT_BYTES = 1500000;
-  const COMMUNITY_STICKERS = ['🚀', '🎉', '👏', '🔥', '✅', '💡'];
+  const COMMUNITY_ATTACHMENT_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
+  const COMMUNITY_ATTACHMENT_BUCKET = 'community-attachments';
+
+  const COMMUNITY_STICKER_PACKS = [
+    {
+      id: 'celebrate',
+      label: 'Celebrate',
+      stickers: ['\u{1F389}', '\u{1F44F}', '\u{1F525}']
+    },
+    {
+      id: 'support',
+      label: 'Support',
+      stickers: ['\u{2705}', '\u{1F4A1}', '\u{1F680}']
+    },
+    {
+      id: 'study',
+      label: 'Study',
+      stickers: ['\u{1F4DA}', '\u{1F4BB}', '\u{1F3AF}']
+    }
+  ];
 
   const state = {
     users: [],
@@ -20,6 +38,7 @@
     showOlderMessages: false,
     communityMessages: [],
     communityDraftText: '',
+    communityStickerPackOpen: false,
     communitySelectedSticker: '',
     communityAttachment: null,
     communityComposerMessage: null,
@@ -404,15 +423,24 @@
     const tracks = Object.values(window.RKH_DATA.tracks);
     dom.marketingTracks.innerHTML = tracks.map(track => `
       <article class="track-card">
-        <div>
+        <div class="track-card-copy">
           <p class="section-kicker">${track.label}</p>
           <h3>${track.label}</h3>
           <p>${track.summary}</p>
         </div>
+        <div class="track-facts">
+          <span>${track.semesters.length} semesters</span>
+          <span>${track.semesters.reduce((total, semester) => total + semester.months.length, 0)} months</span>
+          <span>${track.liveClasses.length} live classes</span>
+          <span>${track.assessments.length} assessments</span>
+        </div>
         <div class="tag-row">
           ${track.outcomes.map(outcome => `<span class="tag">${outcome}</span>`).join('')}
         </div>
-        <button class="btn btn-secondary btn-small" type="button" onclick="quickDemoLogin('${track.id}')">Open ${track.label}</button>
+        <div class="track-card-footer">
+          <button class="btn btn-secondary btn-small" type="button" onclick="quickDemoLogin('${track.id}')">Open ${track.label}</button>
+          <button class="btn btn-ghost btn-small" type="button" onclick="showAuthPage('register')">Create account</button>
+        </div>
       </article>
     `).join('');
   }
@@ -1073,13 +1101,15 @@
           <div class="community-sync-status ${state.communitySyncError ? 'error' : 'success'}">${state.communitySyncError ? `Sync issue: ${escapeHtml(state.communitySyncError)}` : state.communitySyncMode === 'remote' ? 'Cross-browser sync is active for this programme room.' : 'Community is using local browser storage only.'}</div>
           <div id="communityComposerMessage" class="form-message ${state.communityComposerMessage ? state.communityComposerMessage.type : ''}">${state.communityComposerMessage ? state.communityComposerMessage.text : ''}</div>
           <div class="field-group"><label for="communityMessage">Post a message</label><textarea id="communityMessage" placeholder="Write an update for ${track.label} learners...">${escapeHtml(state.communityDraftText)}</textarea></div>
-          <div class="community-sticker-row">
-            ${COMMUNITY_STICKERS.map(sticker => `<button class="sticker-chip ${state.communitySelectedSticker === sticker ? 'sticker-chip-active' : ''}" type="button" onclick="selectCommunitySticker('${sticker}')">${sticker}</button>`).join('')}
-          </div>
-          <div class="community-upload-row">
+          <div class="community-composer-toolbar">
+            <button class="btn btn-secondary btn-small" type="button" onclick="toggleCommunityStickerPack()">${state.communityStickerPackOpen ? 'Hide sticker pack' : 'Open sticker pack'}</button>
             <input id="communityFileInput" type="file" class="hidden" onchange="handleCommunityFileSelect(event)" />
             <button class="btn btn-secondary btn-small" type="button" onclick="document.getElementById('communityFileInput').click()">Attach file</button>
-            ${state.communityAttachment ? `<div class="community-attachment-pill"><span>${escapeHtml(state.communityAttachment.name)}</span><button type="button" onclick="clearCommunityAttachment()">Remove</button></div>` : ''}
+          </div>
+          ${state.communityStickerPackOpen ? renderCommunityStickerPack() : ''}
+          ${state.communitySelectedSticker ? `<div class="community-selection-pill"><span>Selected sticker</span><strong>${escapeHtml(state.communitySelectedSticker)}</strong><button type="button" onclick="clearCommunitySticker()">Clear</button></div>` : ''}
+          <div class="community-upload-row">
+            ${state.communityAttachment ? `<div class="community-attachment-pill"><span>${escapeHtml(state.communityAttachment.name)} (${formatFileSize(state.communityAttachment.size)})</span><button type="button" onclick="clearCommunityAttachment()">Remove</button></div>` : '<span class="copy-muted">Add a file or choose a sticker from the pack before you send.</span>'}
           </div>
           <div class="composer-actions"><button class="btn btn-primary btn-small" type="button" onclick="postCommunityMessage()">Post message</button><button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('announcements')">Check announcements</button></div>
         </aside>
@@ -1089,6 +1119,32 @@
           <div class="composer-actions">${remaining > 0 ? `<button class="btn btn-secondary btn-small" type="button" onclick="toggleOlderMessages(true)">View ${remaining} older messages</button>` : ''}${state.showOlderMessages && state.communityMessages.length > 5 ? `<button class="btn btn-ghost btn-small" type="button" onclick="toggleOlderMessages(false)">Show latest 5</button>` : ''}</div>
         </article>
       </section>
+    `;
+  }
+
+  function renderCommunityStickerPack() {
+    return `
+      <div class="sticker-pack-panel">
+        <div class="sticker-pack-header">
+          <div>
+            <strong>Sticker pack</strong>
+            <span>Choose one sticker to include with your message.</span>
+          </div>
+          <button class="btn btn-ghost btn-small" type="button" onclick="toggleCommunityStickerPack(false)">Close</button>
+        </div>
+        <div class="sticker-pack-groups">
+          ${COMMUNITY_STICKER_PACKS.map(pack => `
+            <section class="sticker-pack-group">
+              <h4>${pack.label}</h4>
+              <div class="sticker-pack-grid">
+                ${pack.stickers.map(sticker => `
+                  <button class="sticker-chip ${state.communitySelectedSticker === sticker ? 'sticker-chip-active' : ''}" type="button" onclick='selectCommunitySticker(${JSON.stringify(sticker)})'>${sticker}</button>
+                `).join('')}
+              </div>
+            </section>
+          `).join('')}
+        </div>
+      </div>
     `;
   }
 
@@ -1106,27 +1162,40 @@
   }
 
   function renderCommunityAttachment(attachment) {
-    if (!attachment?.dataUrl || !attachment?.name) return '';
+    const attachmentUrl = attachment?.url || attachment?.dataUrl || '';
+    if (!attachmentUrl || !attachment?.name) return '';
 
     const safeName = escapeHtml(attachment.name);
     const safeNameAttr = escapeAttribute(attachment.name);
-    const safeUrl = escapeAttribute(attachment.dataUrl);
+    const safeUrl = escapeAttribute(attachmentUrl);
     const fileType = escapeHtml(attachment.type || 'File');
+    const fileSize = attachment.size ? formatFileSize(attachment.size) : '';
+    const metaText = fileSize ? `${fileType} | ${fileSize}` : fileType;
 
     if ((attachment.type || '').startsWith('image/')) {
       return `
         <div class="message-attachment-card">
           <img class="message-attachment-image" src="${safeUrl}" alt="${safeName}" />
-          <a class="message-attachment-link" href="${safeUrl}" download="${safeNameAttr}">${safeName}</a>
+          <div class="message-attachment-meta"><strong>${safeName}</strong><span>${metaText}</span></div>
+          <a class="message-attachment-link" href="${safeUrl}" download="${safeNameAttr}" target="_blank" rel="noopener">Open image</a>
+        </div>
+      `;
+    }
+
+    if ((attachment.type || '').startsWith('video/')) {
+      return `
+        <div class="message-attachment-card">
+          <video class="message-attachment-video" controls src="${safeUrl}"></video>
+          <div class="message-attachment-meta"><strong>${safeName}</strong><span>${metaText}</span></div>
+          <a class="message-attachment-link" href="${safeUrl}" download="${safeNameAttr}" target="_blank" rel="noopener">Open video</a>
         </div>
       `;
     }
 
     return `
       <div class="message-attachment-card">
-        <strong>${safeName}</strong>
-        <span>${fileType}</span>
-        <a class="message-attachment-link" href="${safeUrl}" download="${safeNameAttr}">Download file</a>
+        <div class="message-attachment-meta"><strong>${safeName}</strong><span>${metaText}</span></div>
+        <a class="message-attachment-link" href="${safeUrl}" download="${safeNameAttr}" target="_blank" rel="noopener">Open file</a>
       </div>
     `;
   }
@@ -1334,19 +1403,33 @@
     input.dataset.bound = 'true';
   }
 
+  function toggleCommunityStickerPack(forceOpen) {
+    state.communityStickerPackOpen = typeof forceOpen === 'boolean' ? forceOpen : !state.communityStickerPackOpen;
+    renderAppShell();
+  }
+
   function selectCommunitySticker(sticker) {
     state.communitySelectedSticker = state.communitySelectedSticker === sticker ? '' : sticker;
+    state.communityStickerPackOpen = false;
+    renderAppShell();
+  }
+
+  function clearCommunitySticker() {
+    state.communitySelectedSticker = '';
     renderAppShell();
   }
 
   function clearCommunityAttachment() {
     state.communityAttachment = null;
     state.communityComposerMessage = null;
+    const fileInput = document.getElementById('communityFileInput');
+    if (fileInput) fileInput.value = '';
     renderAppShell();
   }
 
   function clearCommunityComposerExtras() {
     state.communitySelectedSticker = '';
+    state.communityStickerPackOpen = false;
     state.communityAttachment = null;
     state.communityComposerMessage = null;
   }
@@ -1358,28 +1441,100 @@
     if (file.size > COMMUNITY_ATTACHMENT_LIMIT_BYTES) {
       state.communityComposerMessage = {
         type: 'error',
-        text: 'Files must be 1.5 MB or smaller to send through the community room.'
+        text: 'Files must be 2 GB or smaller to send through the community room.'
       };
       event.target.value = '';
       renderAppShell();
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = loadEvent => {
-      state.communityAttachment = {
-        name: file.name,
-        type: file.type || 'application/octet-stream',
-        size: file.size,
-        dataUrl: loadEvent.target.result
-      };
-      state.communityComposerMessage = {
-        type: 'success',
-        text: `${file.name} is attached and ready to send.`
-      };
-      renderAppShell();
+    state.communityAttachment = {
+      file,
+      name: file.name,
+      type: file.type || 'application/octet-stream',
+      size: file.size
     };
-    reader.readAsDataURL(file);
+    state.communityComposerMessage = {
+      type: 'success',
+      text: `${file.name} is attached and ready to send (${formatFileSize(file.size)}).`
+    };
+    event.target.value = '';
+    renderAppShell();
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error || new Error('Failed to read file.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function prepareCommunityAttachmentPayload(user, track, attachment) {
+    if (!attachment?.file) return null;
+
+    const MAX_LOCAL_ATTACHMENT_BYTES = 50 * 1024 * 1024;
+
+    if (!communitySupabase) {
+      if (attachment.size > MAX_LOCAL_ATTACHMENT_BYTES) {
+        throw new Error('Local file sharing only supports files up to 50 MB when community storage is unavailable.');
+      }
+
+      const dataUrl = await readFileAsDataUrl(attachment.file);
+      return {
+        bucket: null,
+        path: null,
+        url: dataUrl,
+        dataUrl,
+        name: attachment.name,
+        type: attachment.type || attachment.file.type || 'application/octet-stream',
+        size: attachment.size || attachment.file.size || 0
+      };
+    }
+
+    try {
+      return await uploadCommunityAttachment(user, track, attachment);
+    } catch (error) {
+      if (attachment.size <= MAX_LOCAL_ATTACHMENT_BYTES) {
+        return {
+          bucket: null,
+          path: null,
+          url: await readFileAsDataUrl(attachment.file),
+          dataUrl: await readFileAsDataUrl(attachment.file),
+          name: attachment.name,
+          type: attachment.type || attachment.file.type || 'application/octet-stream',
+          size: attachment.size || attachment.file.size || 0
+        };
+      }
+      throw error;
+    }
+  }
+
+  async function uploadCommunityAttachment(user, track, attachment) {
+    if (!attachment?.file || !communitySupabase) return null;
+
+    const safeName = sanitizeFileName(attachment.name || attachment.file.name || 'attachment');
+    const path = `${track.id}/${user.id}/${Date.now()}-${safeName}`;
+    const storage = communitySupabase.storage.from(COMMUNITY_ATTACHMENT_BUCKET);
+    const { error } = await storage.upload(path, attachment.file, {
+      upsert: false,
+      contentType: attachment.type || attachment.file.type || 'application/octet-stream'
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    const { data } = storage.getPublicUrl(path);
+    return {
+      bucket: COMMUNITY_ATTACHMENT_BUCKET,
+      path,
+      url: data.publicUrl,
+      name: attachment.name,
+      type: attachment.type || attachment.file.type || 'application/octet-stream',
+      size: attachment.size || attachment.file.size || 0
+    };
   }
 
   async function postCommunityMessage() {
@@ -1397,16 +1552,42 @@
       return;
     }
 
+    let attachmentPayload = null;
+    if (attachment) {
+      state.communityComposerMessage = {
+        type: 'success',
+        text: `Preparing ${attachment.name} before sending the message...`
+      };
+      renderAppShell();
+
+      try {
+        attachmentPayload = await prepareCommunityAttachmentPayload(user, track, attachment);
+      } catch (error) {
+        state.communitySyncError = error.message;
+        state.communityComposerMessage = {
+          type: 'error',
+          text: error.message || 'Attachment could not be prepared for sending.'
+        };
+        renderAppShell();
+        return;
+      }
+    }
+
     const payload = {
       author_name: `${user.firstName} ${user.lastName}`,
       author_email: user.email,
       room: track.id,
-      content: serializeCommunityPayload({ body, sticker, attachment })
+      content: serializeCommunityPayload({ body, sticker, attachment: attachmentPayload })
     };
 
     if (communitySupabase) {
       const { error } = await communitySupabase.from('community_messages').insert(payload);
       if (error) {
+        if (attachmentPayload?.path) {
+          await communitySupabase.storage
+            .from(attachmentPayload.bucket || COMMUNITY_ATTACHMENT_BUCKET)
+            .remove([attachmentPayload.path]);
+        }
         state.communitySyncError = error.message;
         state.communityComposerMessage = { type: 'error', text: 'Message could not be sent to the shared room.' };
         renderAppShell();
@@ -1425,7 +1606,7 @@
         trackId: track.id,
         body,
         sticker,
-        attachment,
+        attachment: attachmentPayload,
         createdAt: new Date().toISOString()
       }));
       writeStoredCommunityMessages(localMessages);
@@ -1442,13 +1623,20 @@
     const user = getCurrentUser();
     const track = getCurrentTrack();
     if (!user || !track) return;
+    const message = state.communityMessages.find(item => item.id === String(messageId));
 
     if (communitySupabase) {
+      if (message?.attachment?.path) {
+        await communitySupabase.storage
+          .from(message.attachment.bucket || COMMUNITY_ATTACHMENT_BUCKET)
+          .remove([message.attachment.path]);
+      }
+
       const { error } = await communitySupabase
         .from('community_messages')
         .delete()
         .eq('id', messageId)
-        .eq('author_id', user.id);
+        .eq('author_email', user.email);
 
       if (error) {
         state.communitySyncError = error.message;
@@ -1563,6 +1751,24 @@
     return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
   }
 
+  function formatFileSize(bytes) {
+    const value = Number(bytes);
+    if (!Number.isFinite(value) || value <= 0) return '0 B';
+    if (value >= 1024 * 1024 * 1024) return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+    if (value >= 1024) return `${Math.round(value / 1024)} KB`;
+    return `${value} B`;
+  }
+
+  function sanitizeFileName(name) {
+    const cleaned = String(name || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    return cleaned || 'attachment';
+  }
+
   function escapeHtml(value) {
     return String(value)
       .replace(/&/g, '&amp;')
@@ -1600,7 +1806,9 @@
   window.openLiveClass = openLiveClass;
   window.toggleLiveClassAttendance = toggleLiveClassAttendance;
   window.submitAssessmentLink = submitAssessmentLink;
+  window.toggleCommunityStickerPack = toggleCommunityStickerPack;
   window.selectCommunitySticker = selectCommunitySticker;
+  window.clearCommunitySticker = clearCommunitySticker;
   window.handleCommunityFileSelect = handleCommunityFileSelect;
   window.clearCommunityAttachment = clearCommunityAttachment;
   window.postCommunityMessage = postCommunityMessage;
