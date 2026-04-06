@@ -256,7 +256,7 @@
 
   function getCurrentTrack() {
     const user = getCurrentUser();
-    return user ? window.RKH_DATA.tracks[user.trackId] : null;
+    return user ? window.RKH_DATA?.tracks?.[user.trackId] || null : null;
   }
 
   function ensureCurriculumDefaults(track) {
@@ -419,6 +419,8 @@
     dom.authMessage.className = 'form-message';
   }
 
+  // Build the landing-page programme cards from the same track data used by the LMS.
+  // That way, entry-level developers only need to update one source of truth.
   function renderMarketingTracks() {
     const tracks = Object.values(window.RKH_DATA.tracks);
     dom.marketingTracks.innerHTML = tracks.map(track => `
@@ -455,11 +457,11 @@
     event.preventDefault();
 
     const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-    const password = document.getElementById('loginPassword').value;
+    const password = document.getElementById('loginPassword').value.trim();
 
     const user = state.users.find(item => item.email.toLowerCase() === email && item.password === password);
     if (!user) {
-      showAuthMessage('Invalid email or password. Use one of the created accounts or register a new learner.', 'error');
+      showAuthMessage('Invalid email or password. Try demo accounts: cloud@realkinghubs.demo, frontend@realkinghubs.demo, or backend@realkinghubs.demo with password "password123", or register a new account.', 'error');
       return;
     }
 
@@ -531,7 +533,8 @@
     const track = trackId || 'cloud-engineering';
     let user = state.users.find(item => item.trackId === track);
     if (!user) {
-      user = createDemoUser(`demo-${track}`, 'Demo', 'Learner', `${track}@realkinghubs.demo`, track, 'Demo learner profile for platform review.');
+      const trackPrefix = track.split('-')[0];
+      user = createDemoUser(`demo-${trackPrefix}`, 'Demo', 'Learner', `${trackPrefix}@realkinghubs.demo`, track, 'Demo learner profile for platform review.');
       state.users.unshift(user);
       persistUsers();
     }
@@ -929,6 +932,8 @@
     `;
   }
 
+  // Curriculum rendering is intentionally split into semester -> month -> week.
+  // This keeps the navigation clear and makes it easier to expand later.
   function renderCurriculum(user, track) {
     const allMonths = track.semesters.flatMap(semester => semester.months);
     const openSemesterId = track.semesters.some(semester => semester.id === state.currentCurriculumSemesterId)
@@ -936,7 +941,7 @@
       : track.semesters[0]?.id || null;
     const openMonthId = allMonths.some(month => month.id === state.currentCurriculumMonthId)
       ? state.currentCurriculumMonthId
-      : allMonths[0]?.id || null;
+      : null;
     const semestersHtml = track.semesters.map(semester => {
       const semesterProgress = calculateSemesterProgress(user, semester);
       const isOpen = semester.id === openSemesterId;
@@ -977,6 +982,7 @@
     `;
   }
 
+  // Month cards act like drawers inside a semester so learners can focus on one block at a time.
   function renderMonthCard(user, month, isOpen) {
     const completedWeeks = month.weeks.filter(week => user.completedLessonIds.includes(week.id)).length;
     const monthPercent = month.weeks.length ? Math.round((completedWeeks / month.weeks.length) * 100) : 0;
@@ -990,6 +996,7 @@
           <div class="curriculum-month-side">
             <span class="status-pill ${month.phase === 'Revision' ? 'warning' : 'neutral'}">${month.phase}</span>
             <span class="curriculum-month-progress">${monthPercent}%</span>
+            <span class="curriculum-semester-toggle-label">${isOpen ? 'Collapse' : 'Expand'}</span>
           </div>
         </button>
         ${isOpen ? `
@@ -1104,12 +1111,14 @@
           <div class="community-composer-toolbar">
             <button class="btn btn-secondary btn-small" type="button" onclick="toggleCommunityStickerPack()">${state.communityStickerPackOpen ? 'Hide sticker pack' : 'Open sticker pack'}</button>
             <input id="communityFileInput" type="file" class="hidden" onchange="handleCommunityFileSelect(event)" />
+            <input id="communityFolderInput" type="file" class="hidden" webkitdirectory directory multiple onchange="handleCommunityFolderSelect(event)" />
             <button class="btn btn-secondary btn-small" type="button" onclick="document.getElementById('communityFileInput').click()">Attach file</button>
+            <button class="btn btn-secondary btn-small" type="button" onclick="document.getElementById('communityFolderInput').click()">Attach folder</button>
           </div>
           ${state.communityStickerPackOpen ? renderCommunityStickerPack() : ''}
           ${state.communitySelectedSticker ? `<div class="community-selection-pill"><span>Selected sticker</span><strong>${escapeHtml(state.communitySelectedSticker)}</strong><button type="button" onclick="clearCommunitySticker()">Clear</button></div>` : ''}
           <div class="community-upload-row">
-            ${state.communityAttachment ? `<div class="community-attachment-pill"><span>${escapeHtml(state.communityAttachment.name)} (${formatFileSize(state.communityAttachment.size)})</span><button type="button" onclick="clearCommunityAttachment()">Remove</button></div>` : '<span class="copy-muted">Add a file or choose a sticker from the pack before you send.</span>'}
+            ${state.communityAttachment ? renderCommunityComposerAttachmentSummary(state.communityAttachment) : '<span class="copy-muted">Add a file, folder, or sticker from the pack before you send.</span>'}
           </div>
           <div class="composer-actions"><button class="btn btn-primary btn-small" type="button" onclick="postCommunityMessage()">Post message</button><button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('announcements')">Check announcements</button></div>
         </aside>
@@ -1148,6 +1157,26 @@
     `;
   }
 
+  function renderCommunityComposerAttachmentSummary(attachment) {
+    if (!attachment) return '';
+
+    if (attachment.kind === 'folder') {
+      return `
+        <div class="community-attachment-pill">
+          <span>${escapeHtml(attachment.name)} (${attachment.fileCount} files, ${formatFileSize(attachment.size)})</span>
+          <button type="button" onclick="clearCommunityAttachment()">Remove</button>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="community-attachment-pill">
+        <span>${escapeHtml(attachment.name)} (${formatFileSize(attachment.size)})</span>
+        <button type="button" onclick="clearCommunityAttachment()">Remove</button>
+      </div>
+    `;
+  }
+
   function renderMessageRow(user, message) {
     const ownMessage = user.id === message.authorId || user.email === message.authorEmail;
     return `
@@ -1162,8 +1191,36 @@
   }
 
   function renderCommunityAttachment(attachment) {
+    if (!attachment?.name) return '';
+
+    if (attachment.kind === 'folder') {
+      const folderSize = attachment.size ? formatFileSize(attachment.size) : '';
+      const folderMeta = folderSize
+        ? `Folder | ${attachment.fileCount || 0} files | ${folderSize}`
+        : `Folder | ${attachment.fileCount || 0} files`;
+      const visibleFiles = (attachment.files || []).slice(0, 6);
+      const remainingFiles = Math.max((attachment.files || []).length - visibleFiles.length, 0);
+
+      return `
+        <div class="message-attachment-card">
+          <div class="message-attachment-meta">
+            <strong>${escapeHtml(attachment.name)}</strong>
+            <span>${folderMeta}</span>
+          </div>
+          <div class="message-folder-list">
+            ${visibleFiles.map(file => `
+              <a class="message-folder-link" href="${escapeAttribute(file.url)}" target="_blank" rel="noopener">
+                ${escapeHtml(file.relativePath || file.name)}
+              </a>
+            `).join('')}
+            ${remainingFiles > 0 ? `<span class="message-folder-more">+ ${remainingFiles} more files in this folder</span>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
     const attachmentUrl = attachment?.url || attachment?.dataUrl || '';
-    if (!attachmentUrl || !attachment?.name) return '';
+    if (!attachmentUrl) return '';
 
     const safeName = escapeHtml(attachment.name);
     const safeNameAttr = escapeAttribute(attachment.name);
@@ -1424,6 +1481,8 @@
     state.communityComposerMessage = null;
     const fileInput = document.getElementById('communityFileInput');
     if (fileInput) fileInput.value = '';
+    const folderInput = document.getElementById('communityFolderInput');
+    if (folderInput) folderInput.value = '';
     renderAppShell();
   }
 
@@ -1462,6 +1521,47 @@
     renderAppShell();
   }
 
+  // Folder sharing is handled as a collection of files uploaded into one folder path in storage.
+  // We keep the relative file names so the folder structure still makes sense in the message feed.
+  function handleCommunityFolderSelect(event) {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    const folderName = (files[0].webkitRelativePath || files[0].name).split('/')[0] || 'Shared folder';
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+
+    if (totalSize > COMMUNITY_ATTACHMENT_LIMIT_BYTES) {
+      state.communityComposerMessage = {
+        type: 'error',
+        text: 'Folders must be 2 GB or smaller to send through the community room.'
+      };
+      event.target.value = '';
+      renderAppShell();
+      return;
+    }
+
+    state.communityAttachment = {
+      kind: 'folder',
+      name: folderName,
+      size: totalSize,
+      fileCount: files.length,
+      files: files.map(file => ({
+        file,
+        name: file.name,
+        relativePath: normalizeFolderRelativePath(file.webkitRelativePath || file.name),
+        type: file.type || 'application/octet-stream',
+        size: file.size
+      }))
+    };
+    state.communityComposerMessage = {
+      type: 'success',
+      text: `${folderName} is attached and ready to send (${files.length} files, ${formatFileSize(totalSize)}).`
+    };
+    event.target.value = '';
+    renderAppShell();
+  }
+
+  // Convert a file into a browser-safe data URL for local-only fallback storage.
   function readFileAsDataUrl(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -1471,10 +1571,22 @@
     });
   }
 
+  // Decide whether an attachment should stay local or move through shared storage.
+  // This protects the app from trying to serialize very large files into localStorage.
   async function prepareCommunityAttachmentPayload(user, track, attachment) {
-    if (!attachment?.file) return null;
+    if (!attachment) return null;
 
     const MAX_LOCAL_ATTACHMENT_BYTES = 50 * 1024 * 1024;
+
+    if (attachment.kind === 'folder') {
+      if (!communitySupabase) {
+        throw new Error('Folder sharing requires Supabase storage to be active for this browser session.');
+      }
+
+      return uploadCommunityFolder(user, track, attachment);
+    }
+
+    if (!attachment.file) return null;
 
     if (!communitySupabase) {
       if (attachment.size > MAX_LOCAL_ATTACHMENT_BYTES) {
@@ -1511,6 +1623,8 @@
     }
   }
 
+  // Upload the physical file to Supabase Storage, then return only the metadata
+  // needed for the message feed to render a usable attachment link later.
   async function uploadCommunityAttachment(user, track, attachment) {
     if (!attachment?.file || !communitySupabase) return null;
 
@@ -1537,6 +1651,65 @@
     };
   }
 
+  async function uploadCommunityFolder(user, track, attachment) {
+    if (!attachment?.files?.length || !communitySupabase) return null;
+
+    const safeFolderName = sanitizeFileName(attachment.name || 'folder');
+    const folderRoot = `${track.id}/${user.id}/folders/${Date.now()}-${safeFolderName}`;
+    const storage = communitySupabase.storage.from(COMMUNITY_ATTACHMENT_BUCKET);
+    const uploadedFiles = [];
+
+    try {
+      for (const fileEntry of attachment.files) {
+        const sanitizedRelativePath = sanitizeFolderRelativePath(fileEntry.relativePath || fileEntry.name);
+        const path = `${folderRoot}/${sanitizedRelativePath}`;
+        const { error } = await storage.upload(path, fileEntry.file, {
+          upsert: false,
+          contentType: fileEntry.type || fileEntry.file.type || 'application/octet-stream'
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        const { data } = storage.getPublicUrl(path);
+        uploadedFiles.push({
+          name: fileEntry.name,
+          relativePath: fileEntry.relativePath || fileEntry.name,
+          path,
+          url: data.publicUrl,
+          type: fileEntry.type || fileEntry.file.type || 'application/octet-stream',
+          size: fileEntry.size || fileEntry.file.size || 0
+        });
+      }
+    } catch (error) {
+      if (uploadedFiles.length) {
+        await storage.remove(uploadedFiles.map(file => file.path));
+      }
+      throw error;
+    }
+
+    return {
+      kind: 'folder',
+      bucket: COMMUNITY_ATTACHMENT_BUCKET,
+      rootPath: folderRoot,
+      name: attachment.name,
+      fileCount: attachment.fileCount,
+      size: attachment.size,
+      files: uploadedFiles
+    };
+  }
+
+  function getCommunityUploadErrorMessage(error) {
+    const message = String(error?.message || '').toLowerCase();
+    if (message.includes('bucket') || message.includes('storage') || message.includes('not found')) {
+      return 'Attachment could not be uploaded. Run the updated Supabase SQL so the community-attachments storage bucket is created.';
+    }
+    return error?.message || 'Attachment could not be prepared for sending.';
+  }
+
+  // Community messages can contain text, a sticker, or a file attachment.
+  // The room value keeps each message scoped to the learner's selected programme.
   async function postCommunityMessage() {
     const user = getCurrentUser();
     const track = getCurrentTrack();
@@ -1547,7 +1720,7 @@
     const sticker = state.communitySelectedSticker;
     const attachment = state.communityAttachment;
     if (!body && !sticker && !attachment) {
-      state.communityComposerMessage = { type: 'error', text: 'Add a message, a sticker, or a file before sending.' };
+      state.communityComposerMessage = { type: 'error', text: 'Add a message, a sticker, a file, or a folder before sending.' };
       renderAppShell();
       return;
     }
@@ -1566,7 +1739,7 @@
         state.communitySyncError = error.message;
         state.communityComposerMessage = {
           type: 'error',
-          text: error.message || 'Attachment could not be prepared for sending.'
+          text: getCommunityUploadErrorMessage(error)
         };
         renderAppShell();
         return;
@@ -1626,7 +1799,11 @@
     const message = state.communityMessages.find(item => item.id === String(messageId));
 
     if (communitySupabase) {
-      if (message?.attachment?.path) {
+      if (message?.attachment?.kind === 'folder' && message.attachment.files?.length) {
+        await communitySupabase.storage
+          .from(message.attachment.bucket || COMMUNITY_ATTACHMENT_BUCKET)
+          .remove(message.attachment.files.map(file => file.path).filter(Boolean));
+      } else if (message?.attachment?.path) {
         await communitySupabase.storage
           .from(message.attachment.bucket || COMMUNITY_ATTACHMENT_BUCKET)
           .remove([message.attachment.path]);
@@ -1656,6 +1833,7 @@
     renderAppShell();
   }
 
+  // Open a semester and keep month focus inside that semester predictable for the learner.
   function toggleCurriculumSemester(semesterId) {
     const track = getCurrentTrack();
     if (!track) return;
@@ -1669,10 +1847,11 @@
     renderAppShell();
   }
 
+  // Clicking the current month again collapses it, which keeps the curriculum list tidy.
   function toggleCurriculumMonth(monthId) {
-    state.currentCurriculumMonthId = monthId;
+    state.currentCurriculumMonthId = state.currentCurriculumMonthId === monthId ? null : monthId;
     const track = getCurrentTrack();
-    if (track) {
+    if (track && state.currentCurriculumMonthId) {
       const lessonContext = track.semesters
         .map(semester => ({ semester, month: semester.months.find(item => item.id === monthId) }))
         .find(item => item.month);
@@ -1769,6 +1948,22 @@
     return cleaned || 'attachment';
   }
 
+  function normalizeFolderRelativePath(path) {
+    const normalized = String(path || '')
+      .replace(/\\/g, '/')
+      .replace(/^\.\//, '');
+    const segments = normalized.split('/').filter(Boolean);
+    return segments.length > 1 ? segments.slice(1).join('/') : segments[0] || 'file';
+  }
+
+  function sanitizeFolderRelativePath(path) {
+    return normalizeFolderRelativePath(path)
+      .split('/')
+      .map(segment => sanitizeFileName(segment))
+      .filter(Boolean)
+      .join('/');
+  }
+
   function escapeHtml(value) {
     return String(value)
       .replace(/&/g, '&amp;')
@@ -1810,6 +2005,7 @@
   window.selectCommunitySticker = selectCommunitySticker;
   window.clearCommunitySticker = clearCommunitySticker;
   window.handleCommunityFileSelect = handleCommunityFileSelect;
+  window.handleCommunityFolderSelect = handleCommunityFolderSelect;
   window.clearCommunityAttachment = clearCommunityAttachment;
   window.postCommunityMessage = postCommunityMessage;
   window.deleteCommunityMessage = deleteCommunityMessage;

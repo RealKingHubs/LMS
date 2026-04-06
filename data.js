@@ -1,39 +1,110 @@
 (function () {
-  const videoLibrary = {
-    html: 'https://www.youtube-nocookie.com/embed/qz0aGYrrlhU',
-    css: 'https://www.youtube-nocookie.com/embed/1Rs2ND1ryYc',
-    javascript: 'https://www.youtube-nocookie.com/embed/W6NZfCO5SIk',
-    react: 'https://www.youtube-nocookie.com/embed/bMknfKXIFA8',
-    node: 'https://www.youtube-nocookie.com/embed/Oe421EPjeBE',
-    api: 'https://www.youtube-nocookie.com/embed/-MTSQjw5DrM',
-    database: 'https://www.youtube-nocookie.com/embed/HXV3zeQKqGY',
-    cloud: 'https://www.youtube-nocookie.com/embed/SOTamWNgDKc',
-    docker: 'https://www.youtube-nocookie.com/embed/pg19Z8LL06w',
-    kubernetes: 'https://www.youtube-nocookie.com/embed/X48VuDVv0do',
-    cicd: 'https://www.youtube-nocookie.com/embed/scEDHsr3APg',
+  // Cloud Engineering Video Library - Expanded for diverse learning weeks, months, and semesters
+  const cloudVideoLibrary = {
     linux: 'https://www.youtube-nocookie.com/embed/IVquJh3DXUA',
-    security: 'https://www.youtube-nocookie.com/embed/inWWhr5tnEA'
+    networking: 'https://www.youtube-nocookie.com/embed/IPvYpXCsTqw',
+    dns: 'https://www.youtube-nocookie.com/embed/8aGhZkoFGQ',
+    cloud: 'https://www.youtube-nocookie.com/embed/SOTamWNgDKc',
+    aws: 'https://www.youtube-nocookie.com/embed/3hLmDS179YE',
+    azure: 'https://www.youtube-nocookie.com/embed/tDacjnSQipM',
+    security: 'https://www.youtube-nocookie.com/embed/inWWhr5tnEA',
+    iam: 'https://www.youtube-nocookie.com/embed/KxzlLvnT5Ek',
+    docker: 'https://www.youtube-nocookie.com/embed/pg19Z8LL06w',
+    containers: 'https://www.youtube-nocookie.com/embed/rOTqprHDvw0',
+    kubernetes: 'https://www.youtube-nocookie.com/embed/X48VuDVv0do',
+    k8s: 'https://www.youtube-nocookie.com/embed/Gtw_d0Y5CX8',
+    terraform: 'https://www.youtube-nocookie.com/embed/l5k1aj2VSgQ',
+    cicd: 'https://www.youtube-nocookie.com/embed/scEDHsr3APg',
+    jenkins: 'https://www.youtube-nocookie.com/embed/e3C7O7-ErHg',
+    automation: 'https://www.youtube-nocookie.com/embed/TJ_5KZ0ZlLY',
+    monitoring: 'https://www.youtube-nocookie.com/embed/Rv9j8VJc-T8',
+    prometheus: 'https://www.youtube-nocookie.com/embed/CmPYrate78U',
+    logging: 'https://www.youtube-nocookie.com/embed/Khv7JwMfvCE',
+    observability: 'https://www.youtube-nocookie.com/embed/MkSJrVo6xYQ',
+    encryption: 'https://www.youtube-nocookie.com/embed/O1JQmVBl5Ck',
+    compliance: 'https://www.youtube-nocookie.com/embed/dZFjjBcVPrE'
   };
 
-  function buildLearningWeeks(trackKey, semesterNumber, monthNumber, lessons, videoKeys) {
+  const frontendVideoLibrary = {
+    html: 'https://www.youtube-nocookie.com/embed/qz0aGYrrlhU',
+    semantic: 'https://www.youtube-nocookie.com/embed/kGW8Al_cga4',
+    accessibility: 'https://www.youtube-nocookie.com/embed/K54X0RsLTZU',
+    css: 'https://www.youtube-nocookie.com/embed/1Rs2ND1ryYc',
+    flexbox: 'https://www.youtube-nocookie.com/embed/JJSoEo8JSnc',
+    grid: 'https://www.youtube-nocookie.com/embed/sKFACtjZS-g',
+    responsive: 'https://www.youtube-nocookie.com/embed/BIp_Li0OsAo',
+    animation: 'https://www.youtube-nocookie.com/embed/4eZVD-eFGT0',
+    javascript: 'https://www.youtube-nocookie.com/embed/W6NZfCO5SIk',
+    dom: 'https://www.youtube-nocookie.com/embed/0fKg7e37bQE',
+    async: 'https://www.youtube-nocookie.com/embed/PoRJizFVH94',
+    modernjs: 'https://www.youtube-nocookie.com/embed/R9I85RhSKVk',
+    react: 'https://www.youtube-nocookie.com/embed/bMknfKXIFA8',
+    hooks: 'https://www.youtube-nocookie.com/embed/TNhaISOUy6Q',
+    redux: 'https://www.youtube-nocookie.com/embed/iBUJVy8PhqI',
+    routing: 'https://www.youtube-nocookie.com/embed/2k0eMzAQilo',
+    api: 'https://www.youtube-nocookie.com/embed/-MTSQjw5DrM',
+    fetch: 'https://www.youtube-nocookie.com/embed/tYzMGcUty6s',
+    graphql: 'https://www.youtube-nocookie.com/embed/eIQh02xuVw4',
+    testing: 'https://www.youtube-nocookie.com/embed/Jv3CGLKMl7s',
+    jest: 'https://www.youtube-nocookie.com/embed/7r4xVDfy3IM',
+    debugging: 'https://www.youtube-nocookie.com/embed/H0XScE08hy8',
+    performance: 'https://www.youtube-nocookie.com/embed/0n8BcvsHMvE',
+    bundling: 'https://www.youtube-nocookie.com/embed/TAwm87tCMhM'
+  };
+
+  const backendVideoLibrary = {
+    javascript: 'https://www.youtube-nocookie.com/embed/W6NZfCO5SIk',
+    node: 'https://www.youtube-nocookie.com/embed/Oe421EPjeBE',
+    asyncnode: 'https://www.youtube-nocookie.com/embed/XO4BjKWfuTQ',
+    modules: 'https://www.youtube-nocookie.com/embed/pU9Q6weUV1o',
+    database: 'https://www.youtube-nocookie.com/embed/HXV3zeQKqGY',
+    sql: 'https://www.youtube-nocookie.com/embed/HXV3zeQKqGY',
+    nosql: 'https://www.youtube-nocookie.com/embed/W95qqLMZd9w',
+    mongodb: 'https://www.youtube-nocookie.com/embed/ofme2o29ngU',
+    api: 'https://www.youtube-nocookie.com/embed/-MTSQjw5DrM',
+    rest: 'https://www.youtube-nocookie.com/embed/6sGbRvgqXSw',
+    graphql: 'https://www.youtube-nocookie.com/embed/eIQh02xuVw4',
+    websockets: 'https://www.youtube-nocookie.com/embed/vQchiSn5pIQ',
+    security: 'https://www.youtube-nocookie.com/embed/inWWhr5tnEA',
+    auth: 'https://www.youtube-nocookie.com/embed/2PPSXonhWQw',
+    jwt: 'https://www.youtube-nocookie.com/embed/7agoErZk69Q',
+    encryption: 'https://www.youtube-nocookie.com/embed/O1JQmVBl5Ck',
+    testing: 'https://www.youtube-nocookie.com/embed/r9HdJ8P6GQI',
+    unittests: 'https://www.youtube-nocookie.com/embed/SmSJDztKkGU',
+    integration: 'https://www.youtube-nocookie.com/embed/7D8xPj7yHFI',
+    logging: 'https://www.youtube-nocookie.com/embed/Khv7JwMfvCE',
+    monitoring: 'https://www.youtube-nocookie.com/embed/Rv9j8VJc-T8',
+    docker: 'https://www.youtube-nocookie.com/embed/pg19Z8LL06w',
+    cicd: 'https://www.youtube-nocookie.com/embed/scEDHsr3APg',
+    architecture: 'https://www.youtube-nocookie.com/embed/tpspO9K28PM'
+  };
+
+  function buildLearningWeeks(videoLib, trackKey, semesterNumber, monthNumber, lessons, videoKeys) {
     return lessons.map((lesson, index) => ({
       id: `${trackKey}-s${semesterNumber}-m${monthNumber}-w${index + 1}`,
       title: `Week ${index + 1}: ${lesson}`,
       objective: `Study the core concepts for ${lesson.toLowerCase()} and complete the guided practice.` ,
       type: 'learning',
-      videoUrl: videoLibrary[videoKeys[index] || videoKeys[0]],
+      videoUrl: videoLib[videoKeys[index] || videoKeys[0]],
       resources: ['Lesson video', 'Reading note', 'Practice task']
     }));
   }
 
-  function buildRevisionWeeks(trackKey, semesterNumber, monthNumber) {
+  function buildRevisionWeeks(videoLib, trackKey, semesterNumber, monthNumber, videoKeys = {}) {
+    const keys = {
+      week1: videoKeys.week1 || Object.keys(videoLib)[0],
+      week2: videoKeys.week2 || Object.keys(videoLib)[1] || Object.keys(videoLib)[0],
+      week3: videoKeys.week3 || Object.keys(videoLib)[2] || Object.keys(videoLib)[0],
+      week4: videoKeys.week4 || Object.keys(videoLib)[0]
+    };
+    
     return [
       {
         id: `${trackKey}-s${semesterNumber}-m${monthNumber}-w1`,
         title: 'Week 1: Guided Revision',
         objective: 'Review the semester material with instructor checkpoints and summary notes.',
         type: 'revision',
-        videoUrl: videoLibrary.cloud,
+        videoUrl: videoLib[keys.week1],
         resources: ['Revision checklist', 'Summary slides', 'Instructor notes']
       },
       {
@@ -41,7 +112,7 @@
         title: 'Week 2: Mock Assessment',
         objective: 'Attempt the mock assessment and identify improvement areas before the exam.',
         type: 'revision',
-        videoUrl: videoLibrary.security,
+        videoUrl: videoLib[keys.week2],
         resources: ['Mock assessment', 'Marking guide', 'Feedback form']
       },
       {
@@ -49,7 +120,7 @@
         title: 'Week 3: Project Polish',
         objective: 'Refine your capstone, close outstanding tasks, and prepare for submission.',
         type: 'revision',
-        videoUrl: videoLibrary.cicd,
+        videoUrl: videoLib[keys.week3],
         resources: ['Project rubric', 'Submission checklist', 'Mentor review notes']
       },
       {
@@ -57,13 +128,13 @@
         title: 'Week 4: Semester Exam',
         objective: 'Complete the semester exam and submit your final review materials.',
         type: 'exam',
-        videoUrl: videoLibrary.cloud,
+        videoUrl: videoLib[keys.week4],
         resources: ['Exam brief', 'Exam window', 'Post-exam reflection']
       }
     ];
   }
 
-  function buildSemester(trackKey, semesterNumber, title, learningMonths) {
+  function buildSemester(videoLib, trackKey, semesterNumber, title, learningMonths) {
     return {
       id: `${trackKey}-semester-${semesterNumber}`,
       label: `Semester ${semesterNumber}`,
@@ -75,7 +146,7 @@
           title: learningMonths[0].title,
           summary: learningMonths[0].summary,
           phase: 'Learning',
-          weeks: buildLearningWeeks(trackKey, semesterNumber, 1, learningMonths[0].lessons, learningMonths[0].videos)
+          weeks: buildLearningWeeks(videoLib, trackKey, semesterNumber, 1, learningMonths[0].lessons, learningMonths[0].videos)
         },
         {
           id: `${trackKey}-semester-${semesterNumber}-month-2`,
@@ -83,7 +154,7 @@
           title: learningMonths[1].title,
           summary: learningMonths[1].summary,
           phase: 'Learning',
-          weeks: buildLearningWeeks(trackKey, semesterNumber, 2, learningMonths[1].lessons, learningMonths[1].videos)
+          weeks: buildLearningWeeks(videoLib, trackKey, semesterNumber, 2, learningMonths[1].lessons, learningMonths[1].videos)
         },
         {
           id: `${trackKey}-semester-${semesterNumber}-month-3`,
@@ -91,7 +162,7 @@
           title: learningMonths[2].title,
           summary: learningMonths[2].summary,
           phase: 'Learning',
-          weeks: buildLearningWeeks(trackKey, semesterNumber, 3, learningMonths[2].lessons, learningMonths[2].videos)
+          weeks: buildLearningWeeks(videoLib, trackKey, semesterNumber, 3, learningMonths[2].lessons, learningMonths[2].videos)
         },
         {
           id: `${trackKey}-semester-${semesterNumber}-month-4`,
@@ -99,7 +170,7 @@
           title: 'Revision and Exam',
           summary: 'Dedicated revision block, mock test, project polish, and semester exam.',
           phase: 'Revision',
-          weeks: buildRevisionWeeks(trackKey, semesterNumber, 4)
+          weeks: buildRevisionWeeks(videoLib, trackKey, semesterNumber, 4)
         }
       ]
     };
@@ -132,7 +203,7 @@
           instructor: 'Daniel Okafor',
           schedule: 'Every Tuesday, 18:00 WAT',
           room: 'Room A',
-          videoUrl: videoLibrary.cloud,
+          videoUrl: cloudVideoLibrary.cloud,
           notes: ['Review current week tasks before class.', 'Prepare one deployment question.', 'Capture action items in class notes.']
         },
         {
@@ -141,7 +212,7 @@
           instructor: 'Peace Aina',
           schedule: 'Every Thursday, 19:00 WAT',
           room: 'Lab Room',
-          videoUrl: videoLibrary.kubernetes,
+          videoUrl: cloudVideoLibrary.kubernetes,
           notes: ['Practice the container build steps.', 'Follow along with the live manifest demo.', 'Submit the lab checklist after class.']
         }
       ],
@@ -158,17 +229,17 @@
         { title: 'Kubernetes Reliability Review', semester: 'Semester 3', module: 'Kubernetes and Monitoring', brief: 'Submit the link to your cluster review and observability report.', createdAt: '2026-04-05T09:00:00Z', dueAt: '2026-04-22T23:59:00Z' }
       ]),
       semesters: [
-        buildSemester('cloud-engineering', 1, 'Core Cloud Foundations', [
+        buildSemester(cloudVideoLibrary, 'cloud-engineering', 1, 'Core Cloud Foundations', [
           { title: 'Linux and Networking Fundamentals', summary: 'Build the operating system and networking base for cloud work.', lessons: ['Linux command line essentials', 'Networking layers and ports', 'DNS, routing, and troubleshooting', 'Cloud-ready shell practice'], videos: ['linux', 'cloud', 'cloud', 'linux'] },
           { title: 'Cloud Foundations and IAM', summary: 'Understand accounts, access control, and core cloud services.', lessons: ['Cloud service models', 'Identity and access management', 'Compute and storage basics', 'Cost awareness and tagging'], videos: ['cloud', 'security', 'cloud', 'cloud'] },
           { title: 'Compute, Storage, and Architecture', summary: 'Design a stable baseline environment for applications.', lessons: ['Virtual machines and autoscaling', 'Storage classes and backups', 'Reference architecture patterns', 'Reliability fundamentals'], videos: ['cloud', 'cloud', 'cloud', 'security'] }
         ]),
-        buildSemester('cloud-engineering', 2, 'Automation and Platform Delivery', [
+        buildSemester(cloudVideoLibrary, 'cloud-engineering', 2, 'Automation and Platform Delivery', [
           { title: 'Containers and Docker', summary: 'Containerize applications and manage repeatable delivery.', lessons: ['Docker images and layers', 'Compose files and local stacks', 'Container debugging', 'Secure image practices'], videos: ['docker', 'docker', 'docker', 'security'] },
           { title: 'Infrastructure as Code and CI/CD', summary: 'Automate environments and deployment pipelines.', lessons: ['Infrastructure as code principles', 'Pipeline design', 'Secrets and environment control', 'Release automation'], videos: ['cicd', 'cicd', 'security', 'cicd'] },
           { title: 'Kubernetes and Monitoring', summary: 'Run applications at scale and observe their health.', lessons: ['Kubernetes core objects', 'Workloads and services', 'Observability basics', 'Scaling and recovery drills'], videos: ['kubernetes', 'kubernetes', 'cloud', 'kubernetes'] }
         ]),
-        buildSemester('cloud-engineering', 3, 'Production Cloud Engineering', [
+        buildSemester(cloudVideoLibrary, 'cloud-engineering', 3, 'Production Cloud Engineering', [
           { title: 'Resilience and Security Operations', summary: 'Improve uptime, auditability, and incident readiness.', lessons: ['Threat modelling for cloud systems', 'Backup and disaster recovery', 'Policy and compliance basics', 'Incident response workflow'], videos: ['security', 'cloud', 'security', 'security'] },
           { title: 'Data Platforms and Platform Operations', summary: 'Support data-heavy systems and platform operations.', lessons: ['Managed data services', 'Queues and event flows', 'Platform operations handbook', 'Service ownership'], videos: ['database', 'api', 'cloud', 'cloud'] },
           { title: 'Capstone Delivery and Career Readiness', summary: 'Present a production-style cloud delivery project.', lessons: ['Capstone planning', 'Deployment walkthrough', 'Review and optimisation', 'Final presentation'], videos: ['cloud', 'cicd', 'kubernetes', 'cloud'] }
@@ -181,8 +252,8 @@
       summary: 'Modern web interfaces, design systems, performance, testing, and deployment.',
       outcomes: ['Accessible interfaces', 'React applications', 'Production delivery'],
       liveClasses: [
-        { id: 'frontend-live-1', title: 'Frontend Studio Review', instructor: 'Mary Johnson', schedule: 'Every Monday, 18:00 WAT', room: 'Studio 1', videoUrl: videoLibrary.react, notes: ['Bring your current UI build.', 'Review responsiveness before class.', 'Prepare one accessibility question.'] },
-        { id: 'frontend-live-2', title: 'Component Testing Session', instructor: 'Samuel Obi', schedule: 'Every Wednesday, 19:00 WAT', room: 'Testing Lab', videoUrl: videoLibrary.javascript, notes: ['Open your latest component branch.', 'Note one bug from your practice task.', 'Document your test cases.'] }
+        { id: 'frontend-live-1', title: 'Frontend Studio Review', instructor: 'Mary Johnson', schedule: 'Every Monday, 18:00 WAT', room: 'Studio 1', videoUrl: frontendVideoLibrary.react, notes: ['Bring your current UI build.', 'Review responsiveness before class.', 'Prepare one accessibility question.'] },
+        { id: 'frontend-live-2', title: 'Component Testing Session', instructor: 'Samuel Obi', schedule: 'Every Wednesday, 19:00 WAT', room: 'Testing Lab', videoUrl: frontendVideoLibrary.javascript, notes: ['Open your latest component branch.', 'Note one bug from your practice task.', 'Document your test cases.'] }
       ],
       announcements: [
         { id: 'frontend-ann-1', title: 'Revision projects updated', body: 'Semester revision now includes component audit and responsive cleanup tasks.', date: 'April 5, 2026', createdAt: '2026-04-05T07:30:00Z' },
@@ -197,17 +268,17 @@
         { title: 'Frontend Capstone Delivery', semester: 'Semester 3', module: 'Capstone and Portfolio', brief: 'Submit the final hosted capstone link and repository link.', createdAt: '2026-04-05T09:00:00Z', dueAt: '2026-04-24T23:59:00Z' }
       ]),
       semesters: [
-        buildSemester('frontend-engineering', 1, 'Web Foundations', [
+        buildSemester(frontendVideoLibrary, 'frontend-engineering', 1, 'Web Foundations', [
           { title: 'HTML and CSS Foundations', summary: 'Understand the base layers of the web and build solid layouts.', lessons: ['Semantic HTML structure', 'Responsive CSS foundations', 'Layout systems and spacing', 'Accessible form patterns'], videos: ['html', 'css', 'css', 'html'] },
           { title: 'JavaScript Core Skills', summary: 'Control behaviour and interactive user flows in the browser.', lessons: ['Variables and functions', 'Arrays, objects, and state', 'DOM updates and events', 'Fetch and async behaviour'], videos: ['javascript', 'javascript', 'javascript', 'api'] },
           { title: 'Responsive UI Delivery', summary: 'Ship polished and maintainable interface work.', lessons: ['Responsive components', 'Animation fundamentals', 'Design handoff practice', 'Mini project delivery'], videos: ['css', 'css', 'html', 'javascript'] }
         ]),
-        buildSemester('frontend-engineering', 2, 'Modern Frontend Development', [
+        buildSemester(frontendVideoLibrary, 'frontend-engineering', 2, 'Modern Frontend Development', [
           { title: 'React Fundamentals', summary: 'Build reusable interfaces with component-driven development.', lessons: ['JSX and component structure', 'State and props', 'Hooks for side effects', 'Controlled forms'], videos: ['react', 'react', 'react', 'react'] },
           { title: 'Routing, State, and APIs', summary: 'Manage application state and data flows with confidence.', lessons: ['Client routing', 'State architecture', 'API consumption patterns', 'Loading and error states'], videos: ['react', 'react', 'api', 'api'] },
           { title: 'Testing and Quality', summary: 'Increase confidence through testing and review discipline.', lessons: ['Component testing basics', 'User flow checks', 'Code review standards', 'Performance review'], videos: ['javascript', 'javascript', 'react', 'react'] }
         ]),
-        buildSemester('frontend-engineering', 3, 'Production Frontend Engineering', [
+        buildSemester(frontendVideoLibrary, 'frontend-engineering', 3, 'Production Frontend Engineering', [
           { title: 'Advanced UI Systems', summary: 'Create durable systems for complex products.', lessons: ['Design system foundations', 'Reusable patterns', 'Accessibility audits', 'Performance budgets'], videos: ['react', 'css', 'html', 'react'] },
           { title: 'Framework Delivery', summary: 'Prepare frontend systems for production deployment.', lessons: ['App architecture planning', 'Server rendering concepts', 'Deployment readiness', 'Observability for frontend'], videos: ['react', 'react', 'cicd', 'cloud'] },
           { title: 'Capstone and Portfolio', summary: 'Ship a polished frontend capstone with presentation support.', lessons: ['Capstone planning', 'Implementation sprint', 'Review and refactor', 'Final walkthrough'], videos: ['react', 'react', 'javascript', 'react'] }
@@ -220,8 +291,8 @@
       summary: 'Server-side systems, APIs, databases, security, testing, and deployment.',
       outcomes: ['API design', 'Database engineering', 'Production backend systems'],
       liveClasses: [
-        { id: 'backend-live-1', title: 'Backend Architecture Clinic', instructor: 'Ibrahim Musa', schedule: 'Every Tuesday, 19:00 WAT', room: 'Architecture Room', videoUrl: videoLibrary.node, notes: ['Review service boundaries before class.', 'Bring your latest API contract.', 'Document bottlenecks to discuss live.'] },
-        { id: 'backend-live-2', title: 'Database and API Workshop', instructor: 'Ruth Eze', schedule: 'Every Thursday, 18:00 WAT', room: 'Data Lab', videoUrl: videoLibrary.database, notes: ['Complete the schema draft.', 'Review database indexing examples.', 'Prepare one integration question.'] }
+        { id: 'backend-live-1', title: 'Backend Architecture Clinic', instructor: 'Ibrahim Musa', schedule: 'Every Tuesday, 19:00 WAT', room: 'Architecture Room', videoUrl: backendVideoLibrary.node, notes: ['Review service boundaries before class.', 'Bring your latest API contract.', 'Document bottlenecks to discuss live.'] },
+        { id: 'backend-live-2', title: 'Database and API Workshop', instructor: 'Ruth Eze', schedule: 'Every Thursday, 18:00 WAT', room: 'Data Lab', videoUrl: backendVideoLibrary.database, notes: ['Complete the schema draft.', 'Review database indexing examples.', 'Prepare one integration question.'] }
       ],
       announcements: [
         { id: 'backend-ann-1', title: 'New API review checklist', body: 'A backend API review checklist is now available in the revision month section.', date: 'April 4, 2026', createdAt: '2026-04-04T08:30:00Z' },
@@ -236,17 +307,17 @@
         { title: 'Production Backend Capstone', semester: 'Semester 3', module: 'Capstone System Delivery', brief: 'Submit the deployed API link and repository link for final review.', createdAt: '2026-04-05T09:00:00Z', dueAt: '2026-04-25T23:59:00Z' }
       ]),
       semesters: [
-        buildSemester('backend-engineering', 1, 'Backend Foundations', [
+        buildSemester(backendVideoLibrary, 'backend-engineering', 1, 'Backend Foundations', [
           { title: 'Programming and Runtime Foundations', summary: 'Start with the base concepts that shape backend systems.', lessons: ['Runtime and execution flow', 'Functions and modules', 'Error handling and logging', 'Backend coding patterns'], videos: ['javascript', 'node', 'node', 'node'] },
           { title: 'Databases and Data Modelling', summary: 'Understand how applications persist and structure data.', lessons: ['Relational database basics', 'Schema design', 'Query writing and joins', 'Indexing fundamentals'], videos: ['database', 'database', 'database', 'database'] },
           { title: 'API Construction', summary: 'Build clear and maintainable backend interfaces.', lessons: ['REST principles', 'Routing and controllers', 'Validation and error responses', 'API documentation'], videos: ['api', 'node', 'security', 'api'] }
         ]),
-        buildSemester('backend-engineering', 2, 'Backend Systems Delivery', [
+        buildSemester(backendVideoLibrary, 'backend-engineering', 2, 'Backend Systems Delivery', [
           { title: 'Authentication and Security', summary: 'Protect systems and manage user access responsibly.', lessons: ['Sessions and tokens', 'Password handling', 'Authorization design', 'Secure configuration'], videos: ['security', 'security', 'security', 'security'] },
           { title: 'Testing and Observability', summary: 'Improve release confidence and production visibility.', lessons: ['Unit and integration testing', 'Test data strategy', 'Application logging', 'Monitoring basics'], videos: ['node', 'api', 'cloud', 'cloud'] },
           { title: 'Service Reliability', summary: 'Support growing systems with better architecture and operations.', lessons: ['Caching concepts', 'Queues and background jobs', 'Concurrency and scaling', 'Failure recovery'], videos: ['cloud', 'api', 'cloud', 'cloud'] }
         ]),
-        buildSemester('backend-engineering', 3, 'Production Backend Engineering', [
+        buildSemester(backendVideoLibrary, 'backend-engineering', 3, 'Production Backend Engineering', [
           { title: 'Architecture and Deployment', summary: 'Move from application code to production operations.', lessons: ['Service boundaries', 'Container delivery', 'Deployment pipelines', 'Configuration strategy'], videos: ['node', 'docker', 'cicd', 'cloud'] },
           { title: 'Performance and Data Services', summary: 'Design for speed, scale, and reliable data access.', lessons: ['Query optimisation', 'Read and write patterns', 'Data service resilience', 'Operational debugging'], videos: ['database', 'database', 'cloud', 'security'] },
           { title: 'Capstone System Delivery', summary: 'Present a backend capstone that feels production-ready.', lessons: ['Capstone planning', 'Implementation sprint', 'Review and hardening', 'Final presentation'], videos: ['api', 'node', 'security', 'cloud'] }
