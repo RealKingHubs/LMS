@@ -27,6 +27,17 @@
     }
   ];
 
+  // Founder profile content is centralized here so junior developers can update
+  // the landing-page biography and support link without searching the whole app.
+  const FOUNDER_PROFILE = {
+    email: 'ucking480@gmail.com',
+    displayName: 'Odo Kingsley Uchenna',
+    role: 'Owner and Founder, RealKingHubs Academy',
+    bio: 'RealKingHubs Academy was built to give learners a cleaner and more practical path into modern engineering careers across Cloud, Frontend, and Backend Engineering.',
+    supportUrl: 'https://selar.co/m/realkinghubs',
+    supportLabel: 'Buy me a coffee on Selar'
+  };
+
   const state = {
     users: [],
     currentUserId: null,
@@ -64,6 +75,7 @@
     persistUsers();
     initializeCommunitySync();
     renderMarketingTracks();
+    renderFounderShowcase();
     populateRegisterTrackSelect();
     bindEvents();
 
@@ -79,6 +91,11 @@
     dom.authPage = document.getElementById('authPage');
     dom.appPage = document.getElementById('appPage');
     dom.marketingTracks = document.getElementById('marketingTracks');
+    dom.founderAvatar = document.getElementById('founderAvatar');
+    dom.founderName = document.getElementById('founderName');
+    dom.founderRole = document.getElementById('founderRole');
+    dom.founderBio = document.getElementById('founderBio');
+    dom.founderSupportLink = document.getElementById('founderSupportLink');
     dom.loginForm = document.getElementById('loginForm');
     dom.registerForm = document.getElementById('registerForm');
     dom.loginTab = document.getElementById('loginTab');
@@ -92,11 +109,8 @@
     dom.topbarAlerts = document.getElementById('topbarAlerts');
     dom.topbarProgress = document.getElementById('topbarProgress');
     dom.topbarTrack = document.getElementById('topbarTrack');
+    dom.topbarAvatar = document.getElementById('topbarAvatar');
     dom.appFooterText = document.getElementById('appFooterText');
-    dom.sidebarTrack = document.getElementById('sidebarTrack');
-    dom.sidebarName = document.getElementById('sidebarName');
-    dom.sidebarEmail = document.getElementById('sidebarEmail');
-    dom.sidebarAvatar = document.getElementById('sidebarAvatar');
   }
 
   function bindEvents() {
@@ -257,6 +271,56 @@
   function getCurrentTrack() {
     const user = getCurrentUser();
     return user ? window.RKH_DATA?.tracks?.[user.trackId] || null : null;
+  }
+
+  function getFounderUser() {
+    return state.users.find(user => user.email.toLowerCase() === FOUNDER_PROFILE.email.toLowerCase()) || null;
+  }
+
+  // All fallback avatars are generated as inline SVG images so the interface
+  // still shows a real picture even before a learner uploads a profile photo.
+  function createGeneratedAvatar(fullName) {
+    const initials = getNameInitials(fullName);
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240" role="img" aria-label="${escapeAttribute(fullName)}">
+        <defs>
+          <linearGradient id="avatarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0f172a" />
+            <stop offset="100%" stop-color="#38bdf8" />
+          </linearGradient>
+        </defs>
+        <rect width="240" height="240" rx="72" fill="url(#avatarGradient)" />
+        <text x="50%" y="52%" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-family="Poppins, Arial, sans-serif" font-size="84" font-weight="700" letter-spacing="6">
+          ${escapeHtml(initials)}
+        </text>
+      </svg>
+    `.trim();
+
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  }
+
+  function getAvatarSrc(user, fallbackName = '') {
+    const fullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || fallbackName || 'RealKingHubs Academy';
+    return user?.avatar || createGeneratedAvatar(fullName);
+  }
+
+  function renderFounderShowcase() {
+    if (!dom.founderAvatar || !dom.founderName || !dom.founderRole || !dom.founderBio || !dom.founderSupportLink) {
+      return;
+    }
+
+    const founderUser = getFounderUser();
+    const founderName = founderUser
+      ? `${founderUser.firstName} ${founderUser.lastName}`.trim()
+      : FOUNDER_PROFILE.displayName;
+    const founderBio = founderUser?.bio?.trim() || founderUser?.headline?.trim() || FOUNDER_PROFILE.bio;
+
+    dom.founderAvatar.innerHTML = `<img src="${getAvatarSrc(founderUser, founderName)}" alt="${escapeAttribute(founderName)}" />`;
+    dom.founderName.textContent = founderName;
+    dom.founderRole.textContent = FOUNDER_PROFILE.role;
+    dom.founderBio.textContent = founderBio;
+    dom.founderSupportLink.href = FOUNDER_PROFILE.supportUrl;
+    dom.founderSupportLink.textContent = FOUNDER_PROFILE.supportLabel;
   }
 
   function ensureCurriculumDefaults(track) {
@@ -559,21 +623,79 @@
     renderCurrentView(user, track);
   }
 
+  // The sidebar uses an icon rail so the dashboard feels closer to a compact product workspace.
   function renderSidebar(user, track) {
     const notificationCounts = getNotificationCounts(user, track);
-    dom.sidebarTrack.textContent = track.label;
-    dom.sidebarName.textContent = `${user.firstName} ${user.lastName}`;
-    dom.sidebarEmail.textContent = user.email;
-    dom.sidebarAvatar.innerHTML = user.avatar
-      ? `<img src="${user.avatar}" alt="${user.firstName}" />`
-      : getInitials(user.firstName, user.lastName);
+    const navGroups = [
+      { title: 'Workspace', items: ['dashboard', 'curriculum', 'assessments', 'progress'] },
+      { title: 'Collaboration', items: ['live', 'community', 'announcements'] },
+      { title: 'Account', items: ['profile'] }
+    ];
 
-    dom.appNav.innerHTML = window.RKH_DATA.navItems.map(item => `
-      <button type="button" class="${item.id === state.currentView ? 'nav-active' : ''}" onclick="openDashboardView('${item.id}')">
-        <span class="nav-button-copy">${item.label}</span>
-        ${notificationCounts[item.id] ? `<span class="nav-badge">${notificationCounts[item.id]}</span>` : ''}
-      </button>
-    `).join('');
+    dom.appNav.innerHTML = navGroups.map(group => {
+      const buttons = group.items
+        .map(itemId => window.RKH_DATA.navItems.find(item => item.id === itemId))
+        .filter(Boolean)
+        .map(item => `
+          <button type="button" class="${item.id === state.currentView ? 'nav-active' : ''}" onclick="openDashboardView('${item.id}')" title="${item.label}" aria-label="${item.label}">
+            <span class="nav-icon" aria-hidden="true">${getNavIconMarkup(item.id)}</span>
+            <span class="nav-button-copy">${item.label}</span>
+            ${notificationCounts[item.id] ? `<span class="nav-badge" title="${notificationCounts[item.id]} new updates">${notificationCounts[item.id] > 9 ? '9+' : notificationCounts[item.id]}</span>` : ''}
+          </button>
+        `)
+        .join('');
+
+      return `
+        <section class="sidebar-nav-group">
+          <p class="sidebar-nav-title">${group.title}</p>
+          <div class="sidebar-nav-buttons">${buttons}</div>
+        </section>
+      `;
+    }).join('');
+  }
+
+  function getNavIconMarkup(viewId) {
+    const icons = {
+      dashboard: `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4.5 10.5L12 4l7.5 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-4v5H5.5a1 1 0 0 1-1-1v-8.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+        </svg>`,
+      curriculum: `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"></rect>
+          <path d="M4 10h16M10 5v14" fill="none" stroke="currentColor" stroke-width="1.8"></path>
+        </svg>`,
+      assessments: `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 4h6l1 2h3v14H5V6h3l1-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+          <path d="M9 11h6M9 15h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+        </svg>`,
+      progress: `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 19V9M12 19V5M19 19v-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+        </svg>`,
+      live: `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="4" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"></rect>
+          <path d="M10 10l4 2-4 2v-4z" fill="currentColor"></path>
+          <path d="M18 9l2-1.5v9L18 15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+        </svg>`,
+      community: `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M8.5 11.5A3.5 3.5 0 1 0 8.5 4.5a3.5 3.5 0 0 0 0 7zm7 2A3.5 3.5 0 1 0 15.5 6.5a3.5 3.5 0 0 0 0 7zM3.5 19c0-2.5 2.3-4.5 5-4.5s5 2 5 4.5M10.5 19c0-2 1.7-3.5 4-3.5 2.2 0 4 1.5 4 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+        </svg>`,
+      announcements: `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 15V9l10-4v14L5 15z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+          <path d="M15 9h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2M8 15l1 4h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>`,
+      profile: `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 12a4 4 0 1 0-0.001-8.001A4 4 0 0 0 12 12zm-7 8c0-3.3 3.1-6 7-6s7 2.7 7 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+        </svg>`
+    };
+
+    return icons[viewId] || icons.dashboard;
   }
 
   function renderTopbar(user, track) {
@@ -591,7 +713,7 @@
       profile: 'Profile and Settings'
     };
     const eyebrows = {
-      dashboard: 'Action centre',
+      dashboard: 'Track workspace',
       curriculum: 'Semester learning plan',
       assessments: 'Assessment submissions and reminders',
       live: 'Live class room',
@@ -606,7 +728,9 @@
     dom.topbarAlerts.textContent = String(totalAlerts);
     dom.topbarProgress.textContent = `${progress.percent}%`;
     dom.topbarTrack.textContent = track.label;
-    dom.appFooterText.textContent = `© 2026 RealKingHubs · ${track.label} Student Portal`;
+    dom.topbarAvatar.innerHTML = `<img src="${getAvatarSrc(user)}" alt="${escapeAttribute(`${user.firstName} ${user.lastName}`.trim())}" />`;
+    dom.appFooterText.textContent = '(c) 2026 RealKingHubs - ' + track.label + ' Student Portal';
+    document.querySelector('.topbar-alert-button')?.classList.toggle('topbar-alert-active', totalAlerts > 0);
   }
 
   function renderCurrentView(user, track) {
@@ -756,6 +880,8 @@
     }
   }
 
+  // The dashboard is organized like an admin workspace:
+  // overview metrics first, action queue second, and semester board last.
   function renderDashboard(user, track) {
     const progress = calculateTrackProgress(user, track);
     const notificationCounts = getNotificationCounts(user, track);
@@ -764,54 +890,79 @@
     const nextAssessment = getNextAssessment(track, user);
     const nextClass = track.liveClasses[0];
     const reminderItems = getUpcomingAssessmentReminders(track, user);
+    const latestAnnouncement = [...track.announcements].sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt))[0] || null;
+    const latestCommunityMessage = state.communityMessages.find(message => message.trackId === track.id) || null;
     const semesterCards = track.semesters.map(semester => {
       const semesterProgress = calculateSemesterProgress(user, semester);
       return `
-        <div class="mini-card">
-          <strong>${semester.label}</strong>
-          <span>${semester.title}</span>
-          <div class="progress-bar"><div class="progress-fill" style="width:${semesterProgress.percent}%"></div></div>
-          <span>${semesterProgress.completed} of ${semesterProgress.total} weeks completed</span>
+        <div class="semester-board-row">
+          <div>
+            <strong>${semester.label}</strong>
+            <span>${semester.title}</span>
+          </div>
+          <div class="semester-board-progress">
+            <div class="progress-bar"><div class="progress-fill" style="width:${semesterProgress.percent}%"></div></div>
+            <small>${semesterProgress.completed} of ${semesterProgress.total} weeks completed</small>
+          </div>
+          <span class="status-pill ${semesterProgress.percent >= 100 ? 'success' : semesterProgress.percent >= 40 ? 'neutral' : 'warning'}">${semesterProgress.percent}% complete</span>
         </div>
       `;
     }).join('');
 
     return `
-      <section class="surface-card dashboard-hero-card">
+      <section class="surface-card dashboard-workspace-card">
         <div class="content-header">
           <div>
-            <p class="section-kicker">Learner dashboard</p>
-            <h2>Welcome back, ${user.firstName}</h2>
-            <p>Use this page to continue learning, check what needs attention next, and move quickly into the right section.</p>
+            <p class="section-kicker">Track workspace</p>
+            <h2>${track.label} dashboard</h2>
+            <p>A structured operational view of your programme, current priorities, and semester delivery status.</p>
           </div>
-          <div class="card-actions">
+          <div class="dashboard-toolbar">
+            <span class="dashboard-toolbar-chip">${track.semesters.length} semesters</span>
+            <span class="dashboard-toolbar-chip">12 academic months</span>
             <button class="btn btn-primary btn-small" type="button" onclick="openDashboardView('curriculum')">Continue curriculum</button>
             <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('assessments')">Open assessments</button>
           </div>
         </div>
-        <div class="stats-grid">
-          <article class="stat-card"><strong>Overall progress</strong><span class="stat-value">${progress.percent}%</span><span>${progress.completedCount} of ${progress.totalLessons} weekly items completed</span></article>
-          <article class="stat-card"><strong>Submitted assessments</strong><span class="stat-value">${submittedAssessments}</span><span>${pendingAssessments.length} assessment links still waiting</span></article>
-          <article class="stat-card"><strong>Next live class</strong><span class="stat-value">${nextClass.schedule}</span><span>${nextClass.title}</span></article>
-          <article class="stat-card"><strong>Unread updates</strong><span class="stat-value">${notificationCounts.community + notificationCounts.announcements + notificationCounts.assessments}</span><span>${notificationCounts.community} messages, ${notificationCounts.announcements} announcements, ${notificationCounts.assessments} assessment alerts</span></article>
+        <div class="dashboard-overview-grid">
+          <article class="dashboard-kpi-card">
+            <span class="dashboard-kpi-label">Overall progress</span>
+            <strong class="dashboard-kpi-value">${progress.percent}%</strong>
+            <p>${progress.completedCount} of ${progress.totalLessons} weekly items completed.</p>
+          </article>
+          <article class="dashboard-kpi-card">
+            <span class="dashboard-kpi-label">Submitted assessments</span>
+            <strong class="dashboard-kpi-value">${submittedAssessments}</strong>
+            <p>${pendingAssessments.length} assessment links still waiting.</p>
+          </article>
+          <article class="dashboard-kpi-card">
+            <span class="dashboard-kpi-label">Next live class</span>
+            <strong class="dashboard-kpi-value dashboard-kpi-value-small">${nextClass.title}</strong>
+            <p>${nextClass.schedule}</p>
+          </article>
+          <article class="dashboard-kpi-card">
+            <span class="dashboard-kpi-label">Unread updates</span>
+            <strong class="dashboard-kpi-value">${notificationCounts.community + notificationCounts.announcements + notificationCounts.assessments}</strong>
+            <p>${notificationCounts.community} messages, ${notificationCounts.announcements} announcements, ${notificationCounts.assessments} assessment alerts.</p>
+          </article>
         </div>
       </section>
 
-      <section class="dashboard-grid">
-        <article class="surface-card">
-          <div class="content-header"><div><h2>Action centre</h2><p>Only the most important reminders stay here so the dashboard remains clean.</p></div></div>
-          <div class="dashboard-reminder-list">
+      <section class="dashboard-shell-grid">
+        <article class="surface-card dashboard-priority-panel">
+          <div class="content-header"><div><h2>Priority queue</h2><p>The dashboard only shows what needs attention next.</p></div></div>
+          <div class="dashboard-priority-list">
             ${nextAssessment ? `
-              <div class="dashboard-reminder-card">
+              <div class="dashboard-priority-item">
                 <div>
                   <strong>Next assessment</strong>
                   <span>${nextAssessment.title}</span>
-                  <small>${getAssessmentStatus(nextAssessment, user).label} • ${formatDateTime(nextAssessment.dueAt)}</small>
+                  <small>${getAssessmentStatus(nextAssessment, user).label} - ${formatDateTime(nextAssessment.dueAt)}</small>
                 </div>
                 <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('assessments')">Submit link</button>
               </div>
             ` : `
-              <div class="dashboard-reminder-card">
+              <div class="dashboard-priority-item">
                 <div>
                   <strong>Assessments</strong>
                   <span>You are up to date on current assessment submissions.</span>
@@ -820,7 +971,7 @@
                 <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('assessments')">Review page</button>
               </div>
             `}
-            <div class="dashboard-reminder-card">
+            <div class="dashboard-priority-item">
               <div>
                 <strong>Next live class</strong>
                 <span>${nextClass.title}</span>
@@ -828,7 +979,7 @@
               </div>
               <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('live')">Open class room</button>
             </div>
-            <div class="dashboard-reminder-card">
+            <div class="dashboard-priority-item">
               <div>
                 <strong>Updates</strong>
                 <span>${notificationCounts.community} new community messages and ${notificationCounts.announcements} announcements</span>
@@ -837,7 +988,7 @@
               <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('announcements')">Open updates</button>
             </div>
             ${reminderItems.map(item => `
-              <div class="dashboard-reminder-card compact-reminder">
+              <div class="dashboard-priority-item dashboard-priority-item-compact">
                 <div>
                   <strong>${item.title}</strong>
                   <span>${item.module}</span>
@@ -848,10 +999,40 @@
             `).join('')}
           </div>
         </article>
-        <article class="surface-card">
-          <div class="content-header"><div><h2>Semester progress</h2><p>Track completion across all three semesters and their revision months.</p></div></div>
-          <div class="course-overview">${semesterCards}</div>
-        </article>
+        <aside class="dashboard-side-column">
+          <article class="surface-card dashboard-side-card">
+            <div class="content-header"><div><h2>Latest announcement</h2><p>Programme notices stay here instead of filling the main dashboard.</p></div></div>
+            ${latestAnnouncement ? `
+              <div class="dashboard-side-note">
+                <strong>${latestAnnouncement.title}</strong>
+                <span>${latestAnnouncement.body}</span>
+                <small>${latestAnnouncement.date}</small>
+              </div>
+            ` : '<div class="empty-state">No announcement available yet.</div>'}
+          </article>
+          <article class="surface-card dashboard-side-card">
+            <div class="content-header"><div><h2>Community activity</h2><p>The newest message in your track room appears here.</p></div></div>
+            ${latestCommunityMessage ? `
+              <div class="dashboard-side-note">
+                <strong>${latestCommunityMessage.authorName}</strong>
+                <span>${latestCommunityMessage.body || 'Shared an attachment in the community room.'}</span>
+                <small>${formatDateTime(latestCommunityMessage.createdAt)}</small>
+              </div>
+            ` : '<div class="empty-state">No community message available yet.</div>'}
+          </article>
+        </aside>
+      </section>
+
+      <section class="surface-card dashboard-board-card">
+        <div class="content-header">
+          <div>
+            <p class="section-kicker">Semester board</p>
+            <h2>Programme delivery status</h2>
+            <p>Track completion across all semesters with a cleaner operational view.</p>
+          </div>
+          <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('progress')">Open progress page</button>
+        </div>
+        <div class="semester-board">${semesterCards}</div>
       </section>
     `;
   }
@@ -936,9 +1117,9 @@
   // This keeps the navigation clear and makes it easier to expand later.
   function renderCurriculum(user, track) {
     const allMonths = track.semesters.flatMap(semester => semester.months);
-    const openSemesterId = track.semesters.some(semester => semester.id === state.currentCurriculumSemesterId)
+    const openSemesterId = state.currentCurriculumSemesterId && track.semesters.some(semester => semester.id === state.currentCurriculumSemesterId)
       ? state.currentCurriculumSemesterId
-      : track.semesters[0]?.id || null;
+      : null;
     const openMonthId = allMonths.some(month => month.id === state.currentCurriculumMonthId)
       ? state.currentCurriculumMonthId
       : null;
@@ -1163,7 +1344,7 @@
     if (attachment.kind === 'folder') {
       return `
         <div class="community-attachment-pill">
-          <span>${escapeHtml(attachment.name)} (${attachment.fileCount} files, ${formatFileSize(attachment.size)})</span>
+          <span>${escapeHtml(attachment.name)} folder will be sent as a zip archive (${attachment.fileCount} files, ${formatFileSize(attachment.size)})</span>
           <button type="button" onclick="clearCommunityAttachment()">Remove</button>
         </div>
       `;
@@ -1194,27 +1375,24 @@
     if (!attachment?.name) return '';
 
     if (attachment.kind === 'folder') {
+      const attachmentUrl = attachment?.url || attachment?.dataUrl || '';
+      if (!attachmentUrl) return '';
+      const archiveName = escapeHtml(attachment.name);
+      const archiveNameAttr = escapeAttribute(attachment.name);
+      const folderLabel = escapeHtml(attachment.folderName || attachment.name.replace(/\.zip$/i, '') || 'Shared folder');
       const folderSize = attachment.size ? formatFileSize(attachment.size) : '';
       const folderMeta = folderSize
-        ? `Folder | ${attachment.fileCount || 0} files | ${folderSize}`
-        : `Folder | ${attachment.fileCount || 0} files`;
-      const visibleFiles = (attachment.files || []).slice(0, 6);
-      const remainingFiles = Math.max((attachment.files || []).length - visibleFiles.length, 0);
+        ? `Zip archive | ${attachment.fileCount || 0} files | ${folderSize}`
+        : `Zip archive | ${attachment.fileCount || 0} files`;
 
       return `
         <div class="message-attachment-card">
           <div class="message-attachment-meta">
-            <strong>${escapeHtml(attachment.name)}</strong>
+            <strong>${archiveName}</strong>
+            <span>Folder: ${folderLabel}</span>
             <span>${folderMeta}</span>
           </div>
-          <div class="message-folder-list">
-            ${visibleFiles.map(file => `
-              <a class="message-folder-link" href="${escapeAttribute(file.url)}" target="_blank" rel="noopener">
-                ${escapeHtml(file.relativePath || file.name)}
-              </a>
-            `).join('')}
-            ${remainingFiles > 0 ? `<span class="message-folder-more">+ ${remainingFiles} more files in this folder</span>` : ''}
-          </div>
+          <a class="message-attachment-link" href="${escapeAttribute(attachmentUrl)}" download="${archiveNameAttr}" target="_blank" rel="noopener">Download folder archive</a>
         </div>
       `;
     }
@@ -1292,7 +1470,7 @@
       <section class="profile-grid">
         <article class="profile-section">
           <div class="profile-header-row"><div><p class="section-kicker">Learner profile</p><h2>${user.firstName} ${user.lastName}</h2><p class="copy-muted">${user.headline}</p></div></div>
-          <div class="profile-photo-panel"><div id="profileAvatarPreview" class="avatar-frame">${user.avatar ? `<img src="${user.avatar}" alt="${user.firstName}" />` : getInitials(user.firstName, user.lastName)}</div><div><strong>Profile image</strong><p class="copy-muted">Upload a profile photo or keep the clean initials-based avatar.</p></div></div>
+          <div class="profile-photo-panel"><div id="profileAvatarPreview" class="avatar-frame"><img src="${getAvatarSrc(user)}" alt="${escapeAttribute(`${user.firstName} ${user.lastName}`.trim())}" /></div><div><strong>Profile image</strong><p class="copy-muted">Upload a profile photo or keep the generated profile image.</p></div></div>
           <ul class="profile-list">
             <li><strong>Email address</strong><span>${user.email}</span></li>
             <li><strong>Current track</strong><span>${track.label}</span></li>
@@ -1374,6 +1552,7 @@
 
   function finalizeProfileSave() {
     persistUsers();
+    renderFounderShowcase();
     showProfileSaveMessage('Profile settings saved successfully.', 'success');
     renderAppShell();
   }
@@ -1390,6 +1569,7 @@
     if (!user) return;
     user.avatar = '';
     persistUsers();
+    renderFounderShowcase();
     renderAppShell();
   }
 
@@ -1521,8 +1701,8 @@
     renderAppShell();
   }
 
-  // Folder sharing is handled as a collection of files uploaded into one folder path in storage.
-  // We keep the relative file names so the folder structure still makes sense in the message feed.
+  // Folder uploads are collected first, then converted into one downloadable zip archive on send.
+  // This keeps the community room simple for learners and much easier to download later.
   function handleCommunityFolderSelect(event) {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
@@ -1555,7 +1735,7 @@
     };
     state.communityComposerMessage = {
       type: 'success',
-      text: `${folderName} is attached and ready to send (${files.length} files, ${formatFileSize(totalSize)}).`
+      text: `${folderName} is attached and will be sent as a zip archive (${files.length} files, ${formatFileSize(totalSize)}).`
     };
     event.target.value = '';
     renderAppShell();
@@ -1579,11 +1759,7 @@
     const MAX_LOCAL_ATTACHMENT_BYTES = 50 * 1024 * 1024;
 
     if (attachment.kind === 'folder') {
-      if (!communitySupabase) {
-        throw new Error('Folder sharing requires Supabase storage to be active for this browser session.');
-      }
-
-      return uploadCommunityFolder(user, track, attachment);
+      return prepareCommunityFolderPayload(user, track, attachment, MAX_LOCAL_ATTACHMENT_BYTES);
     }
 
     if (!attachment.file) return null;
@@ -1623,6 +1799,64 @@
     }
   }
 
+  // Build one zip archive from the selected folder contents so the receiver gets a single download.
+  async function buildCommunityFolderArchive(attachment) {
+    if (!window.JSZip) {
+      throw new Error('Zip support is not loaded yet. Refresh the page and try again.');
+    }
+
+    const zip = new window.JSZip();
+    for (const fileEntry of attachment.files || []) {
+      const relativePath = sanitizeFolderRelativePath(fileEntry.relativePath || fileEntry.name);
+      zip.file(relativePath, fileEntry.file);
+    }
+
+    const blob = await zip.generateAsync({
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    });
+
+    const archiveBaseName = sanitizeFileName(attachment.name || 'shared-folder');
+    return new File([blob], `${archiveBaseName}.zip`, { type: 'application/zip' });
+  }
+
+  // Folder uploads follow the same storage pipeline as normal files after we archive them.
+  async function prepareCommunityFolderPayload(user, track, attachment, maxLocalBytes) {
+    const archiveFile = await buildCommunityFolderArchive(attachment);
+    const archiveAttachment = {
+      kind: 'folder',
+      file: archiveFile,
+      name: archiveFile.name,
+      folderName: attachment.name,
+      type: 'application/zip',
+      size: archiveFile.size,
+      fileCount: attachment.fileCount
+    };
+
+    if (!communitySupabase) {
+      if (archiveFile.size > maxLocalBytes) {
+        throw new Error('Folder sharing without Supabase storage is limited to zip archives up to 50 MB.');
+      }
+
+      const dataUrl = await readFileAsDataUrl(archiveFile);
+      return {
+        bucket: null,
+        path: null,
+        url: dataUrl,
+        dataUrl,
+        kind: 'folder',
+        folderName: attachment.name,
+        name: archiveFile.name,
+        type: 'application/zip',
+        size: archiveFile.size,
+        fileCount: attachment.fileCount
+      };
+    }
+
+    return uploadCommunityAttachment(user, track, archiveAttachment);
+  }
+
   // Upload the physical file to Supabase Storage, then return only the metadata
   // needed for the message feed to render a usable attachment link later.
   async function uploadCommunityAttachment(user, track, attachment) {
@@ -1645,63 +1879,20 @@
       bucket: COMMUNITY_ATTACHMENT_BUCKET,
       path,
       url: data.publicUrl,
+      kind: attachment.kind || 'file',
+      folderName: attachment.folderName || '',
       name: attachment.name,
       type: attachment.type || attachment.file.type || 'application/octet-stream',
-      size: attachment.size || attachment.file.size || 0
-    };
-  }
-
-  async function uploadCommunityFolder(user, track, attachment) {
-    if (!attachment?.files?.length || !communitySupabase) return null;
-
-    const safeFolderName = sanitizeFileName(attachment.name || 'folder');
-    const folderRoot = `${track.id}/${user.id}/folders/${Date.now()}-${safeFolderName}`;
-    const storage = communitySupabase.storage.from(COMMUNITY_ATTACHMENT_BUCKET);
-    const uploadedFiles = [];
-
-    try {
-      for (const fileEntry of attachment.files) {
-        const sanitizedRelativePath = sanitizeFolderRelativePath(fileEntry.relativePath || fileEntry.name);
-        const path = `${folderRoot}/${sanitizedRelativePath}`;
-        const { error } = await storage.upload(path, fileEntry.file, {
-          upsert: false,
-          contentType: fileEntry.type || fileEntry.file.type || 'application/octet-stream'
-        });
-
-        if (error) {
-          throw error;
-        }
-
-        const { data } = storage.getPublicUrl(path);
-        uploadedFiles.push({
-          name: fileEntry.name,
-          relativePath: fileEntry.relativePath || fileEntry.name,
-          path,
-          url: data.publicUrl,
-          type: fileEntry.type || fileEntry.file.type || 'application/octet-stream',
-          size: fileEntry.size || fileEntry.file.size || 0
-        });
-      }
-    } catch (error) {
-      if (uploadedFiles.length) {
-        await storage.remove(uploadedFiles.map(file => file.path));
-      }
-      throw error;
-    }
-
-    return {
-      kind: 'folder',
-      bucket: COMMUNITY_ATTACHMENT_BUCKET,
-      rootPath: folderRoot,
-      name: attachment.name,
-      fileCount: attachment.fileCount,
-      size: attachment.size,
-      files: uploadedFiles
+      size: attachment.size || attachment.file.size || 0,
+      fileCount: attachment.fileCount || 0
     };
   }
 
   function getCommunityUploadErrorMessage(error) {
     const message = String(error?.message || '').toLowerCase();
+    if (message.includes('zip support')) {
+      return 'Folder archive could not be prepared. Refresh the page and try the folder upload again.';
+    }
     if (message.includes('bucket') || message.includes('storage') || message.includes('not found')) {
       return 'Attachment could not be uploaded. Run the updated Supabase SQL so the community-attachments storage bucket is created.';
     }
@@ -1799,11 +1990,7 @@
     const message = state.communityMessages.find(item => item.id === String(messageId));
 
     if (communitySupabase) {
-      if (message?.attachment?.kind === 'folder' && message.attachment.files?.length) {
-        await communitySupabase.storage
-          .from(message.attachment.bucket || COMMUNITY_ATTACHMENT_BUCKET)
-          .remove(message.attachment.files.map(file => file.path).filter(Boolean));
-      } else if (message?.attachment?.path) {
+      if (message?.attachment?.path) {
         await communitySupabase.storage
           .from(message.attachment.bucket || COMMUNITY_ATTACHMENT_BUCKET)
           .remove([message.attachment.path]);
@@ -1835,14 +2022,8 @@
 
   // Open a semester and keep month focus inside that semester predictable for the learner.
   function toggleCurriculumSemester(semesterId) {
-    const track = getCurrentTrack();
-    if (!track) return;
-
-    state.currentCurriculumSemesterId = semesterId;
-    const semester = track.semesters.find(item => item.id === semesterId);
-    if (semester?.months?.length && !semester.months.some(month => month.id === state.currentCurriculumMonthId)) {
-      state.currentCurriculumMonthId = semester.months[0].id;
-    }
+    state.currentCurriculumSemesterId = state.currentCurriculumSemesterId === semesterId ? null : semesterId;
+    state.currentCurriculumMonthId = null;
     state.currentView = 'curriculum';
     renderAppShell();
   }
@@ -1884,6 +2065,13 @@
     renderAppShell();
   }
 
+  function focusCurriculumLocation(semesterId, monthId) {
+    state.currentCurriculumSemesterId = semesterId || null;
+    state.currentCurriculumMonthId = monthId || null;
+    state.currentView = 'curriculum';
+    renderAppShell();
+  }
+
   function openLiveClass(classId) {
     state.currentLiveClassId = classId;
     state.currentView = 'live';
@@ -1920,8 +2108,18 @@
     return '';
   }
 
+  function getNameInitials(fullName) {
+    const parts = String(fullName || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2);
+
+    return parts.map(part => part.charAt(0)).join('').toUpperCase() || 'RK';
+  }
+
   function getInitials(firstName, lastName) {
-    return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
+    return getNameInitials(`${firstName || ''} ${lastName || ''}`);
   }
 
   function formatDateTime(value) {
@@ -1989,6 +2187,22 @@
     return null;
   }
 
+  // Search uses this lightweight context so it can stay in a separate file
+  // without duplicating LMS state or business logic.
+  function getSearchContext() {
+    const user = getCurrentUser();
+    const track = getCurrentTrack();
+    return {
+      user,
+      track,
+      communityMessages: state.communityMessages.filter(message => !track || message.trackId === track.id),
+      openView: openApp,
+      openLesson,
+      focusCurriculumLocation,
+      openLiveClass
+    };
+  }
+
   window.showLandingPage = showLandingPage;
   window.showAuthPage = showAuthPage;
   window.switchAuthMode = switchAuthMode;
@@ -1997,6 +2211,7 @@
   window.logoutUser = logoutUser;
   window.toggleLessonCompletion = toggleLessonCompletion;
   window.openLesson = openLesson;
+  window.focusCurriculumLocation = focusCurriculumLocation;
   window.toggleCurriculumMonth = toggleCurriculumMonth;
   window.openLiveClass = openLiveClass;
   window.toggleLiveClassAttendance = toggleLiveClassAttendance;
@@ -2012,4 +2227,5 @@
   window.toggleOlderMessages = toggleOlderMessages;
   window.toggleCurriculumSemester = toggleCurriculumSemester;
   window.removeProfileImage = removeProfileImage;
+  window.getRkhSearchContext = getSearchContext;
 })();

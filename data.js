@@ -5,10 +5,12 @@
     networking: 'https://www.youtube-nocookie.com/embed/IPvYpXCsTqw',
     dns: 'https://www.youtube-nocookie.com/embed/8aGhZkoFGQ',
     cloud: 'https://www.youtube-nocookie.com/embed/SOTamWNgDKc',
+    api: 'https://www.youtube-nocookie.com/embed/6sGbRvgqXSw',
     aws: 'https://www.youtube-nocookie.com/embed/3hLmDS179YE',
     azure: 'https://www.youtube-nocookie.com/embed/tDacjnSQipM',
     security: 'https://www.youtube-nocookie.com/embed/inWWhr5tnEA',
     iam: 'https://www.youtube-nocookie.com/embed/KxzlLvnT5Ek',
+    database: 'https://www.youtube-nocookie.com/embed/W95qqLMZd9w',
     docker: 'https://www.youtube-nocookie.com/embed/pg19Z8LL06w',
     containers: 'https://www.youtube-nocookie.com/embed/rOTqprHDvw0',
     kubernetes: 'https://www.youtube-nocookie.com/embed/X48VuDVv0do',
@@ -49,7 +51,9 @@
     jest: 'https://www.youtube-nocookie.com/embed/7r4xVDfy3IM',
     debugging: 'https://www.youtube-nocookie.com/embed/H0XScE08hy8',
     performance: 'https://www.youtube-nocookie.com/embed/0n8BcvsHMvE',
-    bundling: 'https://www.youtube-nocookie.com/embed/TAwm87tCMhM'
+    bundling: 'https://www.youtube-nocookie.com/embed/TAwm87tCMhM',
+    cloud: 'https://www.youtube-nocookie.com/embed/J4wpFyXxVlw',
+    cicd: 'https://www.youtube-nocookie.com/embed/1hHMwLxN6EM'
   };
 
   const backendVideoLibrary = {
@@ -74,10 +78,24 @@
     integration: 'https://www.youtube-nocookie.com/embed/7D8xPj7yHFI',
     logging: 'https://www.youtube-nocookie.com/embed/Khv7JwMfvCE',
     monitoring: 'https://www.youtube-nocookie.com/embed/Rv9j8VJc-T8',
+    cloud: 'https://www.youtube-nocookie.com/embed/SOTamWNgDKc',
     docker: 'https://www.youtube-nocookie.com/embed/pg19Z8LL06w',
     cicd: 'https://www.youtube-nocookie.com/embed/scEDHsr3APg',
     architecture: 'https://www.youtube-nocookie.com/embed/tpspO9K28PM'
   };
+
+  // Each lesson gets its own embed URL so the curriculum does not keep reusing the exact same iframe source.
+  function buildCurriculumVideoUrl(videoLib, preferredKey, sequenceSeed) {
+    const videoKeys = Object.keys(videoLib);
+    if (!videoKeys.length) return '';
+
+    const fallbackKey = videoKeys[Math.abs(sequenceSeed) % videoKeys.length];
+    const resolvedKey = videoLib[preferredKey] ? preferredKey : fallbackKey;
+    const baseUrl = videoLib[resolvedKey] || videoLib[fallbackKey];
+    const joiner = baseUrl.includes('?') ? '&' : '?';
+    const startOffset = (Math.abs(sequenceSeed) * 47) % 780;
+    return `${baseUrl}${joiner}rel=0&start=${startOffset}`;
+  }
 
   function buildLearningWeeks(videoLib, trackKey, semesterNumber, monthNumber, lessons, videoKeys) {
     return lessons.map((lesson, index) => ({
@@ -85,7 +103,11 @@
       title: `Week ${index + 1}: ${lesson}`,
       objective: `Study the core concepts for ${lesson.toLowerCase()} and complete the guided practice.` ,
       type: 'learning',
-      videoUrl: videoLib[videoKeys[index] || videoKeys[0]],
+      videoUrl: buildCurriculumVideoUrl(
+        videoLib,
+        videoKeys[index] || videoKeys[0],
+        (semesterNumber * 100) + (monthNumber * 10) + index + 1
+      ),
       resources: ['Lesson video', 'Reading note', 'Practice task']
     }));
   }
@@ -104,7 +126,7 @@
         title: 'Week 1: Guided Revision',
         objective: 'Review the semester material with instructor checkpoints and summary notes.',
         type: 'revision',
-        videoUrl: videoLib[keys.week1],
+        videoUrl: buildCurriculumVideoUrl(videoLib, keys.week1, (semesterNumber * 100) + (monthNumber * 10) + 1),
         resources: ['Revision checklist', 'Summary slides', 'Instructor notes']
       },
       {
@@ -112,7 +134,7 @@
         title: 'Week 2: Mock Assessment',
         objective: 'Attempt the mock assessment and identify improvement areas before the exam.',
         type: 'revision',
-        videoUrl: videoLib[keys.week2],
+        videoUrl: buildCurriculumVideoUrl(videoLib, keys.week2, (semesterNumber * 100) + (monthNumber * 10) + 2),
         resources: ['Mock assessment', 'Marking guide', 'Feedback form']
       },
       {
@@ -120,7 +142,7 @@
         title: 'Week 3: Project Polish',
         objective: 'Refine your capstone, close outstanding tasks, and prepare for submission.',
         type: 'revision',
-        videoUrl: videoLib[keys.week3],
+        videoUrl: buildCurriculumVideoUrl(videoLib, keys.week3, (semesterNumber * 100) + (monthNumber * 10) + 3),
         resources: ['Project rubric', 'Submission checklist', 'Mentor review notes']
       },
       {
@@ -128,7 +150,7 @@
         title: 'Week 4: Semester Exam',
         objective: 'Complete the semester exam and submit your final review materials.',
         type: 'exam',
-        videoUrl: videoLib[keys.week4],
+        videoUrl: buildCurriculumVideoUrl(videoLib, keys.week4, (semesterNumber * 100) + (monthNumber * 10) + 4),
         resources: ['Exam brief', 'Exam window', 'Post-exam reflection']
       }
     ];
