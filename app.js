@@ -13,17 +13,27 @@
     {
       id: 'celebrate',
       label: 'Celebrate',
-      stickers: ['\u{1F389}', '\u{1F44F}', '\u{1F525}']
+      stickers: ['\u{1F389}', '\u{1F44F}', '\u{1F525}', '\u{1F31F}', '\u{1F3C6}', '\u{1F64C}']
     },
     {
       id: 'support',
       label: 'Support',
-      stickers: ['\u{2705}', '\u{1F4A1}', '\u{1F680}']
+      stickers: ['\u{2705}', '\u{1F4A1}', '\u{1F680}', '\u{1F91D}', '\u{1FAE1}', '\u{1F90D}']
     },
     {
       id: 'study',
       label: 'Study',
-      stickers: ['\u{1F4DA}', '\u{1F4BB}', '\u{1F3AF}']
+      stickers: ['\u{1F4DA}', '\u{1F4BB}', '\u{1F3AF}', '\u{270D}', '\u{1F4D6}', '\u{1F4CB}']
+    },
+    {
+      id: 'energy',
+      label: 'Energy',
+      stickers: ['\u{26A1}', '\u{1F525}', '\u{1F4A5}', '\u{1F680}', '\u{1F44A}', '\u{1F31E}']
+    },
+    {
+      id: 'reaction',
+      label: 'Reaction',
+      stickers: ['\u{1F60E}', '\u{1F973}', '\u{1F929}', '\u{1F62E}', '\u{1F914}', '\u{1F440}']
     }
   ];
 
@@ -34,7 +44,7 @@
     displayName: 'Odo Kingsley Uchenna',
     role: 'Owner and Founder, RealKingHubs Academy',
     bio: 'RealKingHubs Academy was built to give learners a cleaner and more practical path into modern engineering careers across Cloud, Frontend, and Backend Engineering.',
-    supportUrl: 'https://selar.co/m/realkinghubs',
+    supportUrl: 'https://selar.com/showlove/realkinghubs',
     supportLabel: 'Buy me a coffee on Selar'
   };
 
@@ -118,6 +128,21 @@
     dom.registerForm.addEventListener('submit', handleRegister);
   }
 
+  // A single helper keeps the password visibility behavior consistent across
+  // sign-in and registration without duplicating button logic in the markup.
+  function togglePasswordVisibility(inputId, triggerButton) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    const shouldShowPassword = input.type === 'password';
+    input.type = shouldShowPassword ? 'text' : 'password';
+
+    if (triggerButton) {
+      triggerButton.textContent = shouldShowPassword ? 'Hide' : 'Show';
+      triggerButton.setAttribute('aria-pressed', shouldShowPassword ? 'true' : 'false');
+    }
+  }
+
   function seedStorage() {
     if (!localStorage.getItem(COMMUNITY_KEY)) {
       localStorage.setItem(COMMUNITY_KEY, JSON.stringify(window.RKH_DATA.demoMessages));
@@ -143,7 +168,7 @@
       trackId,
       timezone: 'Africa/Lagos',
       headline,
-      bio: 'This is a demo learner profile. Update the profile and settings form to personalize it.',
+      bio: 'This learner profile can be updated from profile and settings at any time.',
       avatar: '',
       completedLessonIds: [],
       joinedClassIds: [],
@@ -497,8 +522,8 @@
         <div class="track-facts">
           <span>${track.semesters.length} semesters</span>
           <span>${track.semesters.reduce((total, semester) => total + semester.months.length, 0)} months</span>
-          <span>${track.liveClasses.length} live classes</span>
-          <span>${track.assessments.length} assessments</span>
+          <span>Month 4 hands-on lab</span>
+          <span>Track-based community</span>
         </div>
         <div class="tag-row">
           ${track.outcomes.map(outcome => `<span class="tag">${outcome}</span>`).join('')}
@@ -525,7 +550,7 @@
 
     const user = state.users.find(item => item.email.toLowerCase() === email && item.password === password);
     if (!user) {
-      showAuthMessage('Invalid email or password. Try demo accounts: cloud@realkinghubs.demo, frontend@realkinghubs.demo, or backend@realkinghubs.demo with password "password123", or register a new account.', 'error');
+      showAuthMessage('Invalid email or password. Check your details or create a new account.', 'error');
       return;
     }
 
@@ -627,8 +652,8 @@
   function renderSidebar(user, track) {
     const notificationCounts = getNotificationCounts(user, track);
     const navGroups = [
-      { title: 'Workspace', items: ['dashboard', 'curriculum', 'assessments', 'progress'] },
-      { title: 'Collaboration', items: ['live', 'community', 'announcements'] },
+      { title: 'Workspace', items: ['dashboard', 'curriculum', 'progress'] },
+      { title: 'Collaboration', items: ['community', 'announcements'] },
       { title: 'Account', items: ['profile'] }
     ];
 
@@ -705,8 +730,6 @@
     const titles = {
       dashboard: 'Dashboard',
       curriculum: 'Curriculum',
-      assessments: 'Assessments',
-      live: 'Live Classes',
       community: 'Community',
       progress: 'Progress',
       announcements: 'Announcements',
@@ -715,8 +738,6 @@
     const eyebrows = {
       dashboard: 'Track workspace',
       curriculum: 'Semester learning plan',
-      assessments: 'Assessment submissions and reminders',
-      live: 'Live class room',
       community: 'Learner communication',
       progress: 'Completion tracking',
       announcements: 'Programme updates',
@@ -737,8 +758,6 @@
     const renderers = {
       dashboard: renderDashboard,
       curriculum: renderCurriculum,
-      assessments: renderAssessments,
-      live: renderLiveClasses,
       community: renderCommunity,
       progress: renderProgress,
       announcements: renderAnnouncements,
@@ -750,8 +769,7 @@
 
     if (state.currentView === 'profile') bindProfileForm();
     if (state.currentView === 'community') bindCommunityComposer();
-    if (state.currentView === 'assessments') bindAssessmentInputs();
-    if (['community', 'announcements', 'assessments'].includes(state.currentView)) markSectionSeen(state.currentView);
+    if (['community', 'announcements'].includes(state.currentView)) markSectionSeen(state.currentView);
   }
 
   function calculateTrackProgress(user, track) {
@@ -771,8 +789,7 @@
   function getNotificationCounts(user, track) {
     return {
       community: getUnreadCommunityCount(user),
-      announcements: getUnreadAnnouncementCount(user, track),
-      assessments: getAssessmentAttentionCount(user, track)
+      announcements: getUnreadAnnouncementCount(user, track)
     };
   }
 
@@ -867,14 +884,6 @@
         hasChanged = true;
       }
     }
-    if (viewId === 'assessments' && track.assessments.length) {
-      const latestAssessment = track.assessments.reduce((latest, assessment) => toTimestamp(assessment.createdAt) > toTimestamp(latest) ? assessment.createdAt : latest, track.assessments[0].createdAt);
-      if (latestAssessment !== user.lastSeenAssessmentsAt) {
-        user.lastSeenAssessmentsAt = latestAssessment;
-        hasChanged = true;
-      }
-    }
-
     if (hasChanged) {
       persistUsers();
     }
@@ -885,13 +894,10 @@
   function renderDashboard(user, track) {
     const progress = calculateTrackProgress(user, track);
     const notificationCounts = getNotificationCounts(user, track);
-    const submittedAssessments = getSubmittedAssessmentCount(track, user);
-    const pendingAssessments = getPendingAssessments(track, user);
-    const nextAssessment = getNextAssessment(track, user);
-    const nextClass = track.liveClasses[0];
-    const reminderItems = getUpcomingAssessmentReminders(track, user);
     const latestAnnouncement = [...track.announcements].sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt))[0] || null;
     const latestCommunityMessage = state.communityMessages.find(message => message.trackId === track.id) || null;
+    const activeSemester = track.semesters.find(semester => semester.id === state.currentCurriculumSemesterId) || track.semesters[0];
+    const monthFour = activeSemester?.months?.find(month => month.label === 'Month 4') || null;
     const semesterCards = track.semesters.map(semester => {
       const semesterProgress = calculateSemesterProgress(user, semester);
       return `
@@ -915,13 +921,14 @@
           <div>
             <p class="section-kicker">Track workspace</p>
             <h2>${track.label} dashboard</h2>
-            <p>A structured operational view of your programme, current priorities, and semester delivery status.</p>
+            <p>A structured operational view of your programme, community updates, and semester delivery status.</p>
           </div>
           <div class="dashboard-toolbar">
             <span class="dashboard-toolbar-chip">${track.semesters.length} semesters</span>
             <span class="dashboard-toolbar-chip">12 academic months</span>
+            <span class="dashboard-toolbar-chip">Month 4 hands-on lab</span>
             <button class="btn btn-primary btn-small" type="button" onclick="openDashboardView('curriculum')">Continue curriculum</button>
-            <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('assessments')">Open assessments</button>
+            <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('community')">Open community</button>
           </div>
         </div>
         <div class="dashboard-overview-grid">
@@ -931,19 +938,19 @@
             <p>${progress.completedCount} of ${progress.totalLessons} weekly items completed.</p>
           </article>
           <article class="dashboard-kpi-card">
-            <span class="dashboard-kpi-label">Submitted assessments</span>
-            <strong class="dashboard-kpi-value">${submittedAssessments}</strong>
-            <p>${pendingAssessments.length} assessment links still waiting.</p>
+            <span class="dashboard-kpi-label">Programme structure</span>
+            <strong class="dashboard-kpi-value">3</strong>
+            <p>Each semester contains 3 learning months and 1 hands-on lab month.</p>
           </article>
           <article class="dashboard-kpi-card">
-            <span class="dashboard-kpi-label">Next live class</span>
-            <strong class="dashboard-kpi-value dashboard-kpi-value-small">${nextClass.title}</strong>
-            <p>${nextClass.schedule}</p>
+            <span class="dashboard-kpi-label">Current lab focus</span>
+            <strong class="dashboard-kpi-value dashboard-kpi-value-small">${monthFour ? monthFour.title : 'Hands-on Lab'}</strong>
+            <p>${monthFour ? monthFour.summary : 'Practical build work, testing, and showcase delivery.'}</p>
           </article>
           <article class="dashboard-kpi-card">
             <span class="dashboard-kpi-label">Unread updates</span>
-            <strong class="dashboard-kpi-value">${notificationCounts.community + notificationCounts.announcements + notificationCounts.assessments}</strong>
-            <p>${notificationCounts.community} messages, ${notificationCounts.announcements} announcements, ${notificationCounts.assessments} assessment alerts.</p>
+            <strong class="dashboard-kpi-value">${notificationCounts.community + notificationCounts.announcements}</strong>
+            <p>${notificationCounts.community} messages and ${notificationCounts.announcements} announcements need attention.</p>
           </article>
         </div>
       </section>
@@ -952,51 +959,30 @@
         <article class="surface-card dashboard-priority-panel">
           <div class="content-header"><div><h2>Priority queue</h2><p>The dashboard only shows what needs attention next.</p></div></div>
           <div class="dashboard-priority-list">
-            ${nextAssessment ? `
-              <div class="dashboard-priority-item">
-                <div>
-                  <strong>Next assessment</strong>
-                  <span>${nextAssessment.title}</span>
-                  <small>${getAssessmentStatus(nextAssessment, user).label} - ${formatDateTime(nextAssessment.dueAt)}</small>
-                </div>
-                <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('assessments')">Submit link</button>
-              </div>
-            ` : `
-              <div class="dashboard-priority-item">
-                <div>
-                  <strong>Assessments</strong>
-                  <span>You are up to date on current assessment submissions.</span>
-                  <small>New assessment reminders will appear here automatically.</small>
-                </div>
-                <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('assessments')">Review page</button>
-              </div>
-            `}
             <div class="dashboard-priority-item">
               <div>
-                <strong>Next live class</strong>
-                <span>${nextClass.title}</span>
-                <small>${nextClass.schedule}</small>
+                <strong>Month 4 hands-on lab</strong>
+                <span>${monthFour ? monthFour.title : 'Hands-on Lab'}</span>
+                <small>${monthFour ? monthFour.summary : 'Practical delivery and showcase work.'}</small>
               </div>
-              <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('live')">Open class room</button>
+              <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('curriculum')">Open curriculum</button>
             </div>
             <div class="dashboard-priority-item">
               <div>
                 <strong>Updates</strong>
                 <span>${notificationCounts.community} new community messages and ${notificationCounts.announcements} announcements</span>
-                <small>${notificationCounts.assessments} assessment items need attention.</small>
+                <small>Track updates stay organised between community and announcements.</small>
               </div>
               <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('announcements')">Open updates</button>
             </div>
-            ${reminderItems.map(item => `
-              <div class="dashboard-priority-item dashboard-priority-item-compact">
-                <div>
-                  <strong>${item.title}</strong>
-                  <span>${item.module}</span>
-                  <small>Due ${formatDateTime(item.dueAt)}</small>
-                </div>
-                <button class="btn btn-ghost btn-small" type="button" onclick="openDashboardView('assessments')">View</button>
+            <div class="dashboard-priority-item dashboard-priority-item-compact">
+              <div>
+                <strong>Community room</strong>
+                <span>Stay in touch with other ${track.label} learners in one shared room.</span>
+                <small>Messages are organised by track so each programme sees its own feed.</small>
               </div>
-            `).join('')}
+              <button class="btn btn-ghost btn-small" type="button" onclick="openDashboardView('community')">View room</button>
+            </div>
           </div>
         </article>
         <aside class="dashboard-side-column">
@@ -1175,7 +1161,7 @@
             <span class="month-meta">${month.phase} phase</span>
           </div>
           <div class="curriculum-month-side">
-            <span class="status-pill ${month.phase === 'Revision' ? 'warning' : 'neutral'}">${month.phase}</span>
+            <span class="status-pill ${month.phase === 'Hands-on Lab' ? 'warning' : 'neutral'}">${month.phase}</span>
             <span class="curriculum-month-progress">${monthPercent}%</span>
             <span class="curriculum-semester-toggle-label">${isOpen ? 'Collapse' : 'Expand'}</span>
           </div>
@@ -1201,10 +1187,10 @@
             <span class="curriculum-week-marker ${completed ? 'completed' : ''}"></span>
             <div>
               <strong class="lesson-title">${lesson.title}</strong>
-              <span>${lesson.type === 'exam' ? 'Assessment and final review week' : 'Open lesson content in the player to the right'}</span>
+              <span>${lesson.type === 'lab' ? 'Hands-on lab week with guided build work in the player to the right' : 'Open lesson content in the player to the right'}</span>
             </div>
           </div>
-          <span class="status-pill ${completed ? 'success' : lesson.type === 'exam' ? 'warning' : 'neutral'}">${completed ? 'Completed' : lesson.type === 'exam' ? 'Exam' : 'Open'}</span>
+          <span class="status-pill ${completed ? 'success' : lesson.type === 'lab' ? 'warning' : 'neutral'}">${completed ? 'Completed' : lesson.type === 'lab' ? 'Lab' : 'Open'}</span>
         </div>
         <div class="lesson-actions">
           <button class="btn btn-secondary btn-small" type="button" onclick="openLesson('${lesson.id}')">View lesson</button>
@@ -1451,7 +1437,7 @@
     return `
       <section class="progress-grid">
         <article class="progress-card"><p class="section-kicker">Overall progress</p><h3>${overall.percent}% complete</h3><p class="copy-muted">${overall.completedCount} of ${overall.totalLessons} weekly items have been completed across the entire track.</p><div class="progress-bar"><div class="progress-fill" style="width:${overall.percent}%"></div></div><div class="dashboard-stack">${semesterRows}</div></article>
-        <article class="progress-card"><p class="section-kicker">Monthly breakdown</p><h3>Completion by month</h3><p class="copy-muted">Three learning months and one revision month are tracked every semester.</p><div class="dashboard-stack">${monthRows}</div></article>
+        <article class="progress-card"><p class="section-kicker">Monthly breakdown</p><h3>Completion by month</h3><p class="copy-muted">Three learning months and one hands-on lab month are tracked every semester.</p><div class="dashboard-stack">${monthRows}</div></article>
       </section>
     `;
   }
@@ -1459,7 +1445,7 @@
     const announcements = [...track.announcements].sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt));
     return `
       <section class="surface-card">
-        <div class="content-header"><div><p class="section-kicker">Programme updates</p><h2>Announcements</h2><p>Course notices, exam reminders, and learning updates live here instead of crowding the dashboard.</p></div></div>
+        <div class="content-header"><div><p class="section-kicker">Programme updates</p><h2>Announcements</h2><p>Course notices, lab guidance, and learning updates live here instead of crowding the dashboard.</p></div></div>
         <div class="announcement-grid">${announcements.map(item => `<article class="announcement-card"><small>${item.date}</small><h3>${item.title}</h3><p>${item.body}</p></article>`).join('')}</div>
       </section>
     `;
@@ -1479,7 +1465,7 @@
           </ul>
         </article>
         <article class="settings-card">
-          <div class="settings-header-row"><div><p class="section-kicker">Functional settings</p><h2>Edit profile and preferences</h2><p class="copy-muted">Changes are stored locally so you can review the dashboard as a working LMS demo.</p></div></div>
+          <div class="settings-header-row"><div><p class="section-kicker">Functional settings</p><h2>Edit profile and preferences</h2><p class="copy-muted">Changes are stored locally so you can keep your LMS experience personalized and up to date.</p></div></div>
           <div id="profileSaveMessage" class="form-message"></div>
           <form id="profileForm" class="dashboard-stack">
             <div class="field-row"><div class="field-group"><label for="profileFirstName">First name</label><input id="profileFirstName" type="text" value="${escapeAttribute(user.firstName)}" /></div><div class="field-group"><label for="profileLastName">Last name</label><input id="profileLastName" type="text" value="${escapeAttribute(user.lastName)}" /></div></div>
@@ -2206,6 +2192,7 @@
   window.showLandingPage = showLandingPage;
   window.showAuthPage = showAuthPage;
   window.switchAuthMode = switchAuthMode;
+  window.togglePasswordVisibility = togglePasswordVisibility;
   window.quickDemoLogin = quickDemoLogin;
   window.openDashboardView = openApp;
   window.logoutUser = logoutUser;

@@ -101,7 +101,7 @@
         items.push({
           type: 'Month',
           title: `${month.label} - ${month.title}`,
-          subtitle: `${semester.label} · ${month.phase}`,
+          subtitle: `${semester.label} � ${month.phase}`,
           searchText: `${month.label} ${month.title} ${month.summary} ${semester.label} ${track.label}`,
           action: () => context.focusCurriculumLocation?.(semester.id, month.id)
         });
@@ -110,31 +110,11 @@
           items.push({
             type: 'Lesson',
             title: lesson.title,
-            subtitle: `${semester.label} · ${month.title}`,
+            subtitle: `${semester.label} � ${month.title}`,
             searchText: `${lesson.title} ${lesson.objective} ${semester.label} ${month.title} ${track.label}`,
             action: () => context.openLesson(lesson.id)
           });
         });
-      });
-    });
-
-    track.assessments.forEach(assessment => {
-      items.push({
-        type: 'Assessment',
-        title: assessment.title,
-        subtitle: `${assessment.module} · due ${formatDateForSearch(assessment.dueAt)}`,
-        searchText: `${assessment.title} ${assessment.module} ${assessment.brief} ${track.label}`,
-        action: () => context.openView('assessments')
-      });
-    });
-
-    track.liveClasses.forEach(liveClass => {
-      items.push({
-        type: 'Live class',
-        title: liveClass.title,
-        subtitle: `${liveClass.instructor} · ${liveClass.schedule}`,
-        searchText: `${liveClass.title} ${liveClass.instructor} ${liveClass.schedule} ${track.label}`,
-        action: () => context.openLiveClass(liveClass.id)
       });
     });
 
@@ -222,12 +202,6 @@
       .replace(/[^a-z0-9\s]+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
-  }
-
-  function formatDateForSearch(value) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return 'date unavailable';
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   }
 
   function escapeHtml(value) {
