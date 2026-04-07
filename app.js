@@ -1,5 +1,16 @@
 
 (function () {
+  // ---------------------------------------------------------------------------
+  // RealKingHubs Academy LMS
+  // This file controls the browser-side application flow:
+  // 1. Auth and session state
+  // 2. Landing page and founder content
+  // 3. Dashboard rendering for every LMS section
+  // 4. Community sync, uploads, and message actions
+  // 5. Utility helpers used across the app
+  // ---------------------------------------------------------------------------
+
+  // Local storage keys keep user data and session data persistent between refreshes.
   const USERS_KEY = 'rkh_fresh_users';
   const SESSION_KEY = 'rkh_fresh_session';
   const COMMUNITY_KEY = 'rkh_fresh_community';
@@ -8,6 +19,7 @@
   const COMMUNITY_SYNC_INTERVAL_MS = 15000;
   const COMMUNITY_ATTACHMENT_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
   const COMMUNITY_ATTACHMENT_BUCKET = 'community-attachments';
+  const ANNOUNCEMENTS_TABLE = 'lms_announcements';
 
   const COMMUNITY_STICKER_PACKS = [
     {
@@ -66,18 +78,24 @@
     assessmentMessage: null,
     communityTrackId: null,
     communitySyncError: '',
-    communitySyncMode: 'local'
+    communitySyncMode: 'local',
+    remoteAnnouncementsByTrack: {},
+    announcementsLoadedByTrack: {}
   };
 
   let communitySupabase = null;
   let communityChannel = null;
   let communityPollHandle = null;
 
+  // Cached DOM references are stored here after startup so the app does not keep
+  // querying the same elements every time a view changes.
   const dom = {};
 
   document.addEventListener('DOMContentLoaded', init);
   window.addEventListener('storage', handleStorageSync);
 
+  // Startup flow: connect to the DOM, restore data, initialize sync, and open
+  // the correct surface depending on whether a learner is already signed in.
   function init() {
     bindDom();
     seedStorage();
@@ -143,6 +161,10 @@
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Data bootstrapping and normalization
+  // These helpers prepare a stable app state from local storage and demo seed data.
+  // ---------------------------------------------------------------------------
   function seedStorage() {
     if (!localStorage.getItem(COMMUNITY_KEY)) {
       localStorage.setItem(COMMUNITY_KEY, JSON.stringify(window.RKH_DATA.demoMessages));
@@ -242,6 +264,8 @@
     }
   }
 
+  // Community messages can arrive in different shapes from local storage or
+  // Supabase, so this normalizer gives the rest of the app one predictable format.
   function normalizeCommunityMessage(message) {
     const payload = parseCommunityPayload(message.content ?? message.body ?? '');
     const trackId = message.trackId || message.track_id || message.room || inferTrackId(message.authorTrack || message.author_track);
@@ -258,6 +282,46 @@
       attachment: payload.attachment || null,
       createdAt: message.createdAt || message.created_at || new Date().toISOString()
     };
+  }
+
+  function normalizeAnnouncement(item, fallbackTrackId = '') {
+    return {
+      id: String(item.id),
+      trackId: item.trackId || item.track_id || fallbackTrackId,
+      title: item.title || 'Announcement',
+      body: item.body || '',
+      date: item.date || formatDateTime(item.createdAt || item.created_at),
+      createdAt: item.createdAt || item.created_at || new Date().toISOString(),
+      createdBy: item.createdBy || item.created_by || ''
+    };
+  }
+
+  function setTrackAnnouncements(trackId, announcements, options = {}) {
+    const normalized = announcements
+      .map(item => normalizeAnnouncement(item, trackId))
+      .sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt));
+
+    const previousSignature = (state.remoteAnnouncementsByTrack[trackId] || [])
+      .map(item => `${item.id}:${item.createdAt}`)
+      .join('|');
+    const nextSignature = normalized
+      .map(item => `${item.id}:${item.createdAt}`)
+      .join('|');
+
+    state.remoteAnnouncementsByTrack[trackId] = normalized;
+    state.announcementsLoadedByTrack[trackId] = true;
+
+    if (!options.silent && previousSignature !== nextSignature && getCurrentUser() && getCurrentTrack()?.id === trackId) {
+      renderAppShell();
+    }
+  }
+
+  function getTrackAnnouncements(track) {
+    if (!track) return [];
+    if (state.announcementsLoadedByTrack[track.id]) {
+      return state.remoteAnnouncementsByTrack[track.id] || [];
+    }
+    return [...(track.announcements || [])].sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt));
   }
 
   function parseCommunityPayload(value) {
@@ -289,6 +353,9 @@
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Current user helpers and shared identity rendering
+  // ---------------------------------------------------------------------------
   function getCurrentUser() {
     return state.users.find(user => user.id === state.currentUserId) || null;
   }
@@ -304,6 +371,8 @@
 
   // All fallback avatars are generated as inline SVG images so the interface
   // still shows a real picture even before a learner uploads a profile photo.
+  // Generated avatar fallbacks let the LMS show a visual identity even when
+  // a learner has not uploaded a profile image yet.
   function createGeneratedAvatar(fullName) {
     const initials = getNameInitials(fullName);
     const svg = `
@@ -348,6 +417,9 @@
     dom.founderSupportLink.textContent = FOUNDER_PROFILE.supportLabel;
   }
 
+  // ---------------------------------------------------------------------------
+  // Curriculum defaults and community sync setup
+  // ---------------------------------------------------------------------------
   function ensureCurriculumDefaults(track) {
     const allSemesters = track.semesters || [];
     const allMonths = allSemesters.flatMap(semester => semester.months || []);
@@ -381,6 +453,15 @@
     }
   }
 
+  function ensureAnnouncementsFeedForTrack(track) {
+    if (!track || !communitySupabase) return;
+    if (!state.announcementsLoadedByTrack[track.id]) {
+      void refreshTrackAnnouncements(track.id, { silent: true });
+    }
+  }
+
+  // The community layer prefers Supabase for cross-browser sync, but the app still
+  // keeps local fallbacks so development and offline testing remain possible.
   function initializeCommunitySync() {
     if (!window.supabase?.createClient || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
       state.communitySyncMode = 'local';
@@ -401,6 +482,7 @@
       const track = getCurrentTrack();
       if (!track) return;
       void refreshCommunityMessages(track.id, { silent: true });
+      void refreshTrackAnnouncements(track.id, { silent: true });
     }, COMMUNITY_SYNC_INTERVAL_MS);
   }
 
@@ -464,6 +546,29 @@
     }
   }
 
+  async function refreshTrackAnnouncements(trackId, options = {}) {
+    if (!trackId || !communitySupabase) return;
+
+    const { data, error } = await communitySupabase
+      .from(ANNOUNCEMENTS_TABLE)
+      .select('id, track_id, title, body, created_at, created_by')
+      .eq('track_id', trackId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Announcement sync failed', error);
+      return;
+    }
+
+    setTrackAnnouncements(trackId, (data || []).map(item => ({
+      ...item,
+      date: formatDateTime(item.created_at)
+    })), options);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Page switching and auth-mode switching
+  // ---------------------------------------------------------------------------
   function showLandingPage() {
     setActivePage('landing');
   }
@@ -510,6 +615,9 @@
 
   // Build the landing-page programme cards from the same track data used by the LMS.
   // That way, entry-level developers only need to update one source of truth.
+  // ---------------------------------------------------------------------------
+  // Landing page rendering and auth actions
+  // ---------------------------------------------------------------------------
   function renderMarketingTracks() {
     const tracks = Object.values(window.RKH_DATA.tracks);
     dom.marketingTracks.innerHTML = tracks.map(track => `
@@ -633,6 +741,10 @@
     openApp('dashboard');
   }
 
+  // ---------------------------------------------------------------------------
+  // Main app shell rendering
+  // The LMS redraws the shell when the active page or learner state changes.
+  // ---------------------------------------------------------------------------
   function renderAppShell() {
     const user = getCurrentUser();
     const track = getCurrentTrack();
@@ -643,6 +755,7 @@
 
     ensureCurriculumDefaults(track);
     ensureCommunityFeedForTrack(track);
+    ensureAnnouncementsFeedForTrack(track);
     renderSidebar(user, track);
     renderTopbar(user, track);
     renderCurrentView(user, track);
@@ -772,6 +885,9 @@
     if (['community', 'announcements'].includes(state.currentView)) markSectionSeen(state.currentView);
   }
 
+  // ---------------------------------------------------------------------------
+  // Progress and notification calculations
+  // ---------------------------------------------------------------------------
   function calculateTrackProgress(user, track) {
     const allLessons = track.semesters.flatMap(semester => semester.months.flatMap(month => month.weeks));
     const completedCount = allLessons.filter(lesson => user.completedLessonIds.includes(lesson.id)).length;
@@ -800,9 +916,12 @@
 
   function getUnreadAnnouncementCount(user, track) {
     const seenAt = toTimestamp(user.lastSeenAnnouncementsAt);
-    return track.announcements.filter(item => toTimestamp(item.createdAt) > seenAt).length;
+    return getTrackAnnouncements(track).filter(item => toTimestamp(item.createdAt) > seenAt).length;
   }
 
+  // Some assessment helpers are still kept in the file because the data model
+  // already supports them, even though the visible LMS currently centers more
+  // strongly on curriculum, community, announcements, and profile management.
   function getAssessmentAttentionCount(user, track) {
     return track.assessments.filter(assessment => {
       const status = getAssessmentStatus(assessment, user);
@@ -877,8 +996,9 @@
         hasChanged = true;
       }
     }
-    if (viewId === 'announcements' && track.announcements.length) {
-      const latestAnnouncement = track.announcements[0].createdAt;
+    const activeAnnouncements = getTrackAnnouncements(track);
+    if (viewId === 'announcements' && activeAnnouncements.length) {
+      const latestAnnouncement = activeAnnouncements[0]?.createdAt;
       if (latestAnnouncement !== user.lastSeenAnnouncementsAt) {
         user.lastSeenAnnouncementsAt = latestAnnouncement;
         hasChanged = true;
@@ -891,10 +1011,14 @@
 
   // The dashboard is organized like an admin workspace:
   // overview metrics first, action queue second, and semester board last.
+  // ---------------------------------------------------------------------------
+  // View renderers
+  // Each renderer returns the HTML for one dashboard section.
+  // ---------------------------------------------------------------------------
   function renderDashboard(user, track) {
     const progress = calculateTrackProgress(user, track);
     const notificationCounts = getNotificationCounts(user, track);
-    const latestAnnouncement = [...track.announcements].sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt))[0] || null;
+    const latestAnnouncement = getTrackAnnouncements(track)[0] || null;
     const latestCommunityMessage = state.communityMessages.find(message => message.trackId === track.id) || null;
     const activeSemester = track.semesters.find(semester => semester.id === state.currentCurriculumSemesterId) || track.semesters[0];
     const monthFour = activeSemester?.months?.find(month => month.label === 'Month 4') || null;
@@ -1101,6 +1225,8 @@
 
   // Curriculum rendering is intentionally split into semester -> month -> week.
   // This keeps the navigation clear and makes it easier to expand later.
+  // Curriculum is split into semesters, then months, then weekly lesson entries.
+  // The left side shows structure while the lesson player keeps the active content visible.
   function renderCurriculum(user, track) {
     const allMonths = track.semesters.flatMap(semester => semester.months);
     const openSemesterId = state.currentCurriculumSemesterId && track.semesters.some(semester => semester.id === state.currentCurriculumSemesterId)
@@ -1265,6 +1391,8 @@
     `;
   }
 
+  // Community rendering includes the composer, sticker pack, message list,
+  // attachments, and older-message toggle.
   function renderCommunity(user, track) {
     const visibleMessages = state.showOlderMessages ? state.communityMessages : state.communityMessages.slice(0, 5);
     const remaining = Math.max(state.communityMessages.length - visibleMessages.length, 0);
@@ -1442,11 +1570,11 @@
     `;
   }
   function renderAnnouncements(user, track) {
-    const announcements = [...track.announcements].sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt));
+    const announcements = getTrackAnnouncements(track);
     return `
       <section class="surface-card">
         <div class="content-header"><div><p class="section-kicker">Programme updates</p><h2>Announcements</h2><p>Course notices, lab guidance, and learning updates live here instead of crowding the dashboard.</p></div></div>
-        <div class="announcement-grid">${announcements.map(item => `<article class="announcement-card"><small>${item.date}</small><h3>${item.title}</h3><p>${item.body}</p></article>`).join('')}</div>
+        <div class="announcement-grid">${announcements.length ? announcements.map(item => `<article class="announcement-card"><small>${item.date}</small><h3>${item.title}</h3><p>${item.body}</p></article>`).join('') : '<div class="empty-state">No announcement has been published for this track yet.</div>'}</div>
       </section>
     `;
   }
@@ -1481,6 +1609,9 @@
     `;
   }
 
+  // ---------------------------------------------------------------------------
+  // Profile, assessment, and composer event binding
+  // ---------------------------------------------------------------------------
   function bindProfileForm() {
     const form = document.getElementById('profileForm');
     const avatarInput = document.getElementById('profileAvatarInput');
@@ -1611,6 +1742,8 @@
     renderAppShell();
   }
 
+  // Community composer helpers manage the sticker picker, file selection,
+  // folder zipping, payload uploads, and final message submission.
   function bindCommunityComposer() {
     const input = document.getElementById('communityMessage');
     if (!input || input.dataset.bound === 'true') return;
@@ -2001,6 +2134,9 @@
     await refreshCommunityMessages(track.id);
   }
 
+  // ---------------------------------------------------------------------------
+  // Small interaction handlers and shared utilities
+  // ---------------------------------------------------------------------------
   function toggleOlderMessages(showAll) {
     state.showOlderMessages = showAll;
     renderAppShell();
@@ -2175,12 +2311,14 @@
 
   // Search uses this lightweight context so it can stay in a separate file
   // without duplicating LMS state or business logic.
+  // Search uses this compact context instead of touching internal app state directly.
   function getSearchContext() {
     const user = getCurrentUser();
     const track = getCurrentTrack();
+    const resolvedTrack = track ? { ...track, announcements: getTrackAnnouncements(track) } : track;
     return {
       user,
-      track,
+      track: resolvedTrack,
       communityMessages: state.communityMessages.filter(message => !track || message.trackId === track.id),
       openView: openApp,
       openLesson,

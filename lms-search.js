@@ -1,4 +1,10 @@
 (function () {
+  // ---------------------------------------------------------------------------
+  // LMS search module
+  // This file stays separate from app.js so search behavior is easier to maintain.
+  // It only searches content that already exists inside the learner's LMS session.
+  // ---------------------------------------------------------------------------
+
   const MAX_RESULTS = 8;
 
   const dom = {
@@ -32,6 +38,7 @@
     });
   }
 
+  // Basic UI handlers keep the search panel responsive without adding heavy state.
   function handleSearchInput() {
     renderSearchResults(dom.input.value);
   }
@@ -141,6 +148,8 @@
     return items;
   }
 
+  // Relevance is intentionally simple here: exact matches, prefix matches,
+  // contains matches, then word-start matches.
   function getSearchScore(query, haystack) {
     if (!query || !haystack) return 0;
     if (haystack === query) return 120;
@@ -153,6 +162,7 @@
     return matchedWords.length ? matchedWords.length * 20 : 0;
   }
 
+  // Render and wire the current result set every time the query changes.
   function renderSearchResults(query) {
     const trimmed = query.trim();
     if (!trimmed) {
@@ -174,6 +184,7 @@
     });
   }
 
+  // Small helpers below keep search text safe and consistent for display.
   function renderSearchResult(result, index) {
     return `
       <button type="button" class="search-result-item" data-search-index="${index}">

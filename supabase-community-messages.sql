@@ -17,6 +17,22 @@ alter table public.community_messages replica identity full;
 
 alter table public.community_messages disable row level security;
 
+create table if not exists public.lms_announcements (
+  id bigint generated always as identity primary key,
+  track_id text not null,
+  title text not null,
+  body text not null,
+  created_by text not null default '',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists lms_announcements_track_created_at_idx
+  on public.lms_announcements (track_id, created_at desc);
+
+alter table public.lms_announcements replica identity full;
+
+alter table public.lms_announcements disable row level security;
+
 insert into storage.buckets (id, name, public, file_size_limit)
 values ('community-attachments', 'community-attachments', true, 2147483648)
 on conflict (id) do update

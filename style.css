@@ -1,18 +1,22 @@
+/* -------------------------------------------------------------------------- */
+/* Design tokens and global reset                                              */
+/* These variables drive the full visual system for landing, auth, and LMS.   */
+/* -------------------------------------------------------------------------- */
 /* Brand tokens shared across landing and LMS screens. */
 :root {
-  --ink-950: #14182a;
-  --ink-900: #232846;
-  --ink-800: #3b446d;
-  --blue-600: #6f84f7;
-  --blue-100: #eef1ff;
-  --gold-500: #b7c2ff;
-  --surface: #f7f8ff;
-  --surface-alt: #eef2ff;
+  --ink-950: #161a30;
+  --ink-900: #25304a;
+  --ink-800: #55627e;
+  --blue-600: #6e79ff;
+  --blue-100: #eef2ff;
+  --gold-500: #c6ceff;
+  --surface: #fbfcff;
+  --surface-alt: #f4f7ff;
   --card: #ffffff;
-  --line: #d9dff2;
-  --line-strong: #c2cae8;
+  --line: #e2e8f5;
+  --line-strong: #d2daed;
   --text: #0f172a;
-  --muted: #6f7996;
+  --muted: #6d7894;
   --success: #10b981;
   --warning: #d97706;
   --danger: #dc2626;
@@ -20,9 +24,9 @@
   --radius-lg: 24px;
   --radius-md: 18px;
   --radius-sm: 14px;
-  --shadow-lg: 0 30px 60px rgba(15, 23, 42, 0.14);
-  --shadow-md: 0 18px 36px rgba(15, 23, 42, 0.1);
-  --shadow-sm: 0 10px 22px rgba(15, 23, 42, 0.07);
+  --shadow-lg: 0 28px 58px rgba(96, 111, 168, 0.14);
+  --shadow-md: 0 16px 34px rgba(96, 111, 168, 0.1);
+  --shadow-sm: 0 10px 22px rgba(96, 111, 168, 0.07);
   --transition: 180ms ease;
 }
 
@@ -42,9 +46,9 @@ body {
   font-family: "Poppins", sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(111, 132, 247, 0.09), transparent 28%),
-    radial-gradient(circle at top right, rgba(35, 40, 70, 0.07), transparent 24%),
-    linear-gradient(180deg, #fcfcff 0%, #f1f4ff 100%);
+    radial-gradient(circle at top left, rgba(110, 121, 255, 0.08), transparent 30%),
+    radial-gradient(circle at top right, rgba(110, 121, 255, 0.06), transparent 24%),
+    linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%);
 }
 
 a {
@@ -92,10 +96,11 @@ img {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(140deg, rgba(255, 255, 255, 0.7), transparent 55%),
-    radial-gradient(circle at 80% 15%, rgba(111, 132, 247, 0.08), transparent 18%);
+    linear-gradient(140deg, rgba(255, 255, 255, 0.22), transparent 55%),
+    radial-gradient(circle at 80% 15%, rgba(110, 121, 255, 0.04), transparent 18%);
 }
 
+/* Shared max-width wrappers used across public and signed-in surfaces */
 .marketing-header,
 .marketing-main,
 .auth-layout,
@@ -104,6 +109,9 @@ img {
   margin: 0 auto;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Landing page                                                                */
+/* -------------------------------------------------------------------------- */
 .marketing-header {
   display: grid;
   grid-template-columns: minmax(280px, 1fr) auto auto;
@@ -114,9 +122,9 @@ img {
   z-index: 20;
   margin-top: 16px;
   padding: 18px 22px;
-  border: 1px solid rgba(215, 226, 235, 0.86);
+  border: 1px solid rgba(226, 232, 245, 0.95);
   border-radius: 26px;
-  background: rgba(255, 255, 255, 0.74);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(18px);
   box-shadow: var(--shadow-sm);
 }
@@ -211,7 +219,7 @@ img {
   font-weight: 700;
   letter-spacing: 0.14em;
   color: #fff;
-  background: linear-gradient(135deg, #1a1f38 0%, #38406d 58%, #6f84f7 100%);
+  background: linear-gradient(135deg, #4d5ede 0%, #6578ff 58%, #90a4ff 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
@@ -262,18 +270,18 @@ img {
 }
 
 .btn-primary {
-  color: var(--ink-950);
-  background: linear-gradient(135deg, #8a9afd 0%, #6f84f7 100%);
-  box-shadow: 0 12px 28px rgba(111, 132, 247, 0.24);
+  color: #ffffff;
+  background: linear-gradient(135deg, #7d8cff 0%, #6678ff 100%);
+  box-shadow: 0 12px 28px rgba(110, 121, 255, 0.24);
 }
 
 .btn-primary:hover {
-  box-shadow: 0 16px 34px rgba(111, 132, 247, 0.28);
+  box-shadow: 0 16px 34px rgba(110, 121, 255, 0.28);
 }
 
 .btn-secondary {
   color: var(--ink-900);
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.98);
   border: 1px solid var(--line-strong);
 }
 
@@ -353,11 +361,11 @@ img {
 .lesson-player,
 .class-player,
 .composer-panel {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(215, 226, 235, 0.95);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(226, 232, 245, 0.98);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md);
-  backdrop-filter: blur(14px);
+  backdrop-filter: none;
 }
 
 .hero-copy,
@@ -381,8 +389,8 @@ img {
   position: relative;
   overflow: hidden;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.93)),
-    linear-gradient(130deg, rgba(111, 132, 247, 0.08), rgba(20, 24, 42, 0.05));
+    linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(251, 252, 255, 0.96)),
+    linear-gradient(130deg, rgba(110, 121, 255, 0.08), rgba(110, 121, 255, 0.02));
 }
 
 .hero-copy::after {
@@ -393,7 +401,7 @@ img {
   width: 220px;
   height: 220px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(111, 132, 247, 0.14), transparent 68%);
+  background: radial-gradient(circle, rgba(110, 121, 255, 0.08), transparent 70%);
 }
 
 .hero-badge-row {
@@ -417,8 +425,8 @@ img {
 
 .floating-badge {
   color: var(--ink-900);
-  background: rgba(111, 132, 247, 0.12);
-  border: 1px solid rgba(111, 132, 247, 0.18);
+  background: rgba(110, 121, 255, 0.08);
+  border: 1px solid rgba(110, 121, 255, 0.14);
 }
 
 .hero-status {
@@ -464,8 +472,8 @@ img {
   align-items: center;
   padding: 9px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(111, 132, 247, 0.16);
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(110, 121, 255, 0.14);
   color: var(--ink-900);
   font-size: 0.86rem;
   font-weight: 600;
@@ -511,7 +519,7 @@ img {
 .notes-list li {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, #ffffff 0%, #f2f8fc 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
   box-shadow: var(--shadow-sm);
 }
 
@@ -564,10 +572,9 @@ img {
   display: grid;
   gap: 22px;
   background:
-    radial-gradient(circle at top right, rgba(111, 132, 247, 0.16), transparent 28%),
-    linear-gradient(180deg, rgba(20, 24, 42, 0.99), rgba(35, 40, 70, 0.97)),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent);
-  color: #fff;
+    radial-gradient(circle at top right, rgba(110, 121, 255, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(247, 249, 255, 0.98));
+  color: var(--ink-900);
 }
 
 .hero-panel .section-kicker,
@@ -582,8 +589,8 @@ img {
 .hero-stage-card {
   padding: 18px;
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(110, 121, 255, 0.12);
 }
 
 .signal-grid {
@@ -596,12 +603,12 @@ img {
   gap: 6px;
   padding: 16px 18px;
   border-radius: var(--radius-md);
-  background: rgba(15, 23, 42, 0.28);
-  border: 1px solid rgba(183, 194, 255, 0.16);
+  background: linear-gradient(180deg, #ffffff 0%, #f6f8ff 100%);
+  border: 1px solid rgba(110, 121, 255, 0.12);
 }
 
 .signal-card small {
-  color: rgba(224, 242, 254, 0.86);
+  color: var(--blue-600);
   text-transform: uppercase;
   letter-spacing: 0.12em;
   font-size: 0.72rem;
@@ -612,17 +619,17 @@ img {
   display: block;
   margin: 0;
   font-size: 1rem;
-  color: #fff;
+  color: var(--ink-900);
 }
 
 .signal-card span {
-  color: rgba(241, 245, 249, 0.82);
+  color: var(--muted);
   line-height: 1.6;
 }
 
 .hero-panel-grid article {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
+  border-color: rgba(110, 121, 255, 0.12);
   box-shadow: none;
 }
 
@@ -968,7 +975,7 @@ img {
   gap: 20px;
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.98);
   box-shadow: var(--shadow-sm);
 }
 
@@ -1020,7 +1027,7 @@ img {
   width: 220px;
   height: 220px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(111, 132, 247, 0.14), transparent 68%);
+  background: radial-gradient(circle, rgba(110, 121, 255, 0.07), transparent 68%);
 }
 
 .semester-timeline {
@@ -1089,6 +1096,9 @@ img {
   color: var(--danger);
 }
 
+/* -------------------------------------------------------------------------- */
+/* Authentication pages                                                        */
+/* -------------------------------------------------------------------------- */
 .auth-layout {
   display: grid;
   grid-template-columns: minmax(320px, 0.92fr) minmax(320px, 1.08fr);
@@ -1264,6 +1274,9 @@ img {
   color: var(--text-secondary);
   text-align: center;
 }
+/* -------------------------------------------------------------------------- */
+/* Signed-in LMS shell                                                         */
+/* -------------------------------------------------------------------------- */
 .app-shell {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -1273,6 +1286,7 @@ img {
   align-items: start;
 }
 
+/* Collapsible sidebar on desktop: compact by default, expanded on hover */
 .app-sidebar {
   display: flex;
   flex-direction: column;
@@ -1281,8 +1295,8 @@ img {
   padding: 20px 16px;
   width: 92px;
   color: var(--text);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(244, 246, 255, 0.99));
-  border: 1px solid rgba(215, 226, 235, 0.95);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(247, 249, 255, 1));
+  border: 1px solid rgba(226, 232, 245, 0.98);
   border-radius: 26px;
   box-shadow: var(--shadow-sm);
   position: sticky;
@@ -1309,7 +1323,7 @@ img {
   align-items: center;
   padding: 16px;
   border-radius: 18px;
-  background: linear-gradient(180deg, #ffffff 0%, #f5f9fc 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   border: 1px solid var(--line);
 }
 
@@ -1365,7 +1379,7 @@ img {
   place-items: center;
   font-weight: 800;
   color: var(--ink-900);
-  background: linear-gradient(135deg, #f6f9fd, #dce6f3);
+  background: linear-gradient(135deg, #f7f9ff, #e6ecff);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
@@ -1439,8 +1453,8 @@ img {
 .sidebar-nav-list button.nav-active,
 .sidebar-nav-list button:hover {
   color: var(--ink-900);
-  background: rgba(111, 132, 247, 0.08);
-  border-color: rgba(111, 132, 247, 0.18);
+  background: rgba(110, 121, 255, 0.08);
+  border-color: rgba(110, 121, 255, 0.18);
 }
 
 .app-sidebar:hover .sidebar-nav-list button,
@@ -1530,6 +1544,7 @@ img {
   gap: 18px;
 }
 
+/* Top bar keeps title, search, progress, alerts, and learner identity visible */
 .app-topbar {
   display: flex;
   justify-content: space-between;
@@ -1537,9 +1552,9 @@ img {
   gap: 18px;
   padding: 16px 20px;
   margin-bottom: 0;
-  border: 1px solid rgba(215, 226, 235, 0.95);
+  border: 1px solid rgba(226, 232, 245, 0.98);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.98);
   box-shadow: var(--shadow-sm);
 }
 
@@ -1577,7 +1592,7 @@ img {
   height: 46px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: #fff;
+  background: #ffffff;
   color: var(--muted);
 }
 
@@ -1621,8 +1636,8 @@ img {
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 24px 40px rgba(15, 23, 42, 0.14);
+  background: rgba(255, 255, 255, 0.99);
+  box-shadow: 0 24px 40px rgba(96, 111, 168, 0.12);
 }
 
 .search-result-item {
@@ -1639,7 +1654,7 @@ img {
 
 .search-result-item:hover {
   background: var(--surface-alt);
-  border-color: rgba(111, 132, 247, 0.18);
+  border-color: rgba(110, 121, 255, 0.18);
 }
 
 .search-result-type {
@@ -1679,7 +1694,7 @@ img {
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, #ffffff 0%, #f7fafc 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   box-shadow: none;
 }
 
@@ -1754,7 +1769,7 @@ img {
   display: grid;
   place-items: center;
   border: 1px solid var(--line);
-  background: linear-gradient(135deg, #f6f9fd, #dce6f3);
+  background: linear-gradient(135deg, #f7f9ff, #e6ecff);
   color: var(--ink-900);
   font-weight: 800;
 }
@@ -1790,9 +1805,9 @@ img {
 .app-footer {
   margin: 0;
   padding: 16px 18px;
-  border: 1px solid rgba(215, 226, 235, 0.95);
+  border: 1px solid rgba(226, 232, 245, 0.98);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.98);
   color: var(--muted);
   text-align: left;
 }
@@ -2011,9 +2026,12 @@ img {
 .timeline-progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #8a9afd 0%, #6f84f7 100%);
+  background: linear-gradient(90deg, #8f9cff 0%, #6e79ff 100%);
 }
 
+/* -------------------------------------------------------------------------- */
+/* Curriculum                                                                  */
+/* -------------------------------------------------------------------------- */
 .curriculum-layout,
 .profile-grid,
 .settings-grid {
@@ -2111,8 +2129,8 @@ img {
 }
 
 .curriculum-month-open {
-  border-color: rgba(111, 132, 247, 0.24);
-  box-shadow: 0 10px 26px rgba(111, 132, 247, 0.12);
+  border-color: rgba(110, 121, 255, 0.24);
+  box-shadow: 0 10px 26px rgba(110, 121, 255, 0.12);
 }
 
 .curriculum-month-toggle {
@@ -2241,6 +2259,9 @@ img {
   box-shadow: 0 18px 38px rgba(111, 132, 247, 0.12);
 }
 
+/* -------------------------------------------------------------------------- */
+/* Community                                                                   */
+/* -------------------------------------------------------------------------- */
 .community-layout {
   display: grid;
   grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.18fr);
@@ -2285,6 +2306,7 @@ img {
   align-items: center;
 }
 
+/* Sticker pack is intentionally simple: grouped sets of quick-send reactions */
 .sticker-pack-panel {
   display: grid;
   gap: 16px;
@@ -2609,6 +2631,9 @@ img {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+/* -------------------------------------------------------------------------- */
+/* Responsive adjustments                                                      */
+/* -------------------------------------------------------------------------- */
 @media (max-width: 1180px) {
   .hero-grid,
   .marketing-feature-row,

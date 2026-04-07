@@ -1,4 +1,14 @@
 (function () {
+  // ---------------------------------------------------------------------------
+  // Shared LMS data
+  // This file is the content layer for the platform:
+  // 1. Video libraries for each track
+  // 2. Curriculum builders for semesters, months, and weeks
+  // 3. Track metadata, announcements, and starter community messages
+  // ---------------------------------------------------------------------------
+
+  // Track-specific video libraries are kept separate so curriculum editors can
+  // swap or expand a single programme without touching the others.
   // Cloud Engineering Video Library - Expanded for diverse learning weeks, months, and semesters
   const cloudVideoLibrary = {
     linux: 'https://www.youtube-nocookie.com/embed/IVquJh3DXUA',
@@ -246,6 +256,8 @@
     ]
   };
 
+  // If a sequence entry is missing, the curriculum can still fall back to a safe
+  // default video instead of breaking the lesson player.
   function buildCurriculumVideoUrl(videoSource, fallbackVideoUrl = '') {
     return videoSource || chapter(fallbackVideoUrl || '');
   }
@@ -256,6 +268,8 @@
     return buildCurriculumVideoUrl(trackSequence[sequenceIndex], fallbackVideoUrl);
   }
 
+  // Learning months always map to four weekly blocks to keep the curriculum
+  // layout consistent across all tracks.
   function buildLearningWeeks(videoLib, trackKey, semesterNumber, monthNumber, lessons, videoKeys) {
     return lessons.map((lesson, index) => ({
       id: `${trackKey}-s${semesterNumber}-m${monthNumber}-w${index + 1}`,
@@ -267,6 +281,7 @@
     }));
   }
 
+  // Month four is treated as a hands-on lab month rather than another theory block.
   function buildHandsOnLabWeeks(videoLib, trackKey, semesterNumber, monthNumber, fallbackKeys = []) {
     return [
       {
@@ -304,6 +319,8 @@
     ];
   }
 
+  // Every semester follows the same structure:
+  // Months 1 to 3 are learning blocks, month 4 is the hands-on lab block.
   function buildSemester(videoLib, trackKey, semesterNumber, title, learningMonths, labVideoKeys) {
     return {
       id: `${trackKey}-semester-${semesterNumber}`,
@@ -360,6 +377,7 @@
     }));
   }
 
+  // This is the main academic dataset consumed by the dashboard and search layer.
   const TRACKS = {
     'cloud-engineering': {
       id: 'cloud-engineering',
@@ -453,6 +471,7 @@
     }
   };
 
+  // Shared navigation labels are stored with the data so search and UI stay aligned.
   const NAV_ITEMS = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'curriculum', label: 'Curriculum' },
@@ -462,6 +481,7 @@
     { id: 'profile', label: 'Profile and Settings' }
   ];
 
+  // Starter community content helps the LMS feel populated on first launch.
   const DEMO_MESSAGES = [
     { id: 'msg-1', authorId: 'cloud-mentor', authorName: 'Cloud Support Desk', authorTrack: 'Cloud Engineering', trackId: 'cloud-engineering', body: 'Use this room for cloud lab blockers, deployment questions, and revision updates related to cloud engineering.', createdAt: '2026-04-05T08:00:00Z' },
     { id: 'msg-2', authorId: 'cloud-learner', authorName: 'Kemi Adebayo', authorTrack: 'Cloud Engineering', trackId: 'cloud-engineering', body: 'I finished the Linux command line revision today. The guided notes in semester one were especially helpful.', createdAt: '2026-04-05T09:15:00Z' },

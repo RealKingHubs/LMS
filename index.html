@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Core metadata, fonts, and the single shared stylesheet for the LMS -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RealKingHubs Academy</title>
@@ -12,6 +13,7 @@
 </head>
 <body>
   <div class="site-shell">
+    <!-- Public landing page shown before a learner signs in -->
     <section id="landingPage" class="page page-active">
       <header class="marketing-header">
         <div class="brand-block">
@@ -247,7 +249,9 @@
         <section class="founder-section">
           <article class="founder-card">
             <div class="founder-photo-panel">
-              <div id="founderAvatar" class="founder-avatar-frame"></div>
+              <div /*id="founderAvatar"*/ class="founder-avatar-frame">
+                <img src="https://cdn.buymeacoffee.com/uploads/profile_pictures/2026/04/2HfAYhVty9asKHEY.png@300w_0e.webp" alt="Odo Uchenna" />
+              </div>
             </div>
             <div class="founder-copy-panel">
               <p class="section-kicker">Owner and founder</p>
@@ -273,6 +277,7 @@
         </section>
       </main>
 
+      <!-- Landing footer keeps contact and core platform links in one place -->
       <footer id="landingFooter" class="landing-footer">
         <div class="landing-footer-inner">
           <div class="landing-footer-brand">
@@ -296,6 +301,7 @@
       </footer>
     </section>
 
+    <!-- Auth page used for both sign-in and account creation -->
     <section id="authPage" class="page">
       <div class="auth-layout">
         <div class="auth-intro">
@@ -315,11 +321,13 @@
         </div>
 
         <div class="auth-card">
+          <!-- Tabs swap the visible form without leaving the page -->
           <div class="auth-tabs">
             <button id="loginTab" class="auth-tab auth-tab-active" type="button" onclick="switchAuthMode('login')">Sign in</button>
             <button id="registerTab" class="auth-tab" type="button" onclick="switchAuthMode('register')">Create account</button>
           </div>
 
+          <!-- Validation and success feedback from app.js appears here -->
           <div id="authMessage" class="form-message"></div>
 
           <form id="loginForm" class="auth-form auth-form-active">
@@ -379,8 +387,10 @@
       </div>
     </section>
 
+    <!-- Main LMS shell shown after login -->
     <section id="appPage" class="page">
       <div class="app-shell">
+        <!-- Sidebar navigation is rendered dynamically so labels stay in sync -->
         <aside class="app-sidebar">
           <div class="sidebar-brand" title="RealKingHubs Academy">
             <div class="brand-mark">RK</div>
@@ -404,6 +414,7 @@
         </aside>
 
         <div class="app-main">
+          <!-- Top bar: page title, LMS search, quick actions, and learner avatar -->
           <header class="app-topbar">
             <div class="topbar-heading">
               <p id="pageEyebrow" class="section-kicker">RealKingHubs Academy LMS</p>
@@ -411,6 +422,7 @@
             </div>
             <div class="topbar-tools">
               <div class="topbar-search-wrap">
+              <!-- Search only looks through LMS content already loaded in the browser -->
               <label class="topbar-search">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
@@ -418,6 +430,7 @@
                 </svg>
                 <input id="topbarSearch" type="search" placeholder="Search dashboard..." />
               </label>
+              <!-- Results are injected by lms-search.js -->
               <div id="topbarSearchPanel" class="topbar-search-panel hidden" role="listbox" aria-label="LMS search results"></div>
               </div>
               <div class="topbar-meta">
@@ -450,8 +463,10 @@
             </div>
           </header>
 
+          <!-- app.js swaps every dashboard page into this container -->
           <main id="appContent" class="app-content"></main>
 
+          <!-- Shared footer for the signed-in workspace -->
           <footer class="app-footer">
             <p id="appFooterText">© 2026 RealKingHubs · Learning Management System</p>
           </footer>
@@ -460,6 +475,7 @@
     </section>
   </div>
 
+  <!-- Script order matters: data first, app second, search last -->
   <script src="data.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>

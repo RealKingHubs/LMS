@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Separate admin entry point for /uc-admin -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RealKingHubs Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <section id="adminGate" class="admin-gate">
+      <div class="admin-gate-card">
+        <p class="eyebrow">UC Admin</p>
+        <h1>RealKingHubs admin dashboard</h1>
+        <p class="muted">
+          This page is intended for platform moderation and announcement publishing.
+          It is separated from the learner LMS so admin tools stay isolated.
+        </p>
+        <div id="adminAuthMessage" class="form-message hidden"></div>
+        <form id="adminLoginForm" class="admin-form">
+          <label>
+            <span>Admin email</span>
+            <input id="adminEmail" type="email" placeholder="your@email.com" />
+          </label>
+          <label>
+            <span>Access key</span>
+            <input id="adminAccessKey" type="password" placeholder="Enter admin access key" />
+          </label>
+          <button class="btn btn-primary" type="submit">Open admin dashboard</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="adminApp" class="admin-app hidden">
+      <header class="admin-topbar">
+        <div>
+          <p class="eyebrow">Admin workspace</p>
+          <h1>RealKingHubs LMS control panel</h1>
+        </div>
+        <div class="admin-topbar-actions">
+          <a class="btn btn-secondary" href="../index.html">Open learner LMS</a>
+          <button id="adminLogoutBtn" class="btn btn-primary" type="button">Log out</button>
+        </div>
+      </header>
+
+      <main class="admin-main">
+        <!-- Overview cards help the admin understand platform status at a glance -->
+        <section class="admin-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Overview</p>
+              <h2>Platform summary</h2>
+            </div>
+            <button id="refreshAdminDataBtn" class="btn btn-secondary" type="button">Refresh data</button>
+          </div>
+          <div id="adminOverviewCards" class="overview-grid"></div>
+        </section>
+
+        <section class="admin-grid">
+          <!-- Announcement publishing is track-based so learners only see updates for their programme -->
+          <article class="admin-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Announcements</p>
+                <h2>Publish programme updates</h2>
+              </div>
+            </div>
+
+            <div id="adminAnnouncementMessage" class="form-message hidden"></div>
+
+            <form id="announcementForm" class="admin-form">
+              <label>
+                <span>Track</span>
+                <select id="announcementTrack"></select>
+              </label>
+              <label>
+                <span>Announcement title</span>
+                <input id="announcementTitle" type="text" placeholder="Enter announcement title" />
+              </label>
+              <label>
+                <span>Announcement body</span>
+                <textarea id="announcementBody" rows="5" placeholder="Write the update learners should see"></textarea>
+              </label>
+              <button class="btn btn-primary" type="submit">Send announcement</button>
+            </form>
+
+            <div class="panel-header compact">
+              <div>
+                <p class="eyebrow">Published</p>
+                <h3>Existing announcements</h3>
+              </div>
+            </div>
+            <div id="announcementList" class="admin-list"></div>
+          </article>
+
+          <!-- Community moderation supports single-message deletion or bulk cleanup -->
+          <article class="admin-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Community moderation</p>
+                <h2>Manage learner messages</h2>
+              </div>
+            </div>
+
+            <div class="moderation-toolbar">
+              <label class="inline-field">
+                <span>Filter by track</span>
+                <select id="messageTrackFilter"></select>
+              </label>
+              <button id="deleteFilteredMessagesBtn" class="btn btn-secondary" type="button">Delete filtered messages</button>
+              <button id="deleteAllMessagesBtn" class="btn btn-danger" type="button">Delete all messages</button>
+            </div>
+
+            <div id="adminCommunityMessage" class="form-message hidden"></div>
+            <div id="messageList" class="admin-list admin-message-list"></div>
+          </article>
+        </section>
+      </main>
+    </section>
+  </div>
+
+  <script src="../data.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
