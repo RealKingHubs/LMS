@@ -20,6 +20,9 @@
   const COMMUNITY_ATTACHMENT_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
   const COMMUNITY_ATTACHMENT_BUCKET = 'community-attachments';
   const ANNOUNCEMENTS_TABLE = 'lms_announcements';
+  const TRACK_SETTINGS_TABLE = 'lms_track_settings';
+  const MONTH_OVERRIDES_TABLE = 'lms_curriculum_month_overrides';
+  const WEEK_OVERRIDES_TABLE = 'lms_curriculum_week_overrides';
 
   const COMMUNITY_STICKER_PACKS = [
     {
@@ -80,7 +83,10 @@
     communitySyncError: '',
     communitySyncMode: 'local',
     remoteAnnouncementsByTrack: {},
-    announcementsLoadedByTrack: {}
+    announcementsLoadedByTrack: {},
+    trackSettingsById: {},
+    curriculumMonthOverridesById: {},
+    curriculumWeekOverridesById: {}
   };
 
   let communitySupabase = null;
@@ -91,23 +97,31 @@
   // querying the same elements every time a view changes.
   const dom = {};
 
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', () => {
+    void init();
+  });
   window.addEventListener('storage', handleStorageSync);
 
   // Startup flow: connect to the DOM, restore data, initialize sync, and open
   // the correct surface depending on whether a learner is already signed in.
-  function init() {
+  async function init() {
     bindDom();
     seedStorage();
     hydrateState();
     persistUsers();
     initializeCommunitySync();
+    await bootstrapRemoteLmsData();
     renderMarketingTracks();
     renderFounderShowcase();
     populateRegisterTrackSelect();
     bindEvents();
 
     if (getCurrentUser()) {
+      const profileAvailable = await syncCurrentUserProfileFromRemote();
+      if (profileAvailable === false) {
+        showAuthPage('login');
+        return;
+      }
       openApp('dashboard');
     } else {
       showLandingPage();
@@ -362,7 +376,70 @@
 
   function getCurrentTrack() {
     const user = getCurrentUser();
-    return user ? window.RKH_DATA?.tracks?.[user.trackId] || null : null;
+    return user ? getResolvedTrack(user.trackId) : null;
+  }
+
+  // Track settings and curriculum overrides are merged into the static data layer
+  // so the LMS can stay fast in the browser while still supporting admin edits.
+  function getResolvedTracks() {
+    return Object.values(window.RKH_DATA?.tracks || {})
+      .map(track => getResolvedTrack(track.id))
+      .filter(Boolean)
+      .sort((left, right) => {
+        const leftOrder = Number.isFinite(left.sortOrder) ? left.sortOrder : 0;
+        const rightOrder = Number.isFinite(right.sortOrder) ? right.sortOrder : 0;
+        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+        return left.label.localeCompare(right.label);
+      });
+  }
+
+  function getAvailableTracks() {
+    return getResolvedTracks().filter(track => track.isEnabled !== false);
+  }
+
+  function getResolvedTrack(trackId) {
+    const baseTrack = window.RKH_DATA?.tracks?.[trackId];
+    if (!baseTrack) return null;
+
+    const trackSettings = state.trackSettingsById[trackId] || {};
+    const resolvedOutcomes = Array.isArray(trackSettings.outcomes) && trackSettings.outcomes.length
+      ? trackSettings.outcomes
+      : baseTrack.outcomes;
+
+    return {
+      ...baseTrack,
+      label: trackSettings.label || baseTrack.label,
+      summary: trackSettings.summary || baseTrack.summary,
+      outcomes: resolvedOutcomes,
+      isEnabled: trackSettings.isEnabled !== false,
+      sortOrder: Number.isFinite(trackSettings.sortOrder) ? trackSettings.sortOrder : 0,
+      semesters: baseTrack.semesters.map(semester => ({
+        ...semester,
+        months: semester.months.map(month => {
+          const monthOverride = state.curriculumMonthOverridesById[month.id] || {};
+          return {
+            ...month,
+            label: monthOverride.label || month.label,
+            title: monthOverride.title || month.title,
+            summary: monthOverride.summary || month.summary,
+            phase: monthOverride.phase || month.phase,
+            weeks: month.weeks.map(week => {
+              const weekOverride = state.curriculumWeekOverridesById[week.id] || {};
+              return {
+                ...week,
+                title: weekOverride.title || week.title,
+                objective: weekOverride.objective || week.objective,
+                type: weekOverride.type || week.type,
+                videoUrl: weekOverride.videoUrl || week.videoUrl,
+                resources: Array.isArray(weekOverride.resources) && weekOverride.resources.length
+                  ? weekOverride.resources
+                  : week.resources
+              };
+            })
+          };
+        })
+      }))
+    };
   }
 
   function getFounderUser() {
@@ -460,6 +537,15 @@
     }
   }
 
+  async function bootstrapRemoteLmsData() {
+    if (!communitySupabase) return;
+
+    await Promise.all([
+      refreshTrackSettings({ silent: true }),
+      refreshCurriculumOverrides({ silent: true })
+    ]);
+  }
+
   // The community layer prefers Supabase for cross-browser sync, but the app still
   // keeps local fallbacks so development and offline testing remain possible.
   function initializeCommunitySync() {
@@ -483,6 +569,9 @@
       if (!track) return;
       void refreshCommunityMessages(track.id, { silent: true });
       void refreshTrackAnnouncements(track.id, { silent: true });
+      void refreshTrackSettings({ silent: true });
+      void refreshCurriculumOverrides({ silent: true });
+      void syncCurrentUserProfileFromRemote();
     }, COMMUNITY_SYNC_INTERVAL_MS);
   }
 
@@ -566,6 +655,170 @@
     })), options);
   }
 
+  // Track settings and curriculum overrides come from public read-only tables so
+  // the admin workspace can tune the LMS structure without changing data.js.
+  async function refreshTrackSettings(options = {}) {
+    if (!communitySupabase) return;
+
+    const { data, error } = await communitySupabase
+      .from(TRACK_SETTINGS_TABLE)
+      .select('id, label, summary, outcomes, is_enabled, sort_order')
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      console.warn('Track settings sync failed', error);
+      return;
+    }
+
+    state.trackSettingsById = Object.fromEntries((data || []).map(item => [
+      item.id,
+      {
+        label: item.label || '',
+        summary: item.summary || '',
+        outcomes: Array.isArray(item.outcomes) ? item.outcomes : [],
+        isEnabled: item.is_enabled !== false,
+        sortOrder: Number(item.sort_order || 0)
+      }
+    ]));
+
+    if (!options.silent) {
+      renderMarketingTracks();
+      populateRegisterTrackSelect();
+      if (getCurrentUser()) renderAppShell();
+    }
+  }
+
+  async function refreshCurriculumOverrides(options = {}) {
+    if (!communitySupabase) return;
+
+    const [{ data: monthData, error: monthError }, { data: weekData, error: weekError }] = await Promise.all([
+      communitySupabase
+        .from(MONTH_OVERRIDES_TABLE)
+        .select('month_id, label, title, summary, phase'),
+      communitySupabase
+        .from(WEEK_OVERRIDES_TABLE)
+        .select('week_id, title, objective, type, video_url, resources')
+    ]);
+
+    if (monthError) {
+      console.warn('Curriculum month override sync failed', monthError);
+    } else {
+      state.curriculumMonthOverridesById = Object.fromEntries((monthData || []).map(item => [
+        item.month_id,
+        {
+          label: item.label || '',
+          title: item.title || '',
+          summary: item.summary || '',
+          phase: item.phase || ''
+        }
+      ]));
+    }
+
+    if (weekError) {
+      console.warn('Curriculum week override sync failed', weekError);
+    } else {
+      state.curriculumWeekOverridesById = Object.fromEntries((weekData || []).map(item => [
+        item.week_id,
+        {
+          title: item.title || '',
+          objective: item.objective || '',
+          type: item.type || '',
+          videoUrl: item.video_url || '',
+          resources: Array.isArray(item.resources) ? item.resources : []
+        }
+      ]));
+    }
+
+    if (!options.silent && getCurrentUser()) {
+      renderAppShell();
+    }
+  }
+
+  // Learner accounts still authenticate locally, but their shareable profile data
+  // is mirrored into Supabase so the admin workspace can manage people and tracks.
+  async function fetchRemotePublicProfile(email) {
+    if (!communitySupabase || !email) return null;
+
+    const { data, error } = await communitySupabase.rpc('get_lms_public_profile', {
+      profile_email: email
+    });
+
+    if (error) {
+      console.warn('Learner profile fetch failed', error);
+      return null;
+    }
+
+    const profile = Array.isArray(data) ? data[0] : data;
+    if (!profile) return null;
+
+    return {
+      email: profile.email || email,
+      firstName: profile.first_name || '',
+      lastName: profile.last_name || '',
+      trackId: profile.track_id || '',
+      timezone: profile.timezone || 'Africa/Lagos',
+      headline: profile.headline || '',
+      bio: profile.bio || '',
+      avatar: profile.avatar_url || '',
+      isActive: profile.is_active !== false,
+      managedNote: profile.managed_note || ''
+    };
+  }
+
+  async function syncUserProfileToRemote(user) {
+    if (!communitySupabase || !user?.email) return null;
+
+    const { error } = await communitySupabase.rpc('upsert_lms_public_profile', {
+      profile_email: user.email,
+      profile_first_name: user.firstName,
+      profile_last_name: user.lastName,
+      profile_track_id: user.trackId,
+      profile_timezone: user.timezone || 'Africa/Lagos',
+      profile_headline: user.headline || '',
+      profile_bio: user.bio || '',
+      profile_avatar_url: user.avatar || '',
+      profile_last_seen_at: new Date().toISOString()
+    });
+
+    if (error) {
+      console.warn('Learner profile sync failed', error);
+      return null;
+    }
+
+    return true;
+  }
+
+  async function syncCurrentUserProfileFromRemote() {
+    const user = getCurrentUser();
+    if (!user) return false;
+    if (!communitySupabase) return true;
+
+    const remoteProfile = await fetchRemotePublicProfile(user.email);
+    if (!remoteProfile) {
+      await syncUserProfileToRemote(user);
+      return true;
+    }
+
+    user.firstName = remoteProfile.firstName || user.firstName;
+    user.lastName = remoteProfile.lastName || user.lastName;
+    user.trackId = remoteProfile.trackId || user.trackId;
+    user.timezone = remoteProfile.timezone || user.timezone;
+    user.headline = remoteProfile.headline || user.headline;
+    user.bio = remoteProfile.bio || user.bio;
+    user.avatar = remoteProfile.avatar || user.avatar;
+    persistUsers();
+
+    if (remoteProfile.isActive === false) {
+      state.currentUserId = null;
+      localStorage.removeItem(SESSION_KEY);
+      showAuthMessage('This learner account has been disabled by the academy admin.', 'error');
+      showAuthPage('login');
+      return false;
+    }
+
+    return true;
+  }
+
   // ---------------------------------------------------------------------------
   // Page switching and auth-mode switching
   // ---------------------------------------------------------------------------
@@ -619,7 +872,7 @@
   // Landing page rendering and auth actions
   // ---------------------------------------------------------------------------
   function renderMarketingTracks() {
-    const tracks = Object.values(window.RKH_DATA.tracks);
+    const tracks = getAvailableTracks();
     dom.marketingTracks.innerHTML = tracks.map(track => `
       <article class="track-card">
         <div class="track-card-copy">
@@ -645,12 +898,12 @@
   }
 
   function populateRegisterTrackSelect() {
-    dom.registerTrack.innerHTML = Object.values(window.RKH_DATA.tracks)
+    dom.registerTrack.innerHTML = getAvailableTracks()
       .map(track => `<option value="${track.id}">${track.label}</option>`)
       .join('');
   }
 
-  function handleLogin(event) {
+  async function handleLogin(event) {
     event.preventDefault();
 
     const email = document.getElementById('loginEmail').value.trim().toLowerCase();
@@ -664,10 +917,12 @@
 
     state.currentUserId = user.id;
     localStorage.setItem(SESSION_KEY, user.id);
+    const profileAvailable = await syncCurrentUserProfileFromRemote();
+    if (profileAvailable === false) return;
     openApp('dashboard');
   }
 
-  function handleRegister(event) {
+  async function handleRegister(event) {
     event.preventDefault();
 
     const firstName = document.getElementById('registerFirstName').value.trim();
@@ -711,6 +966,7 @@
     persistUsers();
     state.currentUserId = user.id;
     localStorage.setItem(SESSION_KEY, user.id);
+    await syncUserProfileToRemote(user);
     openApp('dashboard');
   }
 
@@ -726,7 +982,7 @@
     showLandingPage();
   }
 
-  function quickDemoLogin(trackId) {
+  async function quickDemoLogin(trackId) {
     const track = trackId || 'cloud-engineering';
     let user = state.users.find(item => item.trackId === track);
     if (!user) {
@@ -738,6 +994,8 @@
 
     state.currentUserId = user.id;
     localStorage.setItem(SESSION_KEY, user.id);
+    await syncUserProfileToRemote(user);
+    await syncCurrentUserProfileFromRemote();
     openApp('dashboard');
   }
 
@@ -1474,13 +1732,14 @@
 
   function renderMessageRow(user, message) {
     const ownMessage = user.id === message.authorId || user.email === message.authorEmail;
+    const canDeleteLocally = !communitySupabase && ownMessage;
     return `
       <div class="message-row">
         <div class="meta-row"><strong>${message.authorName}</strong><span class="pill">${message.authorTrack}</span><small>${formatDateTime(message.createdAt)}</small></div>
         ${message.sticker ? `<div class="message-sticker">${escapeHtml(message.sticker)}</div>` : ''}
         ${message.body ? `<div class="message-text">${escapeHtml(message.body)}</div>` : ''}
         ${message.attachment ? renderCommunityAttachment(message.attachment) : ''}
-        ${ownMessage ? `<div class="card-actions"><button class="btn btn-ghost btn-small" type="button" onclick="deleteCommunityMessage('${message.id}')">Delete</button></div>` : ''}
+        ${canDeleteLocally ? `<div class="card-actions"><button class="btn btn-ghost btn-small" type="button" onclick="deleteCommunityMessage('${message.id}')">Delete</button></div>` : ''}
       </div>
     `;
   }
@@ -1599,7 +1858,7 @@
             <div class="field-row"><div class="field-group"><label for="profileFirstName">First name</label><input id="profileFirstName" type="text" value="${escapeAttribute(user.firstName)}" /></div><div class="field-group"><label for="profileLastName">Last name</label><input id="profileLastName" type="text" value="${escapeAttribute(user.lastName)}" /></div></div>
             <div class="field-group"><label for="profileHeadline">Professional headline</label><input id="profileHeadline" type="text" value="${escapeAttribute(user.headline)}" /></div>
             <div class="field-group"><label for="profileBio">Bio</label><textarea id="profileBio">${escapeHtml(user.bio)}</textarea></div>
-            <div class="field-row"><div class="field-group"><label for="profileTrack">Track</label><select id="profileTrack">${Object.values(window.RKH_DATA.tracks).map(item => `<option value="${item.id}" ${item.id === user.trackId ? 'selected' : ''}>${item.label}</option>`).join('')}</select></div><div class="field-group"><label for="profileTimezone">Timezone</label><input id="profileTimezone" type="text" value="${escapeAttribute(user.timezone)}" /></div></div>
+            <div class="field-row"><div class="field-group"><label for="profileTrack">Track</label><select id="profileTrack">${getResolvedTracks().map(item => `<option value="${item.id}" ${item.id === user.trackId ? 'selected' : ''}>${item.label}</option>`).join('')}</select></div><div class="field-group"><label for="profileTimezone">Timezone</label><input id="profileTimezone" type="text" value="${escapeAttribute(user.timezone)}" /></div></div>
             <div class="field-group"><label for="profileAvatarInput">Profile image</label><input id="profileAvatarInput" type="file" accept="image/*" /><span class="field-help">Upload a square image for the sidebar and profile preview.</span></div>
             <div class="field-group"><label for="profilePassword">Password</label><input id="profilePassword" type="password" placeholder="Leave empty to keep your current password" /></div>
             <div class="profile-image-actions"><button class="btn btn-primary btn-small" type="submit">Save profile changes</button><button class="btn btn-secondary btn-small" type="button" onclick="removeProfileImage()">Remove image</button></div>
@@ -1667,8 +1926,13 @@
     finalizeProfileSave();
   }
 
-  function finalizeProfileSave() {
+  async function finalizeProfileSave() {
+    const user = getCurrentUser();
     persistUsers();
+    if (user) {
+      await syncUserProfileToRemote(user);
+      await syncCurrentUserProfileFromRemote();
+    }
     renderFounderShowcase();
     showProfileSaveMessage('Profile settings saved successfully.', 'success');
     renderAppShell();
@@ -2109,23 +2373,12 @@
     const message = state.communityMessages.find(item => item.id === String(messageId));
 
     if (communitySupabase) {
-      if (message?.attachment?.path) {
-        await communitySupabase.storage
-          .from(message.attachment.bucket || COMMUNITY_ATTACHMENT_BUCKET)
-          .remove([message.attachment.path]);
-      }
-
-      const { error } = await communitySupabase
-        .from('community_messages')
-        .delete()
-        .eq('id', messageId)
-        .eq('author_email', user.email);
-
-      if (error) {
-        state.communitySyncError = error.message;
-        renderAppShell();
-        return;
-      }
+      state.communityComposerMessage = {
+        type: 'error',
+        text: 'Learner-side message deletion is disabled in the secured workspace. Use /uc-admin/ for moderation.'
+      };
+      renderAppShell();
+      return;
     } else {
       const localMessages = readStoredCommunityMessages().filter(message => !(message.id === String(messageId) && (message.authorId === user.id || message.authorEmail === user.email)));
       writeStoredCommunityMessages(localMessages);

@@ -15,20 +15,21 @@
     <section id="adminGate" class="admin-gate">
       <div class="admin-gate-card">
         <p class="eyebrow">UC Admin</p>
-        <h1>RealKingHubs admin dashboard</h1>
+        <h1>Real backend admin access</h1>
         <p class="muted">
-          This page is intended for platform moderation and announcement publishing.
-          It is separated from the learner LMS so admin tools stay isolated.
+          This workspace now uses Supabase Auth plus backend policies. Sign in with your
+          real admin credentials, then manage curriculum, tracks, learner profiles,
+          announcements, and community moderation from one place.
         </p>
         <div id="adminAuthMessage" class="form-message hidden"></div>
         <form id="adminLoginForm" class="admin-form">
           <label>
             <span>Admin email</span>
-            <input id="adminEmail" type="email" placeholder="your@email.com" />
+            <input id="adminEmail" type="email" placeholder="admin@realkinghubs.com" autocomplete="username" />
           </label>
           <label>
-            <span>Access key</span>
-            <input id="adminAccessKey" type="password" placeholder="Enter admin access key" />
+            <span>Admin password</span>
+            <input id="adminPassword" type="password" placeholder="Enter your Supabase admin password" autocomplete="current-password" />
           </label>
           <button class="btn btn-primary" type="submit">Open admin dashboard</button>
         </form>
@@ -40,9 +41,11 @@
         <div>
           <p class="eyebrow">Admin workspace</p>
           <h1>RealKingHubs LMS control panel</h1>
+          <p id="adminIdentity" class="muted">Signed in as admin.</p>
         </div>
         <div class="admin-topbar-actions">
           <a class="btn btn-secondary" href="../index.html">Open learner LMS</a>
+          <button id="refreshAdminDataBtn" class="btn btn-secondary" type="button">Refresh data</button>
           <button id="adminLogoutBtn" class="btn btn-primary" type="button">Log out</button>
         </div>
       </header>
@@ -55,7 +58,6 @@
               <p class="eyebrow">Overview</p>
               <h2>Platform summary</h2>
             </div>
-            <button id="refreshAdminDataBtn" class="btn btn-secondary" type="button">Refresh data</button>
           </div>
           <div id="adminOverviewCards" class="overview-grid"></div>
         </section>
@@ -118,6 +120,193 @@
             <div id="adminCommunityMessage" class="form-message hidden"></div>
             <div id="messageList" class="admin-list admin-message-list"></div>
           </article>
+        </section>
+
+        <section class="admin-grid">
+          <!-- Curriculum editing changes the shared month and week content shown in the LMS -->
+          <article class="admin-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Curriculum editing</p>
+                <h2>Edit semesters, months, and weekly lessons</h2>
+              </div>
+            </div>
+
+            <div id="adminCurriculumMessage" class="form-message hidden"></div>
+
+            <div class="curriculum-toolbar">
+              <label class="inline-field">
+                <span>Track</span>
+                <select id="curriculumTrackSelect"></select>
+              </label>
+              <label class="inline-field">
+                <span>Semester</span>
+                <select id="curriculumSemesterSelect"></select>
+              </label>
+              <label class="inline-field">
+                <span>Month</span>
+                <select id="curriculumMonthSelect"></select>
+              </label>
+              <label class="inline-field">
+                <span>Week</span>
+                <select id="curriculumWeekSelect"></select>
+              </label>
+            </div>
+
+            <div class="admin-subgrid">
+              <form id="curriculumMonthForm" class="admin-form">
+                <div class="panel-header compact">
+                  <div>
+                    <p class="eyebrow">Month editor</p>
+                    <h3>Selected month</h3>
+                  </div>
+                </div>
+                <label>
+                  <span>Month label</span>
+                  <input id="curriculumMonthLabel" type="text" placeholder="Month 1" />
+                </label>
+                <label>
+                  <span>Month title</span>
+                  <input id="curriculumMonthTitle" type="text" placeholder="Month title" />
+                </label>
+                <label>
+                  <span>Month summary</span>
+                  <textarea id="curriculumMonthSummary" rows="4" placeholder="Month summary"></textarea>
+                </label>
+                <label>
+                  <span>Phase</span>
+                  <input id="curriculumMonthPhase" type="text" placeholder="Learning or Hands-on Lab" />
+                </label>
+                <div class="button-row">
+                  <button class="btn btn-primary" type="submit">Save month changes</button>
+                  <button id="resetMonthOverrideBtn" class="btn btn-secondary" type="button">Reset month override</button>
+                </div>
+              </form>
+
+              <form id="curriculumWeekForm" class="admin-form">
+                <div class="panel-header compact">
+                  <div>
+                    <p class="eyebrow">Week editor</p>
+                    <h3>Selected week</h3>
+                  </div>
+                </div>
+                <label>
+                  <span>Week title</span>
+                  <input id="curriculumWeekTitle" type="text" placeholder="Week title" />
+                </label>
+                <label>
+                  <span>Objective</span>
+                  <textarea id="curriculumWeekObjective" rows="4" placeholder="Week learning objective"></textarea>
+                </label>
+                <label>
+                  <span>Week type</span>
+                  <input id="curriculumWeekType" type="text" placeholder="learning or lab" />
+                </label>
+                <label>
+                  <span>Video URL</span>
+                  <input id="curriculumWeekVideoUrl" type="url" placeholder="https://www.youtube-nocookie.com/embed/..." />
+                </label>
+                <label>
+                  <span>Resources</span>
+                  <textarea id="curriculumWeekResources" rows="4" placeholder="One resource per line"></textarea>
+                </label>
+                <div class="button-row">
+                  <button class="btn btn-primary" type="submit">Save week changes</button>
+                  <button id="resetWeekOverrideBtn" class="btn btn-secondary" type="button">Reset week override</button>
+                </div>
+              </form>
+            </div>
+          </article>
+
+          <!-- Track management keeps programme naming and availability inside admin instead of code-only edits -->
+          <article class="admin-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Track management</p>
+                <h2>Manage learner tracks</h2>
+              </div>
+            </div>
+
+            <div id="adminTrackMessage" class="form-message hidden"></div>
+            <div id="trackSettingsList" class="admin-list"></div>
+          </article>
+        </section>
+
+        <section class="admin-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Learner management</p>
+              <h2>Manage users and track assignments</h2>
+            </div>
+          </div>
+
+          <div class="moderation-toolbar">
+            <label class="inline-field">
+              <span>Filter by track</span>
+              <select id="userTrackFilter"></select>
+            </label>
+          </div>
+
+          <div id="adminUserMessage" class="form-message hidden"></div>
+
+          <div class="user-management-grid">
+            <div id="userList" class="admin-list"></div>
+
+            <form id="userForm" class="admin-form">
+              <div class="panel-header compact">
+                <div>
+                  <p class="eyebrow">Selected learner</p>
+                  <h3>Edit learner profile</h3>
+                </div>
+              </div>
+              <label>
+                <span>Email</span>
+                <input id="userEmail" type="email" readonly />
+              </label>
+              <div class="form-columns">
+                <label>
+                  <span>First name</span>
+                  <input id="userFirstName" type="text" />
+                </label>
+                <label>
+                  <span>Last name</span>
+                  <input id="userLastName" type="text" />
+                </label>
+              </div>
+              <label>
+                <span>Headline</span>
+                <input id="userHeadline" type="text" />
+              </label>
+              <div class="form-columns">
+                <label>
+                  <span>Track</span>
+                  <select id="userTrack"></select>
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select id="userActive">
+                    <option value="true">Active</option>
+                    <option value="false">Disabled</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                <span>Timezone</span>
+                <input id="userTimezone" type="text" />
+              </label>
+              <label>
+                <span>Managed note</span>
+                <input id="userManagedNote" type="text" placeholder="Internal admin note" />
+              </label>
+              <label>
+                <span>Bio</span>
+                <textarea id="userBio" rows="5"></textarea>
+              </label>
+              <div class="button-row">
+                <button class="btn btn-primary" type="submit">Save learner changes</button>
+              </div>
+            </form>
+          </div>
         </section>
       </main>
     </section>

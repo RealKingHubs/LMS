@@ -315,9 +315,62 @@ a {
   text-align: center;
 }
 
+.curriculum-toolbar,
+.button-row,
+.form-columns,
+.admin-subgrid,
+.user-management-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.curriculum-toolbar {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.admin-subgrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.button-row,
+.form-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.user-management-grid {
+  grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.1fr);
+}
+
+.user-list-item {
+  cursor: pointer;
+  transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+}
+
+.user-list-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(110, 121, 255, 0.28);
+}
+
+.user-list-item.user-list-item-active {
+  border-color: rgba(110, 121, 255, 0.4);
+  box-shadow: 0 14px 32px rgba(110, 121, 255, 0.12);
+}
+
+.admin-note {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 @media (max-width: 1080px) {
   .overview-grid,
   .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-subgrid,
+  .user-management-grid,
+  .curriculum-toolbar {
     grid-template-columns: 1fr;
   }
 }
@@ -335,6 +388,11 @@ a {
 
   .overview-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .button-row,
+  .form-columns {
+    grid-template-columns: 1fr;
   }
 }
 

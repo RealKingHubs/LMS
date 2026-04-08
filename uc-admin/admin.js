@@ -10,49 +10,62 @@
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlbHB6ZmFmaWl1ZGlkeG1wb2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTIwNzcsImV4cCI6MjA5MDk4ODA3N30.82lZQg6ZYr1SsK9SFsbszby5QEf6HENgnYn1ynS0ZhE';
   const COMMUNITY_TABLE = 'community_messages';
   const ANNOUNCEMENTS_TABLE = 'lms_announcements';
-  const ADMIN_SESSION_KEY = 'rkh_uc_admin_session';
-
-  // IMPORTANT:
-  // This is only a frontend gate. It keeps the page separate and less discoverable,
-  // but it is not a true backend security boundary. For production-grade protection,
-  // the admin actions should be moved behind a server-side auth layer.
-  const ADMIN_ALLOWED_EMAILS = ['ucking480@gmail.com'];
-  const ADMIN_ACCESS_KEY = 'RKH-UC-ADMIN-2026';
+  const TRACK_SETTINGS_TABLE = 'lms_track_settings';
+  const PUBLIC_PROFILES_TABLE = 'lms_public_profiles';
+  const MONTH_OVERRIDES_TABLE = 'lms_curriculum_month_overrides';
+  const WEEK_OVERRIDES_TABLE = 'lms_curriculum_week_overrides';
+  const ADMIN_USERS_TABLE = 'lms_admin_users';
 
   const state = {
     adminEmail: '',
+    adminName: '',
     messages: [],
     announcements: [],
-    messageTrackFilter: 'all'
+    publicProfiles: [],
+    trackSettingsById: {},
+    monthOverridesById: {},
+    weekOverridesById: {},
+    messageTrackFilter: 'all',
+    userTrackFilter: 'all',
+    selectedUserEmail: '',
+    curriculumTrackId: '',
+    curriculumSemesterId: '',
+    curriculumMonthId: '',
+    curriculumWeekId: ''
   };
 
   const dom = {};
   let supabaseClient = null;
 
-  document.addEventListener('DOMContentLoaded', initAdmin);
+  document.addEventListener('DOMContentLoaded', () => {
+    void initAdmin();
+  });
 
-  function initAdmin() {
+  async function initAdmin() {
     bindDom();
-    populateTrackSelects();
     bindEvents();
     supabaseClient = window.supabase?.createClient ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-    const storedEmail = localStorage.getItem(ADMIN_SESSION_KEY);
-    if (storedEmail && ADMIN_ALLOWED_EMAILS.includes(storedEmail)) {
-      state.adminEmail = storedEmail;
-      openAdminApp();
+    if (!supabaseClient) {
+      showMessage(dom.adminAuthMessage, 'Supabase client could not be initialized for admin tools.', 'error');
       return;
     }
 
-    showGate();
+    populateTrackSelects();
+
+    const restored = await restoreAdminSession();
+    if (!restored) {
+      showGate();
+    }
   }
 
   function bindDom() {
     dom.adminGate = document.getElementById('adminGate');
     dom.adminApp = document.getElementById('adminApp');
+    dom.adminIdentity = document.getElementById('adminIdentity');
     dom.adminLoginForm = document.getElementById('adminLoginForm');
     dom.adminEmail = document.getElementById('adminEmail');
-    dom.adminAccessKey = document.getElementById('adminAccessKey');
+    dom.adminPassword = document.getElementById('adminPassword');
     dom.adminAuthMessage = document.getElementById('adminAuthMessage');
     dom.adminOverviewCards = document.getElementById('adminOverviewCards');
     dom.announcementTrack = document.getElementById('announcementTrack');
@@ -68,6 +81,39 @@
     dom.messageList = document.getElementById('messageList');
     dom.refreshAdminDataBtn = document.getElementById('refreshAdminDataBtn');
     dom.adminLogoutBtn = document.getElementById('adminLogoutBtn');
+    dom.curriculumTrackSelect = document.getElementById('curriculumTrackSelect');
+    dom.curriculumSemesterSelect = document.getElementById('curriculumSemesterSelect');
+    dom.curriculumMonthSelect = document.getElementById('curriculumMonthSelect');
+    dom.curriculumWeekSelect = document.getElementById('curriculumWeekSelect');
+    dom.curriculumMonthForm = document.getElementById('curriculumMonthForm');
+    dom.curriculumMonthLabel = document.getElementById('curriculumMonthLabel');
+    dom.curriculumMonthTitle = document.getElementById('curriculumMonthTitle');
+    dom.curriculumMonthSummary = document.getElementById('curriculumMonthSummary');
+    dom.curriculumMonthPhase = document.getElementById('curriculumMonthPhase');
+    dom.resetMonthOverrideBtn = document.getElementById('resetMonthOverrideBtn');
+    dom.curriculumWeekForm = document.getElementById('curriculumWeekForm');
+    dom.curriculumWeekTitle = document.getElementById('curriculumWeekTitle');
+    dom.curriculumWeekObjective = document.getElementById('curriculumWeekObjective');
+    dom.curriculumWeekType = document.getElementById('curriculumWeekType');
+    dom.curriculumWeekVideoUrl = document.getElementById('curriculumWeekVideoUrl');
+    dom.curriculumWeekResources = document.getElementById('curriculumWeekResources');
+    dom.resetWeekOverrideBtn = document.getElementById('resetWeekOverrideBtn');
+    dom.adminCurriculumMessage = document.getElementById('adminCurriculumMessage');
+    dom.trackSettingsList = document.getElementById('trackSettingsList');
+    dom.adminTrackMessage = document.getElementById('adminTrackMessage');
+    dom.userTrackFilter = document.getElementById('userTrackFilter');
+    dom.userList = document.getElementById('userList');
+    dom.userForm = document.getElementById('userForm');
+    dom.userEmail = document.getElementById('userEmail');
+    dom.userFirstName = document.getElementById('userFirstName');
+    dom.userLastName = document.getElementById('userLastName');
+    dom.userHeadline = document.getElementById('userHeadline');
+    dom.userTrack = document.getElementById('userTrack');
+    dom.userActive = document.getElementById('userActive');
+    dom.userTimezone = document.getElementById('userTimezone');
+    dom.userManagedNote = document.getElementById('userManagedNote');
+    dom.userBio = document.getElementById('userBio');
+    dom.adminUserMessage = document.getElementById('adminUserMessage');
   }
 
   function bindEvents() {
@@ -77,49 +123,110 @@
       state.messageTrackFilter = dom.messageTrackFilter.value;
       renderMessages();
     });
+    dom.userTrackFilter.addEventListener('change', () => {
+      state.userTrackFilter = dom.userTrackFilter.value;
+      ensureSelectedUser();
+      renderUsers();
+    });
     dom.deleteFilteredMessagesBtn.addEventListener('click', deleteFilteredMessages);
     dom.deleteAllMessagesBtn.addEventListener('click', deleteAllMessages);
     dom.refreshAdminDataBtn.addEventListener('click', refreshAdminData);
     dom.adminLogoutBtn.addEventListener('click', logoutAdmin);
+    dom.curriculumTrackSelect.addEventListener('change', handleCurriculumTrackChange);
+    dom.curriculumSemesterSelect.addEventListener('change', handleCurriculumSemesterChange);
+    dom.curriculumMonthSelect.addEventListener('change', handleCurriculumMonthChange);
+    dom.curriculumWeekSelect.addEventListener('change', handleCurriculumWeekChange);
+    dom.curriculumMonthForm.addEventListener('submit', saveMonthOverride);
+    dom.curriculumWeekForm.addEventListener('submit', saveWeekOverride);
+    dom.resetMonthOverrideBtn.addEventListener('click', resetMonthOverride);
+    dom.resetWeekOverrideBtn.addEventListener('click', resetWeekOverride);
+    dom.userForm.addEventListener('submit', saveUserProfile);
   }
 
   function populateTrackSelects() {
+    const tracks = Object.keys(state.trackSettingsById).length ? getResolvedTracks() : Object.values(window.RKH_DATA.tracks);
     const trackOptions = [
       '<option value="all">All tracks</option>',
-      ...Object.values(window.RKH_DATA.tracks).map(track => `<option value="${track.id}">${track.label}</option>`)
+      ...tracks.map(track => `<option value="${track.id}">${track.label}</option>`)
     ].join('');
 
     dom.messageTrackFilter.innerHTML = trackOptions;
-    dom.announcementTrack.innerHTML = Object.values(window.RKH_DATA.tracks)
+    dom.userTrackFilter.innerHTML = trackOptions;
+    const trackOnlyOptions = tracks
       .map(track => `<option value="${track.id}">${track.label}</option>`)
       .join('');
+    dom.announcementTrack.innerHTML = trackOnlyOptions;
+    dom.curriculumTrackSelect.innerHTML = trackOnlyOptions;
+    dom.userTrack.innerHTML = trackOnlyOptions;
+
+    if (!state.curriculumTrackId) {
+      state.curriculumTrackId = Object.keys(window.RKH_DATA.tracks)[0] || '';
+    }
+
+    dom.messageTrackFilter.value = state.messageTrackFilter;
+    dom.userTrackFilter.value = state.userTrackFilter;
+    dom.curriculumTrackSelect.value = state.curriculumTrackId;
   }
 
-  function handleAdminLogin(event) {
+  async function restoreAdminSession() {
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error || !data?.session) return false;
+    const restored = await verifyAdminSession();
+    if (!restored) {
+      await supabaseClient.auth.signOut();
+    }
+    return restored;
+  }
+
+  async function handleAdminLogin(event) {
     event.preventDefault();
 
     const email = dom.adminEmail.value.trim().toLowerCase();
-    const accessKey = dom.adminAccessKey.value.trim();
+    const password = dom.adminPassword.value;
 
-    if (!ADMIN_ALLOWED_EMAILS.includes(email) || accessKey !== ADMIN_ACCESS_KEY) {
-      showMessage(dom.adminAuthMessage, 'Only the configured admin account can access this page.', 'error');
+    if (!email || !password) {
+      showMessage(dom.adminAuthMessage, 'Enter both your admin email and password.', 'error');
       return;
     }
 
-    state.adminEmail = email;
-    localStorage.setItem(ADMIN_SESSION_KEY, email);
-    openAdminApp();
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) {
+      showMessage(dom.adminAuthMessage, error.message, 'error');
+      return;
+    }
+
+    const verified = await verifyAdminSession();
+    if (!verified) {
+      await supabaseClient.auth.signOut();
+      showMessage(dom.adminAuthMessage, 'This authenticated account is not registered as an LMS admin.', 'error');
+    }
+  }
+
+  async function verifyAdminSession() {
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !userData?.user?.email) return false;
+
+    const { data: isAdmin, error: adminError } = await supabaseClient.rpc('is_lms_admin');
+    if (adminError || !isAdmin) return false;
+
+    const { data: adminRows } = await supabaseClient
+      .from(ADMIN_USERS_TABLE)
+      .select('email, display_name')
+      .eq('email', userData.user.email.toLowerCase())
+      .limit(1);
+
+    state.adminEmail = userData.user.email.toLowerCase();
+    state.adminName = adminRows?.[0]?.display_name || state.adminEmail;
+    await openAdminApp();
+    return true;
   }
 
   async function openAdminApp() {
-    if (!supabaseClient) {
-      showMessage(dom.adminAuthMessage, 'Supabase client could not be initialized for admin tools.', 'error');
-      showGate();
-      return;
-    }
-
     dom.adminGate.classList.add('hidden');
     dom.adminApp.classList.remove('hidden');
+    if (dom.adminIdentity) {
+      dom.adminIdentity.textContent = `Signed in as ${state.adminName || state.adminEmail}.`;
+    }
     await refreshAdminData();
   }
 
@@ -128,17 +235,27 @@
     dom.adminApp.classList.add('hidden');
   }
 
-  function logoutAdmin() {
-    localStorage.removeItem(ADMIN_SESSION_KEY);
+  async function logoutAdmin() {
+    await supabaseClient.auth.signOut();
     state.adminEmail = '';
+    state.adminName = '';
     showGate();
   }
 
   async function refreshAdminData() {
-    await Promise.all([fetchMessages(), fetchAnnouncements()]);
+    await Promise.all([
+      fetchMessages(),
+      fetchAnnouncements(),
+      fetchPublicProfiles(),
+      fetchTrackSettings(),
+      fetchCurriculumOverrides()
+    ]);
     renderOverview();
     renderAnnouncements();
     renderMessages();
+    renderTrackSettings();
+    renderCurriculumEditor();
+    renderUsers();
   }
 
   async function fetchMessages() {
@@ -178,6 +295,106 @@
     hideMessage(dom.adminAnnouncementMessage);
   }
 
+  async function fetchPublicProfiles() {
+    const { data, error } = await supabaseClient
+      .from(PUBLIC_PROFILES_TABLE)
+      .select('email, first_name, last_name, track_id, timezone, headline, bio, avatar_url, is_active, managed_note, updated_at')
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      showMessage(dom.adminUserMessage, error.message, 'error');
+      return;
+    }
+
+    state.publicProfiles = (data || []).map(item => ({
+      email: item.email || '',
+      firstName: item.first_name || '',
+      lastName: item.last_name || '',
+      trackId: item.track_id || '',
+      timezone: item.timezone || 'Africa/Lagos',
+      headline: item.headline || '',
+      bio: item.bio || '',
+      avatarUrl: item.avatar_url || '',
+      isActive: item.is_active !== false,
+      managedNote: item.managed_note || '',
+      updatedAt: item.updated_at || ''
+    }));
+
+    ensureSelectedUser();
+    hideMessage(dom.adminUserMessage);
+  }
+
+  async function fetchTrackSettings() {
+    const { data, error } = await supabaseClient
+      .from(TRACK_SETTINGS_TABLE)
+      .select('id, label, summary, outcomes, is_enabled, sort_order')
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      showMessage(dom.adminTrackMessage, error.message, 'error');
+      return;
+    }
+
+    state.trackSettingsById = Object.fromEntries((data || []).map(item => [
+      item.id,
+      {
+        label: item.label || '',
+        summary: item.summary || '',
+        outcomes: Array.isArray(item.outcomes) ? item.outcomes : [],
+        isEnabled: item.is_enabled !== false,
+        sortOrder: Number(item.sort_order || 0)
+      }
+    ]));
+
+    populateTrackSelects();
+    hideMessage(dom.adminTrackMessage);
+  }
+
+  async function fetchCurriculumOverrides() {
+    const [{ data: monthData, error: monthError }, { data: weekData, error: weekError }] = await Promise.all([
+      supabaseClient.from(MONTH_OVERRIDES_TABLE).select('month_id, track_id, semester_id, label, title, summary, phase'),
+      supabaseClient.from(WEEK_OVERRIDES_TABLE).select('week_id, track_id, semester_id, month_id, title, objective, type, video_url, resources')
+    ]);
+
+    if (monthError) {
+      showMessage(dom.adminCurriculumMessage, monthError.message, 'error');
+      return;
+    }
+
+    if (weekError) {
+      showMessage(dom.adminCurriculumMessage, weekError.message, 'error');
+      return;
+    }
+
+    state.monthOverridesById = Object.fromEntries((monthData || []).map(item => [
+      item.month_id,
+      {
+        trackId: item.track_id,
+        semesterId: item.semester_id,
+        label: item.label || '',
+        title: item.title || '',
+        summary: item.summary || '',
+        phase: item.phase || ''
+      }
+    ]));
+
+    state.weekOverridesById = Object.fromEntries((weekData || []).map(item => [
+      item.week_id,
+      {
+        trackId: item.track_id,
+        semesterId: item.semester_id,
+        monthId: item.month_id,
+        title: item.title || '',
+        objective: item.objective || '',
+        type: item.type || '',
+        videoUrl: item.video_url || '',
+        resources: Array.isArray(item.resources) ? item.resources : []
+      }
+    ]));
+
+    hideMessage(dom.adminCurriculumMessage);
+  }
+
   function normalizeMessage(item) {
     const payload = parseMessagePayload(item.content || '');
     return {
@@ -206,10 +423,75 @@
     }
   }
 
+  function getResolvedTracks() {
+    return Object.values(window.RKH_DATA.tracks)
+      .map(track => getResolvedTrack(track.id))
+      .sort((left, right) => {
+        const leftOrder = Number.isFinite(left.sortOrder) ? left.sortOrder : 0;
+        const rightOrder = Number.isFinite(right.sortOrder) ? right.sortOrder : 0;
+        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+        return left.label.localeCompare(right.label);
+      });
+  }
+
+  function getResolvedTrack(trackId) {
+    const baseTrack = window.RKH_DATA.tracks[trackId];
+    if (!baseTrack) return null;
+
+    const settings = state.trackSettingsById[trackId] || {};
+    return {
+      ...baseTrack,
+      label: settings.label || baseTrack.label,
+      summary: settings.summary || baseTrack.summary,
+      outcomes: Array.isArray(settings.outcomes) && settings.outcomes.length ? settings.outcomes : baseTrack.outcomes,
+      isEnabled: settings.isEnabled !== false,
+      sortOrder: Number.isFinite(settings.sortOrder) ? settings.sortOrder : 0,
+      semesters: baseTrack.semesters.map(semester => ({
+        ...semester,
+        months: semester.months.map(month => {
+          const monthOverride = state.monthOverridesById[month.id] || {};
+          return {
+            ...month,
+            label: monthOverride.label || month.label,
+            title: monthOverride.title || month.title,
+            summary: monthOverride.summary || month.summary,
+            phase: monthOverride.phase || month.phase,
+            weeks: month.weeks.map(week => {
+              const weekOverride = state.weekOverridesById[week.id] || {};
+              return {
+                ...week,
+                title: weekOverride.title || week.title,
+                objective: weekOverride.objective || week.objective,
+                type: weekOverride.type || week.type,
+                videoUrl: weekOverride.videoUrl || week.videoUrl,
+                resources: Array.isArray(weekOverride.resources) && weekOverride.resources.length
+                  ? weekOverride.resources
+                  : week.resources
+              };
+            })
+          };
+        })
+      }))
+    };
+  }
+
+  function ensureSelectedUser() {
+    const filteredUsers = getFilteredUsers();
+    if (!filteredUsers.some(profile => profile.email === state.selectedUserEmail)) {
+      state.selectedUserEmail = filteredUsers[0]?.email || '';
+    }
+  }
+
+  function getFilteredUsers() {
+    return state.publicProfiles.filter(profile => {
+      return state.userTrackFilter === 'all' || profile.trackId === state.userTrackFilter;
+    });
+  }
+
   function renderOverview() {
-    const totalTracks = Object.keys(window.RKH_DATA.tracks).length;
-    const totalSemesters = Object.values(window.RKH_DATA.tracks).reduce((sum, track) => sum + track.semesters.length, 0);
-    const totalWeeks = Object.values(window.RKH_DATA.tracks)
+    const tracks = getResolvedTracks();
+    const totalSemesters = tracks.reduce((sum, track) => sum + track.semesters.length, 0);
+    const totalWeeks = tracks
       .flatMap(track => track.semesters)
       .flatMap(semester => semester.months)
       .reduce((sum, month) => sum + month.weeks.length, 0);
@@ -221,15 +503,15 @@
       </article>
       <article class="overview-card">
         <strong>${state.announcements.length}</strong>
-        <span>Admin-published announcements currently stored in Supabase.</span>
+        <span>Announcements published from the secured admin workspace.</span>
       </article>
       <article class="overview-card">
-        <strong>${totalTracks}</strong>
-        <span>Career tracks configured in the LMS data layer.</span>
+        <strong>${state.publicProfiles.length}</strong>
+        <span>Learner profiles currently synced into the shared backend.</span>
       </article>
       <article class="overview-card">
         <strong>${totalSemesters} / ${totalWeeks}</strong>
-        <span>Total semesters and weekly curriculum items currently mapped in the LMS.</span>
+        <span>Total semesters and weekly curriculum items currently managed by the LMS.</span>
       </article>
     `;
   }
@@ -243,7 +525,7 @@
     dom.announcementList.innerHTML = state.announcements.map(item => `
       <article class="admin-list-item">
         <div class="admin-list-meta">
-          <span class="pill">${escapeHtml(window.RKH_DATA.tracks[item.trackId]?.label || item.trackId)}</span>
+          <span class="pill">${escapeHtml(getResolvedTrack(item.trackId)?.label || item.trackId)}</span>
           <small>${escapeHtml(formatDateTime(item.createdAt))}</small>
         </div>
         <h3>${escapeHtml(item.title)}</h3>
@@ -269,7 +551,7 @@
     dom.messageList.innerHTML = filteredMessages.map(message => `
       <article class="admin-list-item">
         <div class="admin-list-meta">
-          <span class="pill">${escapeHtml(window.RKH_DATA.tracks[message.trackId]?.label || message.trackId)}</span>
+          <span class="pill">${escapeHtml(getResolvedTrack(message.trackId)?.label || message.trackId)}</span>
           <small>${escapeHtml(formatDateTime(message.createdAt))}</small>
         </div>
         <h4>${escapeHtml(message.authorName)}</h4>
@@ -284,6 +566,182 @@
         </div>
       </article>
     `).join('');
+  }
+
+  function renderTrackSettings() {
+    const tracks = getResolvedTracks();
+    dom.trackSettingsList.innerHTML = tracks.map(track => {
+      const outcomes = track.outcomes.join('\n');
+      return `
+        <article class="admin-list-item">
+          <div class="admin-list-meta">
+            <span class="pill">${escapeHtml(track.id)}</span>
+            <small>${track.isEnabled ? 'Enabled' : 'Disabled'}</small>
+          </div>
+          <div class="admin-form">
+            <label>
+              <span>Track label</span>
+              <input id="track-label-${track.id}" type="text" value="${escapeAttribute(track.label)}" />
+            </label>
+            <label>
+              <span>Track summary</span>
+              <textarea id="track-summary-${track.id}" rows="4">${escapeHtml(track.summary)}</textarea>
+            </label>
+            <label>
+              <span>Track outcomes</span>
+              <textarea id="track-outcomes-${track.id}" rows="4">${escapeHtml(outcomes)}</textarea>
+            </label>
+            <div class="form-columns">
+              <label>
+                <span>Sort order</span>
+                <input id="track-sort-${track.id}" type="number" value="${escapeAttribute(String(track.sortOrder || 0))}" />
+              </label>
+              <label>
+                <span>Status</span>
+                <select id="track-enabled-${track.id}">
+                  <option value="true" ${track.isEnabled ? 'selected' : ''}>Enabled</option>
+                  <option value="false" ${!track.isEnabled ? 'selected' : ''}>Disabled</option>
+                </select>
+              </label>
+            </div>
+            <div class="button-row">
+              <button class="btn btn-primary" type="button" onclick="saveAdminTrackSettings('${track.id}')">Save track</button>
+              <button class="btn btn-secondary" type="button" onclick="resetAdminTrackSettings('${track.id}')">Reset overrides</button>
+            </div>
+          </div>
+        </article>
+      `;
+    }).join('');
+  }
+
+  function renderCurriculumEditor() {
+    ensureCurriculumSelection();
+    renderCurriculumSelectors();
+    renderCurriculumForms();
+  }
+
+  function ensureCurriculumSelection() {
+    const track = getResolvedTrack(state.curriculumTrackId) || getResolvedTracks()[0] || null;
+    if (!track) return;
+    state.curriculumTrackId = track.id;
+
+    const semester = track.semesters.find(item => item.id === state.curriculumSemesterId) || track.semesters[0] || null;
+    if (!semester) return;
+    state.curriculumSemesterId = semester.id;
+
+    const month = semester.months.find(item => item.id === state.curriculumMonthId) || semester.months[0] || null;
+    if (!month) return;
+    state.curriculumMonthId = month.id;
+
+    const week = month.weeks.find(item => item.id === state.curriculumWeekId) || month.weeks[0] || null;
+    state.curriculumWeekId = week?.id || '';
+  }
+
+  function renderCurriculumSelectors() {
+    const track = getResolvedTrack(state.curriculumTrackId);
+    if (!track) return;
+
+    dom.curriculumTrackSelect.value = track.id;
+    dom.curriculumSemesterSelect.innerHTML = track.semesters
+      .map(semester => `<option value="${semester.id}">${escapeHtml(`${semester.label} - ${semester.title}`)}</option>`)
+      .join('');
+    dom.curriculumSemesterSelect.value = state.curriculumSemesterId;
+
+    const semester = track.semesters.find(item => item.id === state.curriculumSemesterId);
+    const months = semester?.months || [];
+    dom.curriculumMonthSelect.innerHTML = months
+      .map(month => `<option value="${month.id}">${escapeHtml(`${month.label} - ${month.title}`)}</option>`)
+      .join('');
+    dom.curriculumMonthSelect.value = state.curriculumMonthId;
+
+    const month = months.find(item => item.id === state.curriculumMonthId);
+    const weeks = month?.weeks || [];
+    dom.curriculumWeekSelect.innerHTML = weeks
+      .map(week => `<option value="${week.id}">${escapeHtml(week.title)}</option>`)
+      .join('');
+    dom.curriculumWeekSelect.value = state.curriculumWeekId;
+  }
+
+  function renderCurriculumForms() {
+    const track = getResolvedTrack(state.curriculumTrackId);
+    const semester = track?.semesters.find(item => item.id === state.curriculumSemesterId) || null;
+    const month = semester?.months.find(item => item.id === state.curriculumMonthId) || null;
+    const week = month?.weeks.find(item => item.id === state.curriculumWeekId) || null;
+
+    dom.curriculumMonthLabel.value = month?.label || '';
+    dom.curriculumMonthTitle.value = month?.title || '';
+    dom.curriculumMonthSummary.value = month?.summary || '';
+    dom.curriculumMonthPhase.value = month?.phase || '';
+    dom.curriculumWeekTitle.value = week?.title || '';
+    dom.curriculumWeekObjective.value = week?.objective || '';
+    dom.curriculumWeekType.value = week?.type || '';
+    dom.curriculumWeekVideoUrl.value = week?.videoUrl || '';
+    dom.curriculumWeekResources.value = Array.isArray(week?.resources) ? week.resources.join('\n') : '';
+  }
+
+  function renderUsers() {
+    const filteredUsers = getFilteredUsers();
+
+    if (!filteredUsers.length) {
+      dom.userList.innerHTML = '<div class="empty-state">No learner profile has been synced for this filter yet.</div>';
+      dom.userForm.reset();
+      return;
+    }
+
+    dom.userList.innerHTML = filteredUsers.map(profile => `
+      <article class="admin-list-item user-list-item ${profile.email === state.selectedUserEmail ? 'user-list-item-active' : ''}" onclick="selectAdminUser('${profile.email}')">
+        <div class="admin-list-meta">
+          <span class="pill">${escapeHtml(getResolvedTrack(profile.trackId)?.label || profile.trackId || 'No track')}</span>
+          <small>${profile.isActive ? 'Active' : 'Disabled'}</small>
+        </div>
+        <h4>${escapeHtml(`${profile.firstName} ${profile.lastName}`.trim() || profile.email)}</h4>
+        <p>${escapeHtml(profile.headline || 'No headline provided yet.')}</p>
+        <div class="admin-list-meta">
+          <small>${escapeHtml(profile.email)}</small>
+          <small>${escapeHtml(profile.timezone || 'Africa/Lagos')}</small>
+        </div>
+      </article>
+    `).join('');
+
+    const selectedProfile = filteredUsers.find(profile => profile.email === state.selectedUserEmail) || filteredUsers[0];
+    if (!selectedProfile) return;
+
+    state.selectedUserEmail = selectedProfile.email;
+    dom.userEmail.value = selectedProfile.email;
+    dom.userFirstName.value = selectedProfile.firstName;
+    dom.userLastName.value = selectedProfile.lastName;
+    dom.userHeadline.value = selectedProfile.headline;
+    dom.userTrack.value = selectedProfile.trackId || Object.keys(window.RKH_DATA.tracks)[0] || '';
+    dom.userActive.value = selectedProfile.isActive ? 'true' : 'false';
+    dom.userTimezone.value = selectedProfile.timezone;
+    dom.userManagedNote.value = selectedProfile.managedNote;
+    dom.userBio.value = selectedProfile.bio;
+  }
+
+  function handleCurriculumTrackChange() {
+    state.curriculumTrackId = dom.curriculumTrackSelect.value;
+    state.curriculumSemesterId = '';
+    state.curriculumMonthId = '';
+    state.curriculumWeekId = '';
+    renderCurriculumEditor();
+  }
+
+  function handleCurriculumSemesterChange() {
+    state.curriculumSemesterId = dom.curriculumSemesterSelect.value;
+    state.curriculumMonthId = '';
+    state.curriculumWeekId = '';
+    renderCurriculumEditor();
+  }
+
+  function handleCurriculumMonthChange() {
+    state.curriculumMonthId = dom.curriculumMonthSelect.value;
+    state.curriculumWeekId = '';
+    renderCurriculumEditor();
+  }
+
+  function handleCurriculumWeekChange() {
+    state.curriculumWeekId = dom.curriculumWeekSelect.value;
+    renderCurriculumEditor();
   }
 
   async function handleAnnouncementSubmit(event) {
@@ -317,6 +775,212 @@
     await fetchAnnouncements();
     renderOverview();
     renderAnnouncements();
+  }
+
+  async function saveMonthOverride(event) {
+    event.preventDefault();
+
+    const track = getResolvedTrack(state.curriculumTrackId);
+    const semester = track?.semesters.find(item => item.id === state.curriculumSemesterId) || null;
+    const month = semester?.months.find(item => item.id === state.curriculumMonthId) || null;
+    if (!track || !semester || !month) {
+      showMessage(dom.adminCurriculumMessage, 'Select a valid track, semester, and month before saving.', 'error');
+      return;
+    }
+
+    const { error } = await supabaseClient.from(MONTH_OVERRIDES_TABLE).upsert({
+      month_id: month.id,
+      track_id: track.id,
+      semester_id: semester.id,
+      label: dom.curriculumMonthLabel.value.trim(),
+      title: dom.curriculumMonthTitle.value.trim(),
+      summary: dom.curriculumMonthSummary.value.trim(),
+      phase: dom.curriculumMonthPhase.value.trim(),
+      updated_by: state.adminEmail
+    }, { onConflict: 'month_id' });
+
+    if (error) {
+      showMessage(dom.adminCurriculumMessage, error.message, 'error');
+      return;
+    }
+
+    showMessage(dom.adminCurriculumMessage, 'Month override saved successfully.', 'success');
+    await fetchCurriculumOverrides();
+    renderCurriculumEditor();
+    renderOverview();
+  }
+
+  async function saveWeekOverride(event) {
+    event.preventDefault();
+
+    const track = getResolvedTrack(state.curriculumTrackId);
+    const semester = track?.semesters.find(item => item.id === state.curriculumSemesterId) || null;
+    const month = semester?.months.find(item => item.id === state.curriculumMonthId) || null;
+    const week = month?.weeks.find(item => item.id === state.curriculumWeekId) || null;
+    if (!track || !semester || !month || !week) {
+      showMessage(dom.adminCurriculumMessage, 'Select a valid track, semester, month, and week before saving.', 'error');
+      return;
+    }
+
+    const resources = dom.curriculumWeekResources.value
+      .split(/\r?\n/)
+      .map(item => item.trim())
+      .filter(Boolean);
+
+    const { error } = await supabaseClient.from(WEEK_OVERRIDES_TABLE).upsert({
+      week_id: week.id,
+      track_id: track.id,
+      semester_id: semester.id,
+      month_id: month.id,
+      title: dom.curriculumWeekTitle.value.trim(),
+      objective: dom.curriculumWeekObjective.value.trim(),
+      type: dom.curriculumWeekType.value.trim(),
+      video_url: dom.curriculumWeekVideoUrl.value.trim(),
+      resources,
+      updated_by: state.adminEmail
+    }, { onConflict: 'week_id' });
+
+    if (error) {
+      showMessage(dom.adminCurriculumMessage, error.message, 'error');
+      return;
+    }
+
+    showMessage(dom.adminCurriculumMessage, 'Week override saved successfully.', 'success');
+    await fetchCurriculumOverrides();
+    renderCurriculumEditor();
+    renderOverview();
+  }
+
+  async function resetMonthOverride() {
+    if (!state.curriculumMonthId) return;
+
+    const shouldReset = window.confirm('Reset this month back to the base curriculum content?');
+    if (!shouldReset) return;
+
+    const { error } = await supabaseClient
+      .from(MONTH_OVERRIDES_TABLE)
+      .delete()
+      .eq('month_id', state.curriculumMonthId);
+
+    if (error) {
+      showMessage(dom.adminCurriculumMessage, error.message, 'error');
+      return;
+    }
+
+    showMessage(dom.adminCurriculumMessage, 'Month override removed.', 'success');
+    await fetchCurriculumOverrides();
+    renderCurriculumEditor();
+  }
+
+  async function resetWeekOverride() {
+    if (!state.curriculumWeekId) return;
+
+    const shouldReset = window.confirm('Reset this week back to the base curriculum content?');
+    if (!shouldReset) return;
+
+    const { error } = await supabaseClient
+      .from(WEEK_OVERRIDES_TABLE)
+      .delete()
+      .eq('week_id', state.curriculumWeekId);
+
+    if (error) {
+      showMessage(dom.adminCurriculumMessage, error.message, 'error');
+      return;
+    }
+
+    showMessage(dom.adminCurriculumMessage, 'Week override removed.', 'success');
+    await fetchCurriculumOverrides();
+    renderCurriculumEditor();
+  }
+
+  async function saveTrackSettings(trackId) {
+    const baseTrack = window.RKH_DATA.tracks[trackId];
+    if (!baseTrack) return;
+
+    const label = document.getElementById(`track-label-${trackId}`)?.value.trim() || baseTrack.label;
+    const summary = document.getElementById(`track-summary-${trackId}`)?.value.trim() || baseTrack.summary;
+    const outcomes = (document.getElementById(`track-outcomes-${trackId}`)?.value || '')
+      .split(/\r?\n/)
+      .map(item => item.trim())
+      .filter(Boolean);
+    const sortOrder = Number(document.getElementById(`track-sort-${trackId}`)?.value || 0);
+    const isEnabled = document.getElementById(`track-enabled-${trackId}`)?.value !== 'false';
+
+    const { error } = await supabaseClient.from(TRACK_SETTINGS_TABLE).upsert({
+      id: trackId,
+      label,
+      summary,
+      outcomes,
+      is_enabled: isEnabled,
+      sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
+      updated_by: state.adminEmail
+    }, { onConflict: 'id' });
+
+    if (error) {
+      showMessage(dom.adminTrackMessage, error.message, 'error');
+      return;
+    }
+
+    showMessage(dom.adminTrackMessage, 'Track settings saved successfully.', 'success');
+    await fetchTrackSettings();
+    renderTrackSettings();
+    renderCurriculumEditor();
+  }
+
+  async function resetTrackSettings(trackId) {
+    const shouldReset = window.confirm('Reset this track back to the base LMS configuration?');
+    if (!shouldReset) return;
+
+    const { error } = await supabaseClient
+      .from(TRACK_SETTINGS_TABLE)
+      .delete()
+      .eq('id', trackId);
+
+    if (error) {
+      showMessage(dom.adminTrackMessage, error.message, 'error');
+      return;
+    }
+
+    showMessage(dom.adminTrackMessage, 'Track overrides removed.', 'success');
+    await fetchTrackSettings();
+    renderTrackSettings();
+    renderCurriculumEditor();
+  }
+
+  async function saveUserProfile(event) {
+    event.preventDefault();
+
+    if (!state.selectedUserEmail) {
+      showMessage(dom.adminUserMessage, 'Select a learner profile before saving.', 'error');
+      return;
+    }
+
+    const payload = {
+      email: state.selectedUserEmail,
+      first_name: dom.userFirstName.value.trim(),
+      last_name: dom.userLastName.value.trim(),
+      track_id: dom.userTrack.value,
+      timezone: dom.userTimezone.value.trim() || 'Africa/Lagos',
+      headline: dom.userHeadline.value.trim(),
+      bio: dom.userBio.value.trim(),
+      is_active: dom.userActive.value === 'true',
+      managed_note: dom.userManagedNote.value.trim(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabaseClient
+      .from(PUBLIC_PROFILES_TABLE)
+      .upsert(payload, { onConflict: 'email' });
+
+    if (error) {
+      showMessage(dom.adminUserMessage, error.message, 'error');
+      return;
+    }
+
+    showMessage(dom.adminUserMessage, 'Learner profile saved successfully.', 'success');
+    await fetchPublicProfiles();
+    renderUsers();
+    renderOverview();
   }
 
   async function deleteAnnouncement(id) {
@@ -371,7 +1035,7 @@
 
     const label = state.messageTrackFilter === 'all'
       ? 'all messages'
-      : `${window.RKH_DATA.tracks[state.messageTrackFilter]?.label || state.messageTrackFilter} messages`;
+      : `${getResolvedTrack(state.messageTrackFilter)?.label || state.messageTrackFilter} messages`;
 
     const shouldDelete = window.confirm(`Delete ${label}? This cannot be undone.`);
     if (!shouldDelete) return;
@@ -445,6 +1109,18 @@
       .replace(/'/g, '&#39;');
   }
 
+  function escapeAttribute(value) {
+    return escapeHtml(value);
+  }
+
+  function selectUser(email) {
+    state.selectedUserEmail = email;
+    renderUsers();
+  }
+
   window.deleteAdminMessage = deleteMessage;
   window.deleteAdminAnnouncement = deleteAnnouncement;
+  window.selectAdminUser = selectUser;
+  window.saveAdminTrackSettings = saveTrackSettings;
+  window.resetAdminTrackSettings = resetTrackSettings;
 })();
