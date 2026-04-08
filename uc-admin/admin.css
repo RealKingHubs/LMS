@@ -1,4 +1,12 @@
-/* Separate admin styling keeps the moderation workspace isolated from learner UI. */
+/* -------------------------------------------------------------------------- */
+/* RealKingHubs UC Admin styles                                               */
+/* This stylesheet belongs only to the separate /uc-admin workspace.          */
+/* Junior-dev guide:                                                          */
+/* 1. Tokens in :root control colors, spacing, and shadows.                   */
+/* 2. Layout blocks organize panels, forms, and moderation lists.             */
+/* 3. Responsive rules at the bottom keep the admin workspace usable on       */
+/*    smaller screens without changing learner-side styles.                   */
+/* -------------------------------------------------------------------------- */
 :root {
   --ink-950: #121a4b;
   --ink-900: #182456;
@@ -66,6 +74,7 @@ a {
   padding: 24px 0 40px;
 }
 
+/* Gate = the sign-in screen shown before an admin session is verified. */
 .admin-gate {
   min-height: calc(100vh - 64px);
   display: grid;
@@ -88,6 +97,7 @@ a {
   gap: 18px;
 }
 
+/* Reusable small uppercase label used in cards and panel headers. */
 .eyebrow {
   margin: 0;
   color: var(--blue-600);
@@ -113,6 +123,7 @@ a {
   line-height: 1.7;
 }
 
+/* Shared grid helpers keep admin panels and forms consistent. */
 .admin-form,
 .admin-list,
 .overview-grid,
@@ -122,6 +133,7 @@ a {
   gap: 18px;
 }
 
+/* Standard form field layout so new admin tools can reuse the same pattern. */
 .admin-form label,
 .inline-field {
   display: grid;

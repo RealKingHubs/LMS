@@ -1,4 +1,10 @@
 {
+  "_developer_note": "Browsers use this manifest to install the LMS like an app. Update the colors, name, start_url, scope, and icons here when the installable app branding changes.",
+  "_update_steps": [
+    "Change the app name or short_name if the installed app label should change.",
+    "Keep start_url and scope aligned with the folder where index.html is served.",
+    "Replace the icon files in Page-Assets if the app icon branding changes."
+  ],
   "name": "RealKingHubs Academy",
   "short_name": "RealKingHubs",
   "description": "RealKingHubs Academy LMS for Cloud Engineering, Frontend Engineering, and Backend Engineering.",

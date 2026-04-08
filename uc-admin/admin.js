@@ -17,6 +17,11 @@
   const SEMESTER_RESOURCES_TABLE = 'lms_semester_resources';
   const ADMIN_USERS_TABLE = 'lms_admin_users';
 
+  // Admin state mirrors the visible tools in /uc-admin:
+  // - moderation data
+  // - curriculum editor selection
+  // - semester resources editor selection
+  // - learner profile management state
   const state = {
     adminEmail: '',
     adminName: '',
@@ -63,6 +68,8 @@
     }
   }
 
+  // Keep DOM references in one place so junior developers know where to add
+  // new admin controls before wiring events or data handlers.
   function bindDom() {
     dom.adminGate = document.getElementById('adminGate');
     dom.adminApp = document.getElementById('adminApp');
@@ -126,6 +133,8 @@
     dom.adminUserMessage = document.getElementById('adminUserMessage');
   }
 
+  // Every admin form or toolbar action is connected here.
+  // If a new admin button stops working, this is the first place to check.
   function bindEvents() {
     dom.adminLoginForm.addEventListener('submit', handleAdminLogin);
     dom.announcementForm.addEventListener('submit', handleAnnouncementSubmit);
@@ -418,6 +427,8 @@
     hideMessage(dom.adminCurriculumMessage);
   }
 
+  // Semester resources are managed separately from week resources because the
+  // learner LMS shows them in a standalone Resources page grouped by semester.
   async function fetchSemesterResources() {
     const { data, error } = await supabaseClient
       .from(SEMESTER_RESOURCES_TABLE)
@@ -747,6 +758,8 @@
     state.resourceSemesterId = semester?.id || '';
   }
 
+  // This editor lets admins assign multiple resource links to each semester.
+  // Learners then see those links grouped under Semester 1, 2, and 3.
   function renderResourcesEditor() {
     ensureResourceSelection();
     const track = getResolvedTrack(state.resourceTrackId);
