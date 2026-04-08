@@ -1716,7 +1716,7 @@
     if (attachment.kind === 'folder') {
       return `
         <div class="community-attachment-pill">
-          <span>${escapeHtml(attachment.name)} folder will be sent as a zip archive (${attachment.fileCount} files, ${formatFileSize(attachment.size)})</span>
+          <span>${escapeHtml(attachment.name)} folder will be sent as a zip archive (${attachment.fileCount} files, ${formatFileSize(attachment.size)})${attachment.excludedCount ? `, ${attachment.excludedCount} skipped` : ''}</span>
           <button type="button" onclick="clearCommunityAttachment()">Remove</button>
         </div>
       `;
@@ -2091,7 +2091,19 @@
     if (!files.length) return;
 
     const folderName = (files[0].webkitRelativePath || files[0].name).split('/')[0] || 'Shared folder';
-    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    const { includedFiles, excludedCount } = filterCommunityFolderFiles(files);
+
+    if (!includedFiles.length) {
+      state.communityComposerMessage = {
+        type: 'error',
+        text: 'That folder only contains hidden or project-system files, so there is nothing clean to send.'
+      };
+      event.target.value = '';
+      renderAppShell();
+      return;
+    }
+
+    const totalSize = includedFiles.reduce((sum, file) => sum + file.size, 0);
 
     if (totalSize > COMMUNITY_ATTACHMENT_LIMIT_BYTES) {
       state.communityComposerMessage = {
@@ -2107,8 +2119,9 @@
       kind: 'folder',
       name: folderName,
       size: totalSize,
-      fileCount: files.length,
-      files: files.map(file => ({
+      fileCount: includedFiles.length,
+      excludedCount,
+      files: includedFiles.map(file => ({
         file,
         name: file.name,
         relativePath: normalizeFolderRelativePath(file.webkitRelativePath || file.name),
@@ -2118,7 +2131,7 @@
     };
     state.communityComposerMessage = {
       type: 'success',
-      text: `${folderName} is attached and will be sent as a zip archive (${files.length} files, ${formatFileSize(totalSize)}).`
+      text: `${folderName} is attached and will be sent as a zip archive (${includedFiles.length} files, ${formatFileSize(totalSize)}).${excludedCount ? ` ${excludedCount} hidden or system items were skipped.` : ''}`
     };
     event.target.value = '';
     renderAppShell();
@@ -2190,6 +2203,9 @@
 
     const zip = new window.JSZip();
     for (const fileEntry of attachment.files || []) {
+      if (shouldExcludeFolderEntry(fileEntry.relativePath || fileEntry.name)) {
+        continue;
+      }
       const relativePath = sanitizeFolderRelativePath(fileEntry.relativePath || fileEntry.name);
       zip.file(relativePath, fileEntry.file);
     }
@@ -2527,6 +2543,40 @@
       .replace(/^\.\//, '');
     const segments = normalized.split('/').filter(Boolean);
     return segments.length > 1 ? segments.slice(1).join('/') : segments[0] || 'file';
+  }
+
+  // Folder sharing should skip repository internals and operating-system files so
+  // recipients only receive the useful learning content instead of project metadata.
+  function filterCommunityFolderFiles(files) {
+    const includedFiles = [];
+    let excludedCount = 0;
+
+    for (const file of files) {
+      const candidatePath = file.webkitRelativePath || file.name;
+      if (shouldExcludeFolderEntry(candidatePath)) {
+        excludedCount += 1;
+        continue;
+      }
+      includedFiles.push(file);
+    }
+
+    return { includedFiles, excludedCount };
+  }
+
+  function shouldExcludeFolderEntry(path) {
+    const normalized = String(path || '').replace(/\\/g, '/');
+    const segments = normalized.split('/').filter(Boolean);
+    if (!segments.length) return true;
+
+    const excludedFolders = new Set(['.git', '.svn', '.hg', '.idea', '.vscode', '__macosx']);
+    const excludedFiles = new Set(['thumbs.db', 'desktop.ini', '.ds_store']);
+
+    if (segments.some(segment => excludedFolders.has(segment.toLowerCase()))) {
+      return true;
+    }
+
+    const fileName = segments[segments.length - 1].toLowerCase();
+    return excludedFiles.has(fileName);
   }
 
   function sanitizeFolderRelativePath(path) {
