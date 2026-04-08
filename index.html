@@ -22,17 +22,26 @@
             <div class="brand-name">RealKingHubs Academy</div>
           </div>
         </div>
-        <nav class="marketing-nav">
-          <a href="#landingHero">Overview</a>
-          <a href="#programmes">Programmes</a>
-          <a href="#platformFlow">Platform</a>
-          <a href="https://realkinghubs.netlify.app" target="_blank" rel="noreferrer">Contact</a>
-        </nav>
-        <div class="marketing-actions">
-          <button class="btn btn-secondary" type="button" onclick="showAuthPage('login')">Sign in</button>
-          <button class="btn btn-primary" type="button" onclick="showAuthPage('register')">Start learning</button>
+        <!-- Mobile uses this trigger to open the landing navigation as a right-side drawer. -->
+        <button id="landingMenuToggle" class="mobile-menu-button marketing-menu-toggle" type="button" onclick="toggleLandingMenu()" aria-label="Open navigation" aria-expanded="false" aria-controls="landingMenuDrawer">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+          </svg>
+        </button>
+        <div id="landingMenuDrawer" class="marketing-drawer">
+          <nav class="marketing-nav">
+            <a href="#landingHero">Overview</a>
+            <a href="#programmes">Programmes</a>
+            <a href="#platformFlow">Platform</a>
+            <a href="https://realkinghubs.netlify.app" target="_blank" rel="noreferrer">Contact</a>
+          </nav>
+          <div class="marketing-actions">
+            <button class="btn btn-secondary" type="button" onclick="showAuthPage('login')">Sign in</button>
+            <button class="btn btn-primary" type="button" onclick="showAuthPage('register')">Start learning</button>
+          </div>
         </div>
       </header>
+      <div id="landingMenuOverlay" class="marketing-menu-overlay" onclick="closeLandingMenu()"></div>
 
       <main class="marketing-main">
         <!-- Public hero: first impression, key value proposition, and quick access into the LMS -->
@@ -390,8 +399,9 @@
     <!-- Main LMS shell shown after login -->
     <section id="appPage" class="page">
       <div class="app-shell">
+        <div id="appSidebarOverlay" class="app-sidebar-overlay" onclick="closeAppSidebar()"></div>
         <!-- Sidebar navigation is rendered dynamically so labels stay in sync -->
-        <aside class="app-sidebar">
+        <aside id="appSidebar" class="app-sidebar">
           <div class="sidebar-brand" title="RealKingHubs Academy">
             <div class="brand-mark">RK</div>
             <div class="sidebar-brand-copy">
@@ -416,9 +426,16 @@
         <div class="app-main">
           <!-- Top bar: page title, LMS search, quick actions, and learner avatar -->
           <header class="app-topbar">
-            <div class="topbar-heading">
-              <p id="pageEyebrow" class="section-kicker">RealKingHubs Academy LMS</p>
-              <h1 id="pageTitle">Dashboard</h1>
+            <div class="topbar-leading">
+              <button id="appSidebarToggle" class="topbar-icon-btn topbar-menu-toggle" type="button" onclick="toggleAppSidebar()" aria-label="Open dashboard navigation" aria-expanded="false" aria-controls="appSidebar">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h16M4 12h16M4 17h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                </svg>
+              </button>
+              <div class="topbar-heading">
+                <p id="pageEyebrow" class="section-kicker">RealKingHubs Academy LMS</p>
+                <h1 id="pageTitle">Dashboard</h1>
+              </div>
             </div>
             <div class="topbar-tools">
               <div class="topbar-search-wrap">
@@ -474,6 +491,12 @@
       </div>
     </section>
   </div>
+
+  <button id="scrollTopButton" class="scroll-top-button" type="button" onclick="scrollToTopPage()" aria-label="Scroll to top">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 18V6M12 6l-5 5M12 6l5 5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+  </button>
 
   <!-- Script order matters: data first, app second, search last -->
   <script src="data.js"></script>

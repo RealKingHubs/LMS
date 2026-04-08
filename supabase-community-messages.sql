@@ -278,6 +278,12 @@ create table if not exists public.lms_curriculum_week_overrides (
   updated_at timestamptz not null default now()
 );
 
+alter table public.lms_curriculum_week_overrides
+  add column if not exists video_urls jsonb not null default '[]'::jsonb;
+
+alter table public.lms_curriculum_week_overrides
+  add column if not exists resource_items jsonb not null default '[]'::jsonb;
+
 create index if not exists lms_curriculum_week_track_idx
   on public.lms_curriculum_week_overrides (track_id, semester_id, month_id, week_id);
 
@@ -305,6 +311,45 @@ with check (public.is_lms_admin());
 drop policy if exists "Week overrides admin delete" on public.lms_curriculum_week_overrides;
 create policy "Week overrides admin delete"
 on public.lms_curriculum_week_overrides for delete
+to authenticated
+using (public.is_lms_admin());
+
+create table if not exists public.lms_semester_resources (
+  track_id text not null,
+  semester_id text not null,
+  resource_links jsonb not null default '[]'::jsonb,
+  updated_by text not null default '',
+  updated_at timestamptz not null default now(),
+  primary key (track_id, semester_id)
+);
+
+create index if not exists lms_semester_resources_track_idx
+on public.lms_semester_resources (track_id, semester_id);
+
+alter table public.lms_semester_resources enable row level security;
+
+drop policy if exists "Semester resources public read" on public.lms_semester_resources;
+create policy "Semester resources public read"
+on public.lms_semester_resources for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "Semester resources admin insert" on public.lms_semester_resources;
+create policy "Semester resources admin insert"
+on public.lms_semester_resources for insert
+to authenticated
+with check (public.is_lms_admin());
+
+drop policy if exists "Semester resources admin update" on public.lms_semester_resources;
+create policy "Semester resources admin update"
+on public.lms_semester_resources for update
+to authenticated
+using (public.is_lms_admin())
+with check (public.is_lms_admin());
+
+drop policy if exists "Semester resources admin delete" on public.lms_semester_resources;
+create policy "Semester resources admin delete"
+on public.lms_semester_resources for delete
 to authenticated
 using (public.is_lms_admin());
 
@@ -421,67 +466,75 @@ returns table (
   managed_note text,
   updated_at timestamptz
 )
-language plpgsql
+language sql
 security definer
 set search_path = public
 as $$
-begin
-  insert into public.lms_public_profiles (
-    email,
-    first_name,
-    last_name,
-    track_id,
-    timezone,
-    headline,
-    bio,
-    avatar_url,
-    last_seen_at,
-    updated_at
+  with upserted as (
+    insert into public.lms_public_profiles as profile_record (
+      email,
+      first_name,
+      last_name,
+      track_id,
+      timezone,
+      headline,
+      bio,
+      avatar_url,
+      last_seen_at,
+      updated_at
+    )
+    values (
+      lower(profile_email),
+      coalesce(profile_first_name, ''),
+      coalesce(profile_last_name, ''),
+      coalesce(profile_track_id, ''),
+      coalesce(profile_timezone, 'Africa/Lagos'),
+      coalesce(profile_headline, ''),
+      coalesce(profile_bio, ''),
+      coalesce(profile_avatar_url, ''),
+      profile_last_seen_at,
+      now()
+    )
+    on conflict on constraint lms_public_profiles_pkey do update
+    set
+      first_name = excluded.first_name,
+      last_name = excluded.last_name,
+      track_id = case
+        when coalesce(excluded.track_id, '') = '' then profile_record.track_id
+        else excluded.track_id
+      end,
+      timezone = excluded.timezone,
+      headline = excluded.headline,
+      bio = excluded.bio,
+      avatar_url = excluded.avatar_url,
+      last_seen_at = coalesce(excluded.last_seen_at, profile_record.last_seen_at),
+      updated_at = now()
+    returning
+      profile_record.email,
+      profile_record.first_name,
+      profile_record.last_name,
+      profile_record.track_id,
+      profile_record.timezone,
+      profile_record.headline,
+      profile_record.bio,
+      profile_record.avatar_url,
+      profile_record.is_active,
+      profile_record.managed_note,
+      profile_record.updated_at
   )
-  values (
-    lower(profile_email),
-    coalesce(profile_first_name, ''),
-    coalesce(profile_last_name, ''),
-    coalesce(profile_track_id, ''),
-    coalesce(profile_timezone, 'Africa/Lagos'),
-    coalesce(profile_headline, ''),
-    coalesce(profile_bio, ''),
-    coalesce(profile_avatar_url, ''),
-    profile_last_seen_at,
-    now()
-  )
-  on conflict (email) do update
-  set
-    first_name = excluded.first_name,
-    last_name = excluded.last_name,
-    track_id = case
-      when coalesce(excluded.track_id, '') = '' then public.lms_public_profiles.track_id
-      else excluded.track_id
-    end,
-    timezone = excluded.timezone,
-    headline = excluded.headline,
-    bio = excluded.bio,
-    avatar_url = excluded.avatar_url,
-    last_seen_at = coalesce(excluded.last_seen_at, public.lms_public_profiles.last_seen_at),
-    updated_at = now();
-
-  return query
   select
-    p.email,
-    p.first_name,
-    p.last_name,
-    p.track_id,
-    p.timezone,
-    p.headline,
-    p.bio,
-    p.avatar_url,
-    p.is_active,
-    p.managed_note,
-    p.updated_at
-  from public.lms_public_profiles as p
-  where lower(p.email) = lower(profile_email)
-  limit 1;
-end;
+    upserted.email,
+    upserted.first_name,
+    upserted.last_name,
+    upserted.track_id,
+    upserted.timezone,
+    upserted.headline,
+    upserted.bio,
+    upserted.avatar_url,
+    upserted.is_active,
+    upserted.managed_note,
+    upserted.updated_at
+  from upserted;
 $$;
 
 grant execute on function public.upsert_lms_public_profile(text, text, text, text, text, text, text, text, timestamptz) to anon, authenticated;

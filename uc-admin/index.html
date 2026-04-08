@@ -203,12 +203,12 @@
                   <input id="curriculumWeekType" type="text" placeholder="learning or lab" />
                 </label>
                 <label>
-                  <span>Video URL</span>
-                  <input id="curriculumWeekVideoUrl" type="url" placeholder="https://www.youtube-nocookie.com/embed/..." />
+                  <span>Week videos</span>
+                  <textarea id="curriculumWeekVideoUrls" rows="5" placeholder="One embed URL per line&#10;https://www.youtube-nocookie.com/embed/...&#10;https://www.youtube-nocookie.com/embed/..."></textarea>
                 </label>
                 <label>
-                  <span>Resources</span>
-                  <textarea id="curriculumWeekResources" rows="4" placeholder="One resource per line"></textarea>
+                  <span>Week resources</span>
+                  <textarea id="curriculumWeekResources" rows="6" placeholder="One resource per line&#10;Format: Title | https://resource-link.com&#10;Example: Lab brief | https://example.com/lab-brief"></textarea>
                 </label>
                 <div class="button-row">
                   <button class="btn btn-primary" type="submit">Save week changes</button>
@@ -230,6 +230,38 @@
             <div id="adminTrackMessage" class="form-message hidden"></div>
             <div id="trackSettingsList" class="admin-list"></div>
           </article>
+        </section>
+
+        <section class="admin-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Semester resources</p>
+              <h2>Manage resource links by semester</h2>
+            </div>
+          </div>
+
+          <div id="adminResourcesMessage" class="form-message hidden"></div>
+
+          <form id="semesterResourcesForm" class="admin-form">
+            <div class="form-columns">
+              <label>
+                <span>Track</span>
+                <select id="resourceTrackSelect"></select>
+              </label>
+              <label>
+                <span>Semester</span>
+                <select id="resourceSemesterSelect"></select>
+              </label>
+            </div>
+            <label>
+              <span>Resource links</span>
+              <textarea id="semesterResourceLinks" rows="8" placeholder="One link per line&#10;https://docs.example.com/resource-one&#10;https://drive.google.com/..."></textarea>
+            </label>
+            <div class="button-row">
+              <button class="btn btn-primary" type="submit">Save semester resources</button>
+              <button id="resetSemesterResourcesBtn" class="btn btn-secondary" type="button">Reset semester resources</button>
+            </div>
+          </form>
         </section>
 
         <section class="admin-panel">

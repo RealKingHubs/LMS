@@ -14,6 +14,7 @@
   const PUBLIC_PROFILES_TABLE = 'lms_public_profiles';
   const MONTH_OVERRIDES_TABLE = 'lms_curriculum_month_overrides';
   const WEEK_OVERRIDES_TABLE = 'lms_curriculum_week_overrides';
+  const SEMESTER_RESOURCES_TABLE = 'lms_semester_resources';
   const ADMIN_USERS_TABLE = 'lms_admin_users';
 
   const state = {
@@ -31,7 +32,10 @@
     curriculumTrackId: '',
     curriculumSemesterId: '',
     curriculumMonthId: '',
-    curriculumWeekId: ''
+    curriculumWeekId: '',
+    resourceTrackId: '',
+    resourceSemesterId: '',
+    semesterResourcesByKey: {}
   };
 
   const dom = {};
@@ -95,7 +99,7 @@
     dom.curriculumWeekTitle = document.getElementById('curriculumWeekTitle');
     dom.curriculumWeekObjective = document.getElementById('curriculumWeekObjective');
     dom.curriculumWeekType = document.getElementById('curriculumWeekType');
-    dom.curriculumWeekVideoUrl = document.getElementById('curriculumWeekVideoUrl');
+    dom.curriculumWeekVideoUrls = document.getElementById('curriculumWeekVideoUrls');
     dom.curriculumWeekResources = document.getElementById('curriculumWeekResources');
     dom.resetWeekOverrideBtn = document.getElementById('resetWeekOverrideBtn');
     dom.adminCurriculumMessage = document.getElementById('adminCurriculumMessage');
@@ -103,6 +107,12 @@
     dom.adminTrackMessage = document.getElementById('adminTrackMessage');
     dom.userTrackFilter = document.getElementById('userTrackFilter');
     dom.userList = document.getElementById('userList');
+    dom.resourceTrackSelect = document.getElementById('resourceTrackSelect');
+    dom.resourceSemesterSelect = document.getElementById('resourceSemesterSelect');
+    dom.semesterResourcesForm = document.getElementById('semesterResourcesForm');
+    dom.semesterResourceLinks = document.getElementById('semesterResourceLinks');
+    dom.resetSemesterResourcesBtn = document.getElementById('resetSemesterResourcesBtn');
+    dom.adminResourcesMessage = document.getElementById('adminResourcesMessage');
     dom.userForm = document.getElementById('userForm');
     dom.userEmail = document.getElementById('userEmail');
     dom.userFirstName = document.getElementById('userFirstName');
@@ -140,6 +150,10 @@
     dom.curriculumWeekForm.addEventListener('submit', saveWeekOverride);
     dom.resetMonthOverrideBtn.addEventListener('click', resetMonthOverride);
     dom.resetWeekOverrideBtn.addEventListener('click', resetWeekOverride);
+    dom.resourceTrackSelect.addEventListener('change', handleResourceTrackChange);
+    dom.resourceSemesterSelect.addEventListener('change', handleResourceSemesterChange);
+    dom.semesterResourcesForm.addEventListener('submit', saveSemesterResources);
+    dom.resetSemesterResourcesBtn.addEventListener('click', resetSemesterResources);
     dom.userForm.addEventListener('submit', saveUserProfile);
   }
 
@@ -157,15 +171,20 @@
       .join('');
     dom.announcementTrack.innerHTML = trackOnlyOptions;
     dom.curriculumTrackSelect.innerHTML = trackOnlyOptions;
+    dom.resourceTrackSelect.innerHTML = trackOnlyOptions;
     dom.userTrack.innerHTML = trackOnlyOptions;
 
     if (!state.curriculumTrackId) {
       state.curriculumTrackId = Object.keys(window.RKH_DATA.tracks)[0] || '';
     }
+    if (!state.resourceTrackId) {
+      state.resourceTrackId = state.curriculumTrackId;
+    }
 
     dom.messageTrackFilter.value = state.messageTrackFilter;
     dom.userTrackFilter.value = state.userTrackFilter;
     dom.curriculumTrackSelect.value = state.curriculumTrackId;
+    dom.resourceTrackSelect.value = state.resourceTrackId;
   }
 
   async function restoreAdminSession() {
@@ -248,13 +267,15 @@
       fetchAnnouncements(),
       fetchPublicProfiles(),
       fetchTrackSettings(),
-      fetchCurriculumOverrides()
+      fetchCurriculumOverrides(),
+      fetchSemesterResources()
     ]);
     renderOverview();
     renderAnnouncements();
     renderMessages();
     renderTrackSettings();
     renderCurriculumEditor();
+    renderResourcesEditor();
     renderUsers();
   }
 
@@ -353,7 +374,7 @@
   async function fetchCurriculumOverrides() {
     const [{ data: monthData, error: monthError }, { data: weekData, error: weekError }] = await Promise.all([
       supabaseClient.from(MONTH_OVERRIDES_TABLE).select('month_id, track_id, semester_id, label, title, summary, phase'),
-      supabaseClient.from(WEEK_OVERRIDES_TABLE).select('week_id, track_id, semester_id, month_id, title, objective, type, video_url, resources')
+      supabaseClient.from(WEEK_OVERRIDES_TABLE).select('week_id, track_id, semester_id, month_id, title, objective, type, video_url, video_urls, resources, resource_items')
     ]);
 
     if (monthError) {
@@ -388,11 +409,31 @@
         objective: item.objective || '',
         type: item.type || '',
         videoUrl: item.video_url || '',
-        resources: Array.isArray(item.resources) ? item.resources : []
+        videoUrls: Array.isArray(item.video_urls) ? item.video_urls : [],
+        resources: Array.isArray(item.resources) ? item.resources : [],
+        resourceItems: Array.isArray(item.resource_items) ? item.resource_items : []
       }
     ]));
 
     hideMessage(dom.adminCurriculumMessage);
+  }
+
+  async function fetchSemesterResources() {
+    const { data, error } = await supabaseClient
+      .from(SEMESTER_RESOURCES_TABLE)
+      .select('track_id, semester_id, resource_links');
+
+    if (error) {
+      showMessage(dom.adminResourcesMessage, error.message, 'error');
+      return;
+    }
+
+    state.semesterResourcesByKey = Object.fromEntries((data || []).map(item => [
+      `${item.track_id}::${item.semester_id}`,
+      Array.isArray(item.resource_links) ? item.resource_links : []
+    ]));
+
+    hideMessage(dom.adminResourcesMessage);
   }
 
   function normalizeMessage(item) {
@@ -463,7 +504,17 @@
                 title: weekOverride.title || week.title,
                 objective: weekOverride.objective || week.objective,
                 type: weekOverride.type || week.type,
-                videoUrl: weekOverride.videoUrl || week.videoUrl,
+                videoUrl: weekOverride.videoUrls?.[0] || weekOverride.videoUrl || week.videoUrl,
+                videoUrls: Array.isArray(weekOverride.videoUrls) && weekOverride.videoUrls.length
+                  ? weekOverride.videoUrls
+                  : [weekOverride.videoUrl || week.videoUrl].filter(Boolean),
+                resourceItems: Array.isArray(weekOverride.resourceItems) && weekOverride.resourceItems.length
+                  ? weekOverride.resourceItems
+                  : Array.isArray(weekOverride.resources) && weekOverride.resources.length
+                    ? weekOverride.resources.map(item => ({ title: item, url: '', kind: 'resource' }))
+                    : Array.isArray(week.resourceItems)
+                      ? week.resourceItems
+                      : (week.resources || []).map(item => ({ title: item, url: '', kind: 'resource' })),
                 resources: Array.isArray(weekOverride.resources) && weekOverride.resources.length
                   ? weekOverride.resources
                   : week.resources
@@ -675,8 +726,43 @@
     dom.curriculumWeekTitle.value = week?.title || '';
     dom.curriculumWeekObjective.value = week?.objective || '';
     dom.curriculumWeekType.value = week?.type || '';
-    dom.curriculumWeekVideoUrl.value = week?.videoUrl || '';
-    dom.curriculumWeekResources.value = Array.isArray(week?.resources) ? week.resources.join('\n') : '';
+    const weekVideoUrls = Array.isArray(week?.videoUrls) && week.videoUrls.length
+      ? week.videoUrls
+      : [week?.videoUrl].filter(Boolean);
+    const weekResourceLines = Array.isArray(week?.resourceItems) && week.resourceItems.length
+      ? week.resourceItems.map(item => item.url ? `${item.title} | ${item.url}` : item.title)
+      : Array.isArray(week?.resources)
+        ? week.resources
+        : [];
+    dom.curriculumWeekVideoUrls.value = weekVideoUrls.join('\n');
+    dom.curriculumWeekResources.value = weekResourceLines.join('\n');
+  }
+
+  function ensureResourceSelection() {
+    const track = getResolvedTrack(state.resourceTrackId) || getResolvedTracks()[0] || null;
+    if (!track) return;
+    state.resourceTrackId = track.id;
+
+    const semester = track.semesters.find(item => item.id === state.resourceSemesterId) || track.semesters[0] || null;
+    state.resourceSemesterId = semester?.id || '';
+  }
+
+  function renderResourcesEditor() {
+    ensureResourceSelection();
+    const track = getResolvedTrack(state.resourceTrackId);
+    if (!track) return;
+
+    dom.resourceTrackSelect.value = track.id;
+    dom.resourceSemesterSelect.innerHTML = track.semesters
+      .map(semester => `<option value="${semester.id}">${escapeHtml(`${semester.label} - ${semester.title}`)}</option>`)
+      .join('');
+    dom.resourceSemesterSelect.value = state.resourceSemesterId;
+
+    const links = state.semesterResourcesByKey[`${track.id}::${state.resourceSemesterId}`] || [];
+    dom.semesterResourceLinks.value = links
+      .map(item => typeof item === 'string' ? item : item?.url || '')
+      .filter(Boolean)
+      .join('\n');
   }
 
   function renderUsers() {
@@ -742,6 +828,17 @@
   function handleCurriculumWeekChange() {
     state.curriculumWeekId = dom.curriculumWeekSelect.value;
     renderCurriculumEditor();
+  }
+
+  function handleResourceTrackChange() {
+    state.resourceTrackId = dom.resourceTrackSelect.value;
+    state.resourceSemesterId = '';
+    renderResourcesEditor();
+  }
+
+  function handleResourceSemesterChange() {
+    state.resourceSemesterId = dom.resourceSemesterSelect.value;
+    renderResourcesEditor();
   }
 
   async function handleAnnouncementSubmit(event) {
@@ -822,10 +919,23 @@
       return;
     }
 
-    const resources = dom.curriculumWeekResources.value
+    const videoUrls = dom.curriculumWeekVideoUrls.value
       .split(/\r?\n/)
       .map(item => item.trim())
       .filter(Boolean);
+
+    const resourceItems = dom.curriculumWeekResources.value
+      .split(/\r?\n/)
+      .map(item => item.trim())
+      .filter(Boolean)
+      .map(item => {
+        const [titlePart, urlPart] = item.split('|').map(part => part.trim());
+        if (urlPart) {
+          return { title: titlePart || 'Resource', url: urlPart, kind: 'link' };
+        }
+        return { title: titlePart || 'Resource', url: '', kind: 'resource' };
+      });
+    const resources = resourceItems.map(item => item.title);
 
     const { error } = await supabaseClient.from(WEEK_OVERRIDES_TABLE).upsert({
       week_id: week.id,
@@ -835,8 +945,10 @@
       title: dom.curriculumWeekTitle.value.trim(),
       objective: dom.curriculumWeekObjective.value.trim(),
       type: dom.curriculumWeekType.value.trim(),
-      video_url: dom.curriculumWeekVideoUrl.value.trim(),
+      video_url: videoUrls[0] || '',
+      video_urls: videoUrls,
       resources,
+      resource_items: resourceItems,
       updated_by: state.adminEmail
     }, { onConflict: 'week_id' });
 
@@ -891,6 +1003,61 @@
     showMessage(dom.adminCurriculumMessage, 'Week override removed.', 'success');
     await fetchCurriculumOverrides();
     renderCurriculumEditor();
+  }
+
+  async function saveSemesterResources(event) {
+    event.preventDefault();
+
+    const track = getResolvedTrack(state.resourceTrackId);
+    const semester = track?.semesters.find(item => item.id === state.resourceSemesterId) || null;
+    if (!track || !semester) {
+      showMessage(dom.adminResourcesMessage, 'Select a valid track and semester before saving.', 'error');
+      return;
+    }
+
+    const resourceLinks = dom.semesterResourceLinks.value
+      .split(/\r?\n/)
+      .map(item => item.trim())
+      .filter(Boolean);
+
+    const { error } = await supabaseClient.from(SEMESTER_RESOURCES_TABLE).upsert({
+      track_id: track.id,
+      semester_id: semester.id,
+      resource_links: resourceLinks,
+      updated_by: state.adminEmail
+    }, { onConflict: 'track_id,semester_id' });
+
+    if (error) {
+      showMessage(dom.adminResourcesMessage, error.message, 'error');
+      return;
+    }
+
+    showMessage(dom.adminResourcesMessage, 'Semester resources saved successfully.', 'success');
+    await fetchSemesterResources();
+    renderResourcesEditor();
+  }
+
+  async function resetSemesterResources() {
+    const track = getResolvedTrack(state.resourceTrackId);
+    if (!track || !state.resourceSemesterId) return;
+
+    const shouldReset = window.confirm('Reset the resource links for this semester?');
+    if (!shouldReset) return;
+
+    const { error } = await supabaseClient
+      .from(SEMESTER_RESOURCES_TABLE)
+      .delete()
+      .eq('track_id', track.id)
+      .eq('semester_id', state.resourceSemesterId);
+
+    if (error) {
+      showMessage(dom.adminResourcesMessage, error.message, 'error');
+      return;
+    }
+
+    showMessage(dom.adminResourcesMessage, 'Semester resources removed.', 'success');
+    await fetchSemesterResources();
+    renderResourcesEditor();
   }
 
   async function saveTrackSettings(trackId) {

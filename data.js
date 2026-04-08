@@ -475,9 +475,11 @@
   const NAV_ITEMS = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'curriculum', label: 'Curriculum' },
+    { id: 'resources', label: 'Resources' },
     { id: 'community', label: 'Community' },
     { id: 'announcements', label: 'Announcements' },
     { id: 'progress', label: 'Progress' },
+    { id: 'certificates', label: 'Certificates' },
     { id: 'profile', label: 'Profile and Settings' }
   ];
 

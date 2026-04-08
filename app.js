@@ -23,6 +23,7 @@
   const TRACK_SETTINGS_TABLE = 'lms_track_settings';
   const MONTH_OVERRIDES_TABLE = 'lms_curriculum_month_overrides';
   const WEEK_OVERRIDES_TABLE = 'lms_curriculum_week_overrides';
+  const SEMESTER_RESOURCES_TABLE = 'lms_semester_resources';
 
   const COMMUNITY_STICKER_PACKS = [
     {
@@ -68,6 +69,7 @@
     currentUserId: null,
     currentView: 'dashboard',
     currentLessonId: null,
+    currentLessonVideoIndex: 0,
     currentLiveClassId: null,
     currentCurriculumSemesterId: null,
     currentCurriculumMonthId: null,
@@ -85,6 +87,7 @@
     remoteAnnouncementsByTrack: {},
     announcementsLoadedByTrack: {},
     trackSettingsById: {},
+    semesterResourcesByKey: {},
     curriculumMonthOverridesById: {},
     curriculumWeekOverridesById: {}
   };
@@ -92,6 +95,8 @@
   let communitySupabase = null;
   let communityChannel = null;
   let communityPollHandle = null;
+  let remoteProfileSyncHealthy = true;
+  let remoteProfileSyncWarningShown = false;
 
   // Cached DOM references are stored here after startup so the app does not keep
   // querying the same elements every time a view changes.
@@ -144,6 +149,12 @@
     dom.registerTab = document.getElementById('registerTab');
     dom.authMessage = document.getElementById('authMessage');
     dom.registerTrack = document.getElementById('registerTrack');
+    dom.landingMenuToggle = document.getElementById('landingMenuToggle');
+    dom.landingMenuDrawer = document.getElementById('landingMenuDrawer');
+    dom.landingMenuOverlay = document.getElementById('landingMenuOverlay');
+    dom.appSidebar = document.getElementById('appSidebar');
+    dom.appSidebarOverlay = document.getElementById('appSidebarOverlay');
+    dom.appSidebarToggle = document.getElementById('appSidebarToggle');
     dom.appNav = document.getElementById('appNav');
     dom.appContent = document.getElementById('appContent');
     dom.pageTitle = document.getElementById('pageTitle');
@@ -153,11 +164,77 @@
     dom.topbarTrack = document.getElementById('topbarTrack');
     dom.topbarAvatar = document.getElementById('topbarAvatar');
     dom.appFooterText = document.getElementById('appFooterText');
+    dom.scrollTopButton = document.getElementById('scrollTopButton');
   }
 
   function bindEvents() {
     dom.loginForm.addEventListener('submit', handleLogin);
     dom.registerForm.addEventListener('submit', handleRegister);
+    window.addEventListener('resize', handleViewportResize);
+    window.addEventListener('scroll', handleScrollVisibility, { passive: true });
+    document.addEventListener('keydown', handleGlobalEscapes);
+
+    dom.landingMenuDrawer?.querySelectorAll('a, button').forEach(element => {
+      element.addEventListener('click', () => closeLandingMenu());
+    });
+
+    handleScrollVisibility();
+  }
+
+  function handleViewportResize() {
+    if (window.innerWidth > 820) {
+      closeLandingMenu();
+      closeAppSidebar();
+    }
+  }
+
+  function handleGlobalEscapes(event) {
+    if (event.key !== 'Escape') return;
+    closeLandingMenu();
+    closeAppSidebar();
+  }
+
+  function handleScrollVisibility() {
+    dom.scrollTopButton?.classList.toggle('scroll-top-visible', window.scrollY > 120);
+  }
+
+  function setOverlayLockState() {
+    const hasOpenOverlay =
+      dom.landingPage?.classList.contains('menu-open') ||
+      dom.appPage?.classList.contains('sidebar-open');
+    document.body.classList.toggle('overlay-open', Boolean(hasOpenOverlay));
+  }
+
+  // Mobile navigation is intentionally separate from the desktop layout so the
+  // landing page does not collapse into a tall stacked header on small screens.
+  function toggleLandingMenu(forceOpen) {
+    if (!dom.landingPage) return;
+    const nextState = typeof forceOpen === 'boolean'
+      ? forceOpen
+      : !dom.landingPage.classList.contains('menu-open');
+    dom.landingPage.classList.toggle('menu-open', nextState);
+    dom.landingMenuToggle?.setAttribute('aria-expanded', nextState ? 'true' : 'false');
+    setOverlayLockState();
+  }
+
+  function closeLandingMenu() {
+    toggleLandingMenu(false);
+  }
+
+  // The signed-in workspace uses its own drawer on mobile so the top bar stays
+  // clean while still giving learners fast access to the full navigation.
+  function toggleAppSidebar(forceOpen) {
+    if (!dom.appPage) return;
+    const nextState = typeof forceOpen === 'boolean'
+      ? forceOpen
+      : !dom.appPage.classList.contains('sidebar-open');
+    dom.appPage.classList.toggle('sidebar-open', nextState);
+    dom.appSidebarToggle?.setAttribute('aria-expanded', nextState ? 'true' : 'false');
+    setOverlayLockState();
+  }
+
+  function closeAppSidebar() {
+    toggleAppSidebar(false);
   }
 
   // A single helper keeps the password visibility behavior consistent across
@@ -229,6 +306,7 @@
       completedLessonIds: Array.isArray(user.completedLessonIds) ? user.completedLessonIds : [],
       joinedClassIds: Array.isArray(user.joinedClassIds) ? user.joinedClassIds : [],
       assessmentSubmissions: user.assessmentSubmissions && typeof user.assessmentSubmissions === 'object' ? user.assessmentSubmissions : {},
+      certificateIssuedAt: user.certificateIssuedAt || '',
       lastSeenCommunityAt: user.lastSeenCommunityAt || '',
       lastSeenAnnouncementsAt: user.lastSeenAnnouncementsAt || '',
       lastSeenAssessmentsAt: user.lastSeenAssessmentsAt || ''
@@ -338,6 +416,91 @@
     return [...(track.announcements || [])].sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt));
   }
 
+  function getSemesterResources(trackId, semesterId) {
+    return state.semesterResourcesByKey[`${trackId}::${semesterId}`] || [];
+  }
+
+  function buildResourceLabel(url, index) {
+    try {
+      const parsed = new URL(url);
+      const pathParts = parsed.pathname.split('/').filter(Boolean);
+      const lastPart = pathParts[pathParts.length - 1];
+      return lastPart ? decodeURIComponent(lastPart) : parsed.hostname;
+    } catch (error) {
+      return `Resource link ${index + 1}`;
+    }
+  }
+
+  // Weekly lesson content can come from the base curriculum or admin overrides.
+  // These helpers normalize both sources into one consistent shape so the
+  // learner player can support playlists and richer resources without knowing
+  // where the data came from.
+  function normalizeLessonVideoItems(videoItems, fallbackVideoUrl = '') {
+    const resolved = Array.isArray(videoItems) ? videoItems : [];
+    const normalized = resolved
+      .map((item, index) => {
+        if (typeof item === 'string') {
+          const trimmed = item.trim();
+          return trimmed ? { title: `Video ${index + 1}`, url: trimmed } : null;
+        }
+
+        if (item && typeof item === 'object') {
+          const url = String(item.url || item.videoUrl || '').trim();
+          if (!url) return null;
+          return {
+            title: String(item.title || `Video ${index + 1}`).trim(),
+            url
+          };
+        }
+
+        return null;
+      })
+      .filter(Boolean);
+
+    if (normalized.length) return normalized;
+    if (fallbackVideoUrl) {
+      return [{ title: 'Lesson video', url: fallbackVideoUrl }];
+    }
+    return [];
+  }
+
+  function normalizeLessonResourceItems(resourceItems) {
+    const normalized = (Array.isArray(resourceItems) ? resourceItems : [])
+      .map((item, index) => {
+        if (typeof item === 'string') {
+          const trimmed = item.trim();
+          if (!trimmed) return null;
+          return {
+            title: trimmed,
+            url: '',
+            kind: index === 0 ? 'resource' : 'resource'
+          };
+        }
+
+        if (item && typeof item === 'object') {
+          const title = String(item.title || item.label || '').trim();
+          const url = String(item.url || '').trim();
+          const kind = String(item.kind || 'resource').trim();
+          if (!title && !url) return null;
+          return {
+            title: title || 'Resource',
+            url,
+            kind
+          };
+        }
+
+        return null;
+      })
+      .filter(Boolean);
+
+    // These placeholders were useful in early mockups, but they should not
+    // clutter the learner experience once real resources are being managed.
+    return normalized.filter(item => {
+      const lowered = item.title.toLowerCase();
+      return !['lesson video', 'reading note', 'practice task', 'hands-on walkthrough', 'implementation checklist', 'build notes', 'testing guide', 'debug checklist', 'review notes', 'showcase guide', 'presentation template', 'reflection notes', 'lab brief', 'environment checklist', 'planning guide'].includes(lowered);
+    });
+  }
+
   function parseCommunityPayload(value) {
     if (typeof value !== 'string') {
       return { body: '', sticker: '', attachment: null };
@@ -425,15 +588,27 @@
             phase: monthOverride.phase || month.phase,
             weeks: month.weeks.map(week => {
               const weekOverride = state.curriculumWeekOverridesById[week.id] || {};
+              const videoItems = normalizeLessonVideoItems(
+                weekOverride.videoUrls,
+                weekOverride.videoUrl || week.videoUrl || ''
+              );
+              const resourceItems = normalizeLessonResourceItems(
+                Array.isArray(weekOverride.resourceItems) && weekOverride.resourceItems.length
+                  ? weekOverride.resourceItems
+                  : Array.isArray(weekOverride.resources) && weekOverride.resources.length
+                    ? weekOverride.resources
+                    : week.resourceItems || week.resources || []
+              );
               return {
                 ...week,
                 title: weekOverride.title || week.title,
                 objective: weekOverride.objective || week.objective,
                 type: weekOverride.type || week.type,
-                videoUrl: weekOverride.videoUrl || week.videoUrl,
-                resources: Array.isArray(weekOverride.resources) && weekOverride.resources.length
-                  ? weekOverride.resources
-                  : week.resources
+                videoUrl: videoItems[0]?.url || weekOverride.videoUrl || week.videoUrl,
+                videoUrls: videoItems.map(item => item.url),
+                videoItems,
+                resourceItems,
+                resources: resourceItems.map(item => item.title)
               };
             })
           };
@@ -502,12 +677,11 @@
     const allMonths = allSemesters.flatMap(semester => semester.months || []);
 
     if (!allSemesters.some(semester => semester.id === state.currentCurriculumSemesterId)) {
-      state.currentCurriculumSemesterId = allSemesters[0]?.id || null;
+      state.currentCurriculumSemesterId = null;
     }
 
     if (!allMonths.some(month => month.id === state.currentCurriculumMonthId)) {
-      const activeSemester = allSemesters.find(semester => semester.id === state.currentCurriculumSemesterId) || allSemesters[0];
-      state.currentCurriculumMonthId = activeSemester?.months?.[0]?.id || allMonths[0]?.id || null;
+      state.currentCurriculumMonthId = null;
     }
   }
 
@@ -542,7 +716,8 @@
 
     await Promise.all([
       refreshTrackSettings({ silent: true }),
-      refreshCurriculumOverrides({ silent: true })
+      refreshCurriculumOverrides({ silent: true }),
+      refreshSemesterResources({ silent: true })
     ]);
   }
 
@@ -571,7 +746,7 @@
       void refreshTrackAnnouncements(track.id, { silent: true });
       void refreshTrackSettings({ silent: true });
       void refreshCurriculumOverrides({ silent: true });
-      void syncCurrentUserProfileFromRemote();
+      void refreshSemesterResources({ silent: true });
     }, COMMUNITY_SYNC_INTERVAL_MS);
   }
 
@@ -697,7 +872,7 @@
         .select('month_id, label, title, summary, phase'),
       communitySupabase
         .from(WEEK_OVERRIDES_TABLE)
-        .select('week_id, title, objective, type, video_url, resources')
+        .select('week_id, title, objective, type, video_url, video_urls, resources, resource_items')
     ]);
 
     if (monthError) {
@@ -724,7 +899,9 @@
           objective: item.objective || '',
           type: item.type || '',
           videoUrl: item.video_url || '',
-          resources: Array.isArray(item.resources) ? item.resources : []
+          videoUrls: Array.isArray(item.video_urls) ? item.video_urls : [],
+          resources: Array.isArray(item.resources) ? item.resources : [],
+          resourceItems: Array.isArray(item.resource_items) ? item.resource_items : []
         }
       ]));
     }
@@ -734,17 +911,39 @@
     }
   }
 
+  async function refreshSemesterResources(options = {}) {
+    if (!communitySupabase) return;
+
+    const { data, error } = await communitySupabase
+      .from(SEMESTER_RESOURCES_TABLE)
+      .select('track_id, semester_id, resource_links');
+
+    if (error) {
+      console.warn('Semester resources sync failed', error);
+      return;
+    }
+
+    state.semesterResourcesByKey = Object.fromEntries((data || []).map(item => [
+      `${item.track_id}::${item.semester_id}`,
+      Array.isArray(item.resource_links) ? item.resource_links : []
+    ]));
+
+    if (!options.silent && getCurrentUser()) {
+      renderAppShell();
+    }
+  }
+
   // Learner accounts still authenticate locally, but their shareable profile data
   // is mirrored into Supabase so the admin workspace can manage people and tracks.
   async function fetchRemotePublicProfile(email) {
-    if (!communitySupabase || !email) return null;
+    if (!communitySupabase || !email || !remoteProfileSyncHealthy) return null;
 
     const { data, error } = await communitySupabase.rpc('get_lms_public_profile', {
       profile_email: email
     });
 
     if (error) {
-      console.warn('Learner profile fetch failed', error);
+      handleRemoteProfileSyncError(error, 'fetch');
       return null;
     }
 
@@ -766,7 +965,7 @@
   }
 
   async function syncUserProfileToRemote(user) {
-    if (!communitySupabase || !user?.email) return null;
+    if (!communitySupabase || !user?.email || !remoteProfileSyncHealthy) return null;
 
     const { error } = await communitySupabase.rpc('upsert_lms_public_profile', {
       profile_email: user.email,
@@ -781,7 +980,7 @@
     });
 
     if (error) {
-      console.warn('Learner profile sync failed', error);
+      handleRemoteProfileSyncError(error, 'sync');
       return null;
     }
 
@@ -791,11 +990,10 @@
   async function syncCurrentUserProfileFromRemote() {
     const user = getCurrentUser();
     if (!user) return false;
-    if (!communitySupabase) return true;
+    if (!communitySupabase || !remoteProfileSyncHealthy) return true;
 
     const remoteProfile = await fetchRemotePublicProfile(user.email);
-    if (!remoteProfile) {
-      await syncUserProfileToRemote(user);
+    if (!remoteProfile || !remoteProfileSyncHealthy) {
       return true;
     }
 
@@ -819,14 +1017,39 @@
     return true;
   }
 
+  // Some learner environments may still be running against an older Supabase
+  // function definition. If that backend shape is not healthy yet, we stop
+  // retrying the RPC on every page load so mobile browsers do not fill the
+  // console with the same backend error over and over again.
+  function handleRemoteProfileSyncError(error, action) {
+    const message = String(error?.message || '');
+    const details = String(error?.details || '');
+    const isSchemaMismatch = error?.code === '42702' || /ambiguous/i.test(message) || /ambiguous/i.test(details);
+
+    if (isSchemaMismatch) {
+      remoteProfileSyncHealthy = false;
+      if (!remoteProfileSyncWarningShown) {
+        console.info('Learner profile sync has been paused until the Supabase profile function is updated.', { action });
+        remoteProfileSyncWarningShown = true;
+      }
+      return;
+    }
+
+    console.warn(`Learner profile ${action} failed`, error);
+  }
+
   // ---------------------------------------------------------------------------
   // Page switching and auth-mode switching
   // ---------------------------------------------------------------------------
   function showLandingPage() {
+    closeAppSidebar();
+    closeLandingMenu();
     setActivePage('landing');
   }
 
   function showAuthPage(mode) {
+    closeAppSidebar();
+    closeLandingMenu();
     setActivePage('auth');
     switchAuthMode(mode);
   }
@@ -837,6 +1060,8 @@
       state.assessmentMessage = null;
     }
     markSectionSeen(viewId);
+    closeLandingMenu();
+    closeAppSidebar();
     setActivePage('app');
     renderAppShell();
   }
@@ -845,6 +1070,11 @@
     dom.landingPage.classList.toggle('page-active', pageName === 'landing');
     dom.authPage.classList.toggle('page-active', pageName === 'auth');
     dom.appPage.classList.toggle('page-active', pageName === 'app');
+    handleScrollVisibility();
+  }
+
+  function scrollToTopPage() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function switchAuthMode(mode) {
@@ -994,8 +1224,6 @@
 
     state.currentUserId = user.id;
     localStorage.setItem(SESSION_KEY, user.id);
-    await syncUserProfileToRemote(user);
-    await syncCurrentUserProfileFromRemote();
     openApp('dashboard');
   }
 
@@ -1023,9 +1251,9 @@
   function renderSidebar(user, track) {
     const notificationCounts = getNotificationCounts(user, track);
     const navGroups = [
-      { title: 'Workspace', items: ['dashboard', 'curriculum', 'progress'] },
+      { title: 'Workspace', items: ['dashboard', 'curriculum', 'resources', 'progress'] },
       { title: 'Collaboration', items: ['community', 'announcements'] },
-      { title: 'Account', items: ['profile'] }
+      { title: 'Account', items: ['certificates', 'profile'] }
     ];
 
     dom.appNav.innerHTML = navGroups.map(group => {
@@ -1085,6 +1313,17 @@
           <path d="M5 15V9l10-4v14L5 15z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
           <path d="M15 9h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2M8 15l1 4h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
         </svg>`,
+      resources: `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 5h8l4 4v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+          <path d="M15 5v4h4M9 13h6M9 17h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+        </svg>`,
+      certificates: `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 4h10a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+          <path d="M9.5 9.5h5M9.5 12.5h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+          <path d="M10 15v5l2-1.4L14 20v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+        </svg>`,
       profile: `
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M12 12a4 4 0 1 0-0.001-8.001A4 4 0 0 0 12 12zm-7 8c0-3.3 3.1-6 7-6s7 2.7 7 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
@@ -1101,17 +1340,21 @@
     const titles = {
       dashboard: 'Dashboard',
       curriculum: 'Curriculum',
+      resources: 'Resources',
       community: 'Community',
       progress: 'Progress',
       announcements: 'Announcements',
+      certificates: 'Certificates',
       profile: 'Profile and Settings'
     };
     const eyebrows = {
       dashboard: 'Track workspace',
       curriculum: 'Semester learning plan',
+      resources: 'Semester resource library',
       community: 'Learner communication',
       progress: 'Completion tracking',
       announcements: 'Programme updates',
+      certificates: 'Programme completion',
       profile: 'Learner account'
     };
 
@@ -1129,9 +1372,11 @@
     const renderers = {
       dashboard: renderDashboard,
       curriculum: renderCurriculum,
+      resources: renderResources,
       community: renderCommunity,
       progress: renderProgress,
       announcements: renderAnnouncements,
+      certificates: renderCertificates,
       profile: renderProfileAndSettings
     };
 
@@ -1151,6 +1396,46 @@
     const completedCount = allLessons.filter(lesson => user.completedLessonIds.includes(lesson.id)).length;
     const percent = allLessons.length ? Math.round((completedCount / allLessons.length) * 100) : 0;
     return { completedCount, totalLessons: allLessons.length, percent };
+  }
+
+  function getOrderedTrackLessons(track) {
+    return track.semesters.flatMap(semester =>
+      semester.months.flatMap(month =>
+        month.weeks.map(lesson => ({
+          lesson,
+          semester,
+          month
+        }))
+      )
+    );
+  }
+
+  function getNextLessonContext(track, lessonId) {
+    const orderedLessons = getOrderedTrackLessons(track);
+    const currentIndex = orderedLessons.findIndex(entry => entry.lesson.id === lessonId);
+    if (currentIndex === -1) return null;
+    return orderedLessons[currentIndex + 1] || null;
+  }
+
+  function ensureCertificateState(user, track) {
+    if (!user || !track) return null;
+    const progress = calculateTrackProgress(user, track);
+    if (progress.totalLessons > 0 && progress.completedCount === progress.totalLessons && !user.certificateIssuedAt) {
+      user.certificateIssuedAt = new Date().toISOString();
+      persistUsers();
+    }
+    return user.certificateIssuedAt || null;
+  }
+
+  function getCertificateData(user, track) {
+    const progress = calculateTrackProgress(user, track);
+    const issuedAt = ensureCertificateState(user, track);
+    return {
+      unlocked: Boolean(issuedAt && progress.totalLessons > 0),
+      issuedAt,
+      certificateId: `${track.id}-${user.id}`.replace(/[^a-z0-9-]/gi, '').toUpperCase(),
+      progress
+    };
   }
 
   function calculateSemesterProgress(user, semester) {
@@ -1484,9 +1769,14 @@
   // Curriculum rendering is intentionally split into semester -> month -> week.
   // This keeps the navigation clear and makes it easier to expand later.
   // Curriculum is split into semesters, then months, then weekly lesson entries.
-  // The left side shows structure while the lesson player keeps the active content visible.
+  // The curriculum stays full width until a learner opens a lesson. Once a
+  // lesson is opened, the player becomes the main stage and the curriculum
+  // moves into a slimmer navigation column on the right.
   function renderCurriculum(user, track) {
     const allMonths = track.semesters.flatMap(semester => semester.months);
+    const selectedLesson = track.semesters
+      .flatMap(semester => semester.months.flatMap(month => month.weeks))
+      .find(lesson => lesson.id === state.currentLessonId) || null;
     const openSemesterId = state.currentCurriculumSemesterId && track.semesters.some(semester => semester.id === state.currentCurriculumSemesterId)
       ? state.currentCurriculumSemesterId
       : null;
@@ -1514,21 +1804,35 @@
       `;
     }).join('');
 
-    return `
-      <section class="curriculum-layout curriculum-focused-layout">
-        <div class="dashboard-stack">
-          <article class="surface-card curriculum-panel">
-            <div class="content-header">
-              <div>
-                <p class="section-kicker">Course content</p>
-                <h2>${track.label} curriculum</h2>
-                <p>Open one month at a time, view the week list clearly, and keep the full lesson details in the player on the right.</p>
-              </div>
-            </div>
-            <div class="curriculum-course-list">${semestersHtml}</div>
-          </article>
+    const curriculumPanel = `
+      <article class="surface-card curriculum-panel ${selectedLesson ? 'curriculum-panel-condensed' : ''}">
+        <div class="content-header">
+          <div>
+            <p class="section-kicker">Course content</p>
+            <h2>${track.label} curriculum</h2>
+            <p>${selectedLesson ? 'The active lesson is now in focus. Use this right-side curriculum column to switch months and lessons.' : 'Open one month at a time, review the week list, and click view lesson when you want to watch the selected content.'}</p>
+          </div>
         </div>
-        <aside class="lesson-player">${renderLessonPlayer(track)}</aside>
+        <div class="curriculum-course-list">${semestersHtml}</div>
+      </article>
+    `;
+
+    if (!selectedLesson) {
+      return `
+        <section class="curriculum-layout curriculum-focused-layout curriculum-browsing-layout">
+          <div class="dashboard-stack">
+            ${curriculumPanel}
+          </div>
+        </section>
+      `;
+    }
+
+    return `
+      <section class="curriculum-layout curriculum-focused-layout curriculum-viewing-layout">
+        <div class="lesson-player curriculum-player-main">${renderLessonPlayer(track, user, selectedLesson)}</div>
+        <aside class="dashboard-stack curriculum-sidebar-stack">
+          ${curriculumPanel}
+        </aside>
       </section>
     `;
   }
@@ -1571,7 +1875,7 @@
             <span class="curriculum-week-marker ${completed ? 'completed' : ''}"></span>
             <div>
               <strong class="lesson-title">${lesson.title}</strong>
-              <span>${lesson.type === 'lab' ? 'Hands-on lab week with guided build work in the player to the right' : 'Open lesson content in the player to the right'}</span>
+              <span>${lesson.type === 'lab' ? 'Hands-on lab week with guided build work in the lesson player' : 'Open this lesson in the main lesson player'}</span>
             </div>
           </div>
           <span class="status-pill ${completed ? 'success' : lesson.type === 'lab' ? 'warning' : 'neutral'}">${completed ? 'Completed' : lesson.type === 'lab' ? 'Lab' : 'Open'}</span>
@@ -1584,23 +1888,64 @@
     `;
   }
 
-  function renderLessonPlayer(track) {
-    const allLessons = track.semesters.flatMap(semester => semester.months.flatMap(month => month.weeks));
-    const selectedLesson = allLessons.find(lesson => lesson.id === state.currentLessonId) || allLessons[0];
-    if (!selectedLesson) return '<div class="empty-state">No lessons are available for this track yet.</div>';
+  function renderLessonPlayer(track, user, selectedLesson) {
+    if (!selectedLesson) return '<div class="empty-state">Select a lesson to start watching.</div>';
     const lessonContext = getLessonContext(track, selectedLesson.id);
-
-    return `
-      <div class="lesson-player-header">
-        <div>
-          <p class="section-kicker">Video lesson</p>
-          <h3>${selectedLesson.title}</h3>
-          <p class="copy-muted">${selectedLesson.objective}</p>
+    const lessonCompleted = user?.completedLessonIds?.includes(selectedLesson.id);
+    const nextLessonContext = getNextLessonContext(track, selectedLesson.id);
+    const certificate = getCertificateData(user, track);
+    const videoItems = Array.isArray(selectedLesson.videoItems) && selectedLesson.videoItems.length
+      ? selectedLesson.videoItems
+      : normalizeLessonVideoItems([], selectedLesson.videoUrl || '');
+    const activeVideoIndex = Math.min(state.currentLessonVideoIndex || 0, Math.max(videoItems.length - 1, 0));
+    const activeVideo = videoItems[activeVideoIndex] || { title: selectedLesson.title, url: selectedLesson.videoUrl || '' };
+    const videoPlaylist = videoItems.length > 1 ? `
+      <div class="lesson-video-playlist">
+        <div class="lesson-video-playlist-header">
+          <strong>Week videos</strong>
+          <span>${videoItems.length} videos added for this week</span>
+        </div>
+        <div class="lesson-video-playlist-grid">
+          ${videoItems.map((item, index) => `
+            <button class="lesson-video-chip ${index === activeVideoIndex ? 'lesson-video-chip-active' : ''}" type="button" onclick="selectLessonVideo(${index})">
+              <span>${index + 1}</span>
+              <strong>${item.title}</strong>
+            </button>
+          `).join('')}
         </div>
       </div>
-      <div class="lesson-player-breadcrumb">${lessonContext ? `${lessonContext.semester.label} - ${lessonContext.month.label} - ${lessonContext.month.title}` : track.label}</div>
-      <div class="iframe-wrap"><iframe src="${selectedLesson.videoUrl}" title="${selectedLesson.title}" allowfullscreen loading="lazy"></iframe></div>
-      <div class="notes-list">${selectedLesson.resources.map(resource => `<li><strong>${resource}</strong><span>Use this resource while completing the week.</span></li>`).join('')}</div>
+    ` : '';
+
+    return `
+      <div class="lesson-watch-main lesson-watch-main-single">
+          <div class="iframe-wrap lesson-watch-frame"><iframe src="${activeVideo.url}" title="${activeVideo.title || selectedLesson.title}" allowfullscreen loading="lazy"></iframe></div>
+          <div class="lesson-watch-body">
+            <div class="lesson-watch-header">
+              <div>
+                <p class="section-kicker">Now playing</p>
+                <h3 class="lesson-watch-title">${activeVideo.title || selectedLesson.title}</h3>
+                <p class="copy-muted">${selectedLesson.objective}</p>
+              </div>
+            <div class="lesson-watch-actions">
+              <span class="status-pill ${lessonCompleted ? 'success' : selectedLesson.type === 'lab' ? 'warning' : 'neutral'}">${lessonCompleted ? 'Completed' : selectedLesson.type === 'lab' ? 'Hands-on lab' : 'In progress'}</span>
+              <button class="btn ${lessonCompleted ? 'btn-secondary' : 'btn-primary'} btn-small" type="button" onclick="toggleLessonCompletion('${selectedLesson.id}')">${lessonCompleted ? 'Mark incomplete' : 'Mark complete'}</button>
+              ${nextLessonContext ? `<button class="btn btn-primary btn-small" type="button" onclick="openNextLesson('${selectedLesson.id}')">Next topic</button>` : certificate.unlocked ? `<button class="btn btn-primary btn-small" type="button" onclick="openDashboardView('certificates')">Open certificate</button>` : ''}
+              <button class="btn btn-secondary btn-small" type="button" onclick="clearLessonView()">Back to curriculum</button>
+            </div>
+            </div>
+            <div class="lesson-watch-channel">
+              <div class="lesson-watch-channel-mark">RK</div>
+              <div class="lesson-watch-channel-copy">
+                <strong>${track.label}</strong>
+                <span>${lessonContext ? `${lessonContext.semester.label} · ${lessonContext.month.label} · ${lessonContext.month.title}` : 'Current lesson'}</span>
+              </div>
+            </div>
+            <div class="lesson-watch-description">
+              <div class="lesson-player-breadcrumb">${lessonContext ? `${lessonContext.semester.label} - ${lessonContext.month.label} - ${lessonContext.month.title}` : track.label}</div>
+              ${videoPlaylist}
+            </div>
+          </div>
+      </div>
     `;
   }
 
@@ -1810,6 +2155,7 @@
 
   function renderProgress(user, track) {
     const overall = calculateTrackProgress(user, track);
+    const certificate = getCertificateData(user, track);
     const semesterRows = track.semesters.map(semester => {
       const progress = calculateSemesterProgress(user, semester);
       return `<div class="progress-row"><div class="meta-row"><strong>${semester.label}</strong><small>${progress.completed}/${progress.total} weeks completed</small></div><div class="progress-bar"><div class="progress-fill" style="width:${progress.percent}%"></div></div></div>`;
@@ -1823,11 +2169,125 @@
 
     return `
       <section class="progress-grid">
-        <article class="progress-card"><p class="section-kicker">Overall progress</p><h3>${overall.percent}% complete</h3><p class="copy-muted">${overall.completedCount} of ${overall.totalLessons} weekly items have been completed across the entire track.</p><div class="progress-bar"><div class="progress-fill" style="width:${overall.percent}%"></div></div><div class="dashboard-stack">${semesterRows}</div></article>
+        <article class="progress-card"><p class="section-kicker">Overall progress</p><h3>${overall.percent}% complete</h3><p class="copy-muted">${overall.completedCount} of ${overall.totalLessons} weekly items have been completed across the entire track.</p><div class="progress-bar"><div class="progress-fill" style="width:${overall.percent}%"></div></div><div class="dashboard-stack">${semesterRows}</div>${certificate.unlocked ? `<div class="certificate-inline-banner"><strong>Certificate unlocked</strong><button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('certificates')">Open certificate</button></div>` : ''}</article>
         <article class="progress-card"><p class="section-kicker">Monthly breakdown</p><h3>Completion by month</h3><p class="copy-muted">Three learning months and one hands-on lab month are tracked every semester.</p><div class="dashboard-stack">${monthRows}</div></article>
       </section>
     `;
   }
+
+  function renderCertificates(user, track) {
+    const certificate = getCertificateData(user, track);
+
+    if (!certificate.unlocked) {
+      return `
+        <section class="surface-card certificate-page">
+          <div class="content-header">
+            <div>
+              <p class="section-kicker">Programme certificate</p>
+              <h2>Certificate not unlocked yet</h2>
+              <p>Complete all 3 semesters and every weekly topic in ${track.label} to generate your certificate automatically.</p>
+            </div>
+            <span class="status-pill neutral">${certificate.progress.percent}% complete</span>
+          </div>
+          <div class="empty-state">Your certificate will appear here automatically once you complete the full programme.</div>
+        </section>
+      `;
+    }
+
+    return `
+      <section class="certificate-page">
+        <article class="surface-card certificate-actions-bar">
+          <div>
+            <p class="section-kicker">Programme certificate</p>
+            <h2>${track.label} completion certificate</h2>
+            <p>This certificate was generated automatically when the full 3-semester programme was completed.</p>
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-primary btn-small" type="button" onclick="printCertificate()">Download / Print</button>
+          </div>
+        </article>
+        <article id="certificateCard" class="certificate-card">
+          <div class="certificate-card-inner">
+            <div class="certificate-brand-row">
+              <div class="brand-mark">RK</div>
+              <div>
+                <strong>RealKingHubs Academy</strong>
+                <span>Certificate of Programme Completion</span>
+              </div>
+            </div>
+            <div class="certificate-copy">
+              <p class="certificate-overline">This certifies that</p>
+              <h3>${user.firstName} ${user.lastName}</h3>
+              <p class="certificate-track-line">has successfully completed the full ${track.label} learning programme across 3 semesters at RealKingHubs Academy.</p>
+            </div>
+            <div class="certificate-meta-grid">
+              <div><span>Track</span><strong>${track.label}</strong></div>
+              <div><span>Date issued</span><strong>${formatCertificateDate(certificate.issuedAt)}</strong></div>
+              <div><span>Certificate ID</span><strong>${certificate.certificateId}</strong></div>
+            </div>
+            <div class="certificate-signature-row">
+              <div class="certificate-signature-block">
+                <strong>Odo Kingsley Uchenna</strong>
+                <span>Founder, RealKingHubs Academy</span>
+              </div>
+              <div class="certificate-seal">Verified</div>
+            </div>
+          </div>
+        </article>
+      </section>
+    `;
+  }
+
+  function renderResources(user, track) {
+    const semesterCards = track.semesters.map((semester, semesterIndex) => {
+      const links = getSemesterResources(track.id, semester.id);
+      const linkItems = links.length
+        ? links.map((item, index) => {
+          const url = typeof item === 'string' ? item : item?.url || '';
+          const title = typeof item === 'object' && item?.title ? item.title : buildResourceLabel(url, index);
+          return `
+            <a class="resource-link-card" href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">
+              <div>
+                <strong>${escapeHtml(title)}</strong>
+                <span>${escapeHtml(url)}</span>
+              </div>
+              <span class="resource-link-action">Open</span>
+            </a>
+          `;
+        }).join('')
+        : '<div class="empty-state">No semester resources have been added for this semester yet.</div>';
+
+      return `
+        <article class="surface-card semester-resource-card">
+          <div class="content-header">
+            <div>
+              <p class="section-kicker">${semester.label}</p>
+              <h2>${semester.title}</h2>
+              <p>Reference links for ${semester.label.toLowerCase()} are organised here in one place.</p>
+            </div>
+            <span class="status-pill neutral">${links.length} link${links.length === 1 ? '' : 's'}</span>
+          </div>
+          <div class="resource-link-grid">${linkItems}</div>
+        </article>
+      `;
+    }).join('');
+
+    return `
+      <section class="dashboard-stack">
+        <article class="surface-card">
+          <div class="content-header">
+            <div>
+              <p class="section-kicker">Semester resources</p>
+              <h2>${track.label} resource library</h2>
+              <p>Open semester-specific resource links here instead of searching through lessons one by one.</p>
+            </div>
+          </div>
+        </article>
+        ${semesterCards}
+      </section>
+    `;
+  }
+
   function renderAnnouncements(user, track) {
     const announcements = getTrackAnnouncements(track);
     return `
@@ -1866,6 +2326,12 @@
         </article>
       </section>
     `;
+  }
+
+  function formatCertificateDate(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Pending';
+    return date.toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
   }
 
   // ---------------------------------------------------------------------------
@@ -2447,9 +2913,13 @@
 
   function toggleLessonCompletion(lessonId) {
     const user = getCurrentUser();
+    const track = getCurrentTrack();
     if (!user) return;
     const hasCompleted = user.completedLessonIds.includes(lessonId);
     user.completedLessonIds = hasCompleted ? user.completedLessonIds.filter(id => id !== lessonId) : [...user.completedLessonIds, lessonId];
+    if (track) {
+      ensureCertificateState(user, track);
+    }
     persistUsers();
     renderAppShell();
   }
@@ -2458,12 +2928,45 @@
     const track = getCurrentTrack();
     const lessonContext = track ? getLessonContext(track, lessonId) : null;
     state.currentLessonId = lessonId;
+    state.currentLessonVideoIndex = 0;
     if (lessonContext) {
       state.currentCurriculumSemesterId = lessonContext.semester.id;
       state.currentCurriculumMonthId = lessonContext.month.id;
     }
     state.currentView = 'curriculum';
     renderAppShell();
+  }
+
+  function clearLessonView() {
+    state.currentLessonId = null;
+    state.currentLessonVideoIndex = 0;
+    state.currentView = 'curriculum';
+    renderAppShell();
+  }
+
+  function selectLessonVideo(index) {
+    state.currentLessonVideoIndex = Number(index) || 0;
+    renderAppShell();
+  }
+
+  function openNextLesson(currentLessonId) {
+    const track = getCurrentTrack();
+    if (!track) return;
+    const nextLesson = getNextLessonContext(track, currentLessonId);
+    if (nextLesson) {
+      openLesson(nextLesson.lesson.id);
+      return;
+    }
+
+    const user = getCurrentUser();
+    const certificate = user ? getCertificateData(user, track) : null;
+    if (certificate?.unlocked) {
+      openApp('certificates');
+    }
+  }
+
+  function printCertificate() {
+    window.print();
   }
 
   function focusCurriculumLocation(semesterId, monthId) {
@@ -2648,12 +3151,21 @@
   window.showLandingPage = showLandingPage;
   window.showAuthPage = showAuthPage;
   window.switchAuthMode = switchAuthMode;
+  window.toggleLandingMenu = toggleLandingMenu;
+  window.closeLandingMenu = closeLandingMenu;
+  window.toggleAppSidebar = toggleAppSidebar;
+  window.closeAppSidebar = closeAppSidebar;
   window.togglePasswordVisibility = togglePasswordVisibility;
+  window.scrollToTopPage = scrollToTopPage;
   window.quickDemoLogin = quickDemoLogin;
   window.openDashboardView = openApp;
   window.logoutUser = logoutUser;
   window.toggleLessonCompletion = toggleLessonCompletion;
   window.openLesson = openLesson;
+  window.openNextLesson = openNextLesson;
+  window.selectLessonVideo = selectLessonVideo;
+  window.clearLessonView = clearLessonView;
+  window.printCertificate = printCertificate;
   window.focusCurriculumLocation = focusCurriculumLocation;
   window.toggleCurriculumMonth = toggleCurriculumMonth;
   window.openLiveClass = openLiveClass;
