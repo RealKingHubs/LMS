@@ -6,9 +6,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RealKingHubs Academy</title>
   <meta name="description" content="RealKingHubs Academy LMS for Cloud Engineering, Frontend Engineering, and Backend Engineering." />
+  <meta name="theme-color" content="#182456" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="RealKingHubs" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="manifest" href="install-as-app/app.webmanifest" />
+  <link rel="icon" href="Page-Assets/icon-192.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="Page-Assets/icon-192.svg" />
   <link rel="stylesheet" href="Page-Css/style.css" />
 </head>
 <body>
@@ -36,6 +44,7 @@
             <a href="https://realkinghubs.netlify.app" target="_blank" rel="noreferrer">Contact</a>
           </nav>
           <div class="marketing-actions">
+            <button id="installAppBtn" class="btn btn-ghost hidden" type="button" onclick="installRkhApp()">Install app</button>
             <button class="btn btn-secondary" type="button" onclick="showAuthPage('login')">Sign in</button>
             <button class="btn btn-primary" type="button" onclick="showAuthPage('register')">Start learning</button>
           </div>

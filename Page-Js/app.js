@@ -98,6 +98,7 @@
   let communityPollHandle = null;
   let remoteProfileSyncHealthy = true;
   let remoteProfileSyncWarningShown = false;
+  let deferredInstallPrompt = null;
 
   // Cached DOM references are stored here after startup so the app does not keep
   // querying the same elements every time a view changes.
@@ -112,6 +113,7 @@
   // the correct surface depending on whether a learner is already signed in.
   async function init() {
     bindDom();
+    void registerServiceWorker();
     seedStorage();
     hydrateState();
     persistUsers();
@@ -150,6 +152,7 @@
     dom.registerTab = document.getElementById('registerTab');
     dom.authMessage = document.getElementById('authMessage');
     dom.registerTrack = document.getElementById('registerTrack');
+    dom.installAppBtn = document.getElementById('installAppBtn');
     dom.landingMenuToggle = document.getElementById('landingMenuToggle');
     dom.landingMenuDrawer = document.getElementById('landingMenuDrawer');
     dom.landingMenuOverlay = document.getElementById('landingMenuOverlay');
@@ -173,6 +176,8 @@
     dom.registerForm.addEventListener('submit', handleRegister);
     window.addEventListener('resize', handleViewportResize);
     window.addEventListener('scroll', handleScrollVisibility, { passive: true });
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
     document.addEventListener('keydown', handleGlobalEscapes);
 
     dom.landingMenuDrawer?.querySelectorAll('a, button').forEach(element => {
@@ -180,6 +185,7 @@
     });
 
     handleScrollVisibility();
+    updateInstallButton();
   }
 
   function handleViewportResize() {
@@ -197,6 +203,22 @@
 
   function handleScrollVisibility() {
     dom.scrollTopButton?.classList.toggle('scroll-top-visible', window.scrollY > 120);
+  }
+
+  function handleBeforeInstallPrompt(event) {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    updateInstallButton();
+  }
+
+  function handleAppInstalled() {
+    deferredInstallPrompt = null;
+    updateInstallButton();
+  }
+
+  function updateInstallButton() {
+    if (!dom.installAppBtn) return;
+    dom.installAppBtn.classList.toggle('hidden', !deferredInstallPrompt);
   }
 
   function setOverlayLockState() {
@@ -1076,6 +1098,24 @@
 
   function scrollToTopPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function installRkhApp() {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice.catch(() => null);
+    deferredInstallPrompt = null;
+    updateInstallButton();
+  }
+
+  async function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+
+    try {
+      await navigator.serviceWorker.register('./install-as-app/service-worker.js');
+    } catch (error) {
+      console.warn('Service worker registration failed', error);
+    }
   }
 
   function switchAuthMode(mode) {
@@ -3167,6 +3207,7 @@
   window.toggleAppSidebar = toggleAppSidebar;
   window.closeAppSidebar = closeAppSidebar;
   window.togglePasswordVisibility = togglePasswordVisibility;
+  window.installRkhApp = installRkhApp;
   window.scrollToTopPage = scrollToTopPage;
   window.quickDemoLogin = quickDemoLogin;
   window.openDashboardView = openApp;
