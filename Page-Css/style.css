@@ -3006,6 +3006,26 @@ img {
   gap: 18px;
 }
 
+.resource-semester-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  text-align: left;
+  background: transparent;
+}
+
+.resource-semester-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.semester-resource-card-open {
+  border-color: rgba(247, 170, 35, 0.24);
+}
+
 .resource-link-grid {
   display: grid;
   gap: 14px;
@@ -3207,6 +3227,10 @@ img {
 
   #landingPage.menu-open .marketing-drawer {
     transform: translateX(0);
+  }
+
+  #landingPage.menu-open .marketing-header {
+    z-index: 40;
   }
 
   #landingPage.menu-open .marketing-menu-overlay {
@@ -3560,8 +3584,7 @@ img {
     height: 50px;
   }
 
-  .marketing-drawer,
-  .app-sidebar {
+  .marketing-drawer {
     width: min(calc(100vw - 16px), 320px);
     top: 8px;
     right: 8px;

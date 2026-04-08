@@ -73,6 +73,7 @@
     currentLiveClassId: null,
     currentCurriculumSemesterId: null,
     currentCurriculumMonthId: null,
+    currentResourcesSemesterId: null,
     showOlderMessages: false,
     communityMessages: [],
     communityDraftText: '',
@@ -2241,6 +2242,7 @@
   function renderResources(user, track) {
     const semesterCards = track.semesters.map((semester, semesterIndex) => {
       const links = getSemesterResources(track.id, semester.id);
+      const isOpen = state.currentResourcesSemesterId === semester.id;
       const linkItems = links.length
         ? links.map((item, index) => {
           const url = typeof item === 'string' ? item : item?.url || '';
@@ -2258,16 +2260,19 @@
         : '<div class="empty-state">No semester resources have been added for this semester yet.</div>';
 
       return `
-        <article class="surface-card semester-resource-card">
-          <div class="content-header">
+        <article class="surface-card semester-resource-card ${isOpen ? 'semester-resource-card-open' : ''}">
+          <button class="resource-semester-toggle" type="button" onclick="toggleResourcesSemester('${semester.id}')">
             <div>
               <p class="section-kicker">${semester.label}</p>
               <h2>${semester.title}</h2>
               <p>Reference links for ${semester.label.toLowerCase()} are organised here in one place.</p>
             </div>
-            <span class="status-pill neutral">${links.length} link${links.length === 1 ? '' : 's'}</span>
-          </div>
-          <div class="resource-link-grid">${linkItems}</div>
+            <div class="resource-semester-side">
+              <span class="status-pill neutral">${links.length} link${links.length === 1 ? '' : 's'}</span>
+              <span class="curriculum-semester-toggle-label">${isOpen ? 'Collapse' : 'Expand'}</span>
+            </div>
+          </button>
+          ${isOpen ? `<div class="resource-link-grid">${linkItems}</div>` : ''}
         </article>
       `;
     }).join('');
@@ -2924,6 +2929,12 @@
     renderAppShell();
   }
 
+  function toggleResourcesSemester(semesterId) {
+    state.currentResourcesSemesterId = state.currentResourcesSemesterId === semesterId ? null : semesterId;
+    state.currentView = 'resources';
+    renderAppShell();
+  }
+
   function openLesson(lessonId) {
     const track = getCurrentTrack();
     const lessonContext = track ? getLessonContext(track, lessonId) : null;
@@ -3159,6 +3170,7 @@
   window.scrollToTopPage = scrollToTopPage;
   window.quickDemoLogin = quickDemoLogin;
   window.openDashboardView = openApp;
+  window.toggleResourcesSemester = toggleResourcesSemester;
   window.logoutUser = logoutUser;
   window.toggleLessonCompletion = toggleLessonCompletion;
   window.openLesson = openLesson;
