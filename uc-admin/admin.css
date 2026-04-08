@@ -1,25 +1,25 @@
 /* Separate admin styling keeps the moderation workspace isolated from learner UI. */
 :root {
-  --ink-950: #161a30;
-  --ink-900: #25304a;
-  --ink-800: #55627e;
-  --blue-600: #6e79ff;
-  --blue-100: #eef2ff;
-  --surface: #fbfcff;
-  --surface-alt: #f4f7ff;
+  --ink-950: #121a4b;
+  --ink-900: #182456;
+  --ink-800: #4d5678;
+  --blue-600: #f7aa23;
+  --blue-100: #fff3d8;
+  --surface: #fffdf8;
+  --surface-alt: #fff7ea;
   --card: #ffffff;
-  --line: #e2e8f5;
-  --line-strong: #d2daed;
-  --text: #0f172a;
-  --muted: #6d7894;
+  --line: #e8e3d6;
+  --line-strong: #d9d2c1;
+  --text: #182456;
+  --muted: #67708f;
   --danger: #dc2626;
   --success: #10b981;
   --radius-xl: 28px;
   --radius-lg: 22px;
   --radius-md: 16px;
-  --shadow-lg: 0 28px 58px rgba(96, 111, 168, 0.14);
-  --shadow-md: 0 16px 34px rgba(96, 111, 168, 0.1);
-  --shadow-sm: 0 10px 22px rgba(96, 111, 168, 0.07);
+  --shadow-lg: 0 28px 58px rgba(24, 36, 86, 0.14);
+  --shadow-md: 0 16px 34px rgba(24, 36, 86, 0.1);
+  --shadow-sm: 0 10px 22px rgba(24, 36, 86, 0.07);
   --transition: 180ms ease;
 }
 
@@ -32,11 +32,11 @@
 body {
   margin: 0;
   min-width: 320px;
-  font-family: "Poppins", sans-serif;
+  font-family: "DM Sans", sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(110, 121, 255, 0.08), transparent 30%),
-    linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%);
+    radial-gradient(circle at top left, rgba(247, 170, 35, 0.08), transparent 30%),
+    linear-gradient(180deg, #ffffff 0%, #fff9ee 100%);
 }
 
 button,
@@ -103,7 +103,7 @@ a {
 .panel-header h3 {
   margin: 0;
   color: var(--ink-900);
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Sora", sans-serif;
   letter-spacing: -0.04em;
 }
 
@@ -153,8 +153,8 @@ a {
 .admin-form textarea:focus,
 .inline-field select:focus {
   outline: none;
-  border-color: rgba(110, 121, 255, 0.45);
-  box-shadow: 0 0 0 4px rgba(110, 121, 255, 0.12);
+  border-color: rgba(247, 170, 35, 0.42);
+  box-shadow: 0 0 0 4px rgba(247, 170, 35, 0.14);
 }
 
 .btn {
@@ -174,8 +174,8 @@ a {
 
 .btn-primary {
   color: #fff;
-  background: linear-gradient(135deg, #7d8cff 0%, #6678ff 100%);
-  box-shadow: 0 12px 28px rgba(110, 121, 255, 0.24);
+  background: linear-gradient(135deg, #f7aa23 0%, #f3a000 100%);
+  box-shadow: 0 12px 28px rgba(247, 170, 35, 0.26);
 }
 
 .btn-secondary {
@@ -268,7 +268,7 @@ a {
   margin-bottom: 8px;
   color: var(--ink-900);
   font-size: 1.6rem;
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Sora", sans-serif;
 }
 
 .overview-card span,
@@ -349,12 +349,12 @@ a {
 
 .user-list-item:hover {
   transform: translateY(-1px);
-  border-color: rgba(110, 121, 255, 0.28);
+  border-color: rgba(247, 170, 35, 0.24);
 }
 
 .user-list-item.user-list-item-active {
-  border-color: rgba(110, 121, 255, 0.4);
-  box-shadow: 0 14px 32px rgba(110, 121, 255, 0.12);
+  border-color: rgba(247, 170, 35, 0.30);
+  box-shadow: 0 14px 32px rgba(247, 170, 35, 0.14);
 }
 
 .admin-note {
@@ -401,3 +401,5 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+
