@@ -2091,6 +2091,16 @@
     if (!files.length) return;
 
     const folderName = (files[0].webkitRelativePath || files[0].name).split('/')[0] || 'Shared folder';
+    if (shouldExcludeFolderName(folderName)) {
+      state.communityComposerMessage = {
+        type: 'error',
+        text: 'Hidden system folders like .git cannot be sent. Select the actual project folder instead.'
+      };
+      event.target.value = '';
+      renderAppShell();
+      return;
+    }
+
     const { includedFiles, excludedCount } = filterCommunityFolderFiles(files);
 
     if (!includedFiles.length) {
@@ -2571,12 +2581,17 @@
     const excludedFolders = new Set(['.git', '.svn', '.hg', '.idea', '.vscode', '__macosx']);
     const excludedFiles = new Set(['thumbs.db', 'desktop.ini', '.ds_store']);
 
-    if (segments.some(segment => excludedFolders.has(segment.toLowerCase()))) {
+    if (segments.some(segment => shouldExcludeFolderName(segment) || excludedFolders.has(segment.toLowerCase()))) {
       return true;
     }
 
     const fileName = segments[segments.length - 1].toLowerCase();
     return excludedFiles.has(fileName);
+  }
+
+  function shouldExcludeFolderName(name) {
+    const normalized = String(name || '').trim().toLowerCase();
+    return normalized.startsWith('.') || normalized === '__macosx';
   }
 
   function sanitizeFolderRelativePath(path) {
