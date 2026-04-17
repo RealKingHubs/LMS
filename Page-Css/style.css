@@ -3598,5 +3598,54 @@ img {
   }
 }
 
+@media print {
+  body * {
+    visibility: hidden !important;
+    background: transparent !important;
+    color: #000 !important;
+  }
+
+  .certificate-page,
+  .certificate-page *,
+  .certificate-card,
+  .certificate-card * {
+    visibility: visible !important;
+  }
+
+  .certificate-card {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .certificate-actions-bar,
+  .certificate-page > .surface-card:not(#certificateCard),
+  .btn,
+  .card-actions,
+  .certificate-inline-banner,
+  .nav-button,
+  .app-topbar,
+  .app-sidebar,
+  .site-shell,
+  .marketing-header,
+  .landing-footer,
+  .topbar,
+  .topbar-avatar,
+  .page-footer,
+  .page-shell,
+  .app-footer {
+    display: none !important;
+  }
+
+  .certificate-card-inner {
+    padding: 0 !important;
+  }
+}
+
 
 
