@@ -200,3 +200,62 @@ All pages include functional buttons and click handlers for:
 | Certificates  | ✅ Complete | Earned, In Progress, Available | Download, Share, Enroll     |
 
 All pages now feature clean, professional titles without emoji stickers, functional interfaces with interactive elements, and comprehensive user experience improvements.
+
+---
+
+## Date: April 17, 2026
+
+### Completed Tasks
+
+#### 1. **PWA Install Flow Repair** ✅
+
+- **Files Updated:**
+  - [app.webmanifest](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/install-as-app/app.webmanifest)
+  - [service-worker.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/install-as-app/service-worker.js)
+  - [service-worker-root.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/service-worker-root.js)
+  - [index.html](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/index.html)
+  - [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js)
+- **Problems Fixed:**
+  - broken manifest icon URLs after moving install files into `install-as-app`
+  - service worker cache install failure caused by missing icon requests
+  - service worker scope problem that stopped the root LMS page from being properly controlled
+- **Result:**
+  - the LMS is installable again as a mobile-friendly web app
+
+#### 2. **Mobile App Icon Support** ✅
+
+- **Files Added:**
+  - [icon-192.png](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Assets/icon-192.png)
+  - [icon-512.png](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Assets/icon-512.png)
+- **Why Added:**
+  - phones and install prompts work more reliably with PNG app icons
+  - Apple touch icon support is cleaner with PNG than SVG only
+
+#### 3. **Phone Install Fallback Guidance** ✅
+
+- **File Updated:**
+  - [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js)
+- **Behavior Added:**
+  - when the browser exposes a real install prompt, the LMS uses it
+  - when the browser does not expose that prompt, the LMS now gives fallback install guidance for mobile users
+
+#### 4. **Documentation Maintenance** ✅
+
+- **Files Updated:**
+  - [about-site.md](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Guide-MD/about-site.md)
+  - [changes.md](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Guide-MD/changes.md)
+  - [IMPLEMENTATION_SUMMARY.md](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Guide-MD/IMPLEMENTATION_SUMMARY.md)
+- **Reason:**
+  - keep junior developers aligned on how the install system works
+  - maintain a running change log for future work
+
+### Verification
+
+- `node --check Page-Js/app.js`
+- `node --check install-as-app/service-worker.js`
+- `node --check service-worker-root.js`
+
+### Notes
+
+- install prompts still require the site to be served in a secure context, which means `https` in production or `localhost` during development
+- if the app is updated again, bump the service worker cache name so browsers refresh the app shell cleanly

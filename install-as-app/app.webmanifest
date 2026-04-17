@@ -2,30 +2,44 @@
   "_developer_note": "Browsers use this manifest to install the LMS like an app. Update the colors, name, start_url, scope, and icons here when the installable app branding changes.",
   "_update_steps": [
     "Change the app name or short_name if the installed app label should change.",
-    "Keep start_url and scope aligned with the folder where index.html is served.",
+    "Keep start_url and scope aligned with the root folder where index.html is served.",
     "Replace the icon files in Page-Assets if the app icon branding changes."
   ],
+  "id": "/",
   "name": "RealKingHubs Academy",
   "short_name": "RealKingHubs",
   "description": "RealKingHubs Academy LMS for Cloud Engineering, Frontend Engineering, and Backend Engineering.",
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": "/index.html",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#fffdf8",
   "theme_color": "#182456",
   "orientation": "portrait-primary",
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "./Page-Assets/icon-192.svg",
+      "src": "/Page-Assets/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "./Page-Assets/icon-512.svg",
+      "src": "/Page-Assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/Page-Assets/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/Page-Assets/icon-512.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

@@ -218,7 +218,9 @@
 
   function updateInstallButton() {
     if (!dom.installAppBtn) return;
-    dom.installAppBtn.classList.toggle('hidden', !deferredInstallPrompt);
+    const canShowFallback = isInstallFallbackCandidate();
+    dom.installAppBtn.classList.toggle('hidden', !deferredInstallPrompt && !canShowFallback);
+    dom.installAppBtn.textContent = deferredInstallPrompt ? 'Install app' : 'Add to home screen';
   }
 
   function setOverlayLockState() {
@@ -1101,10 +1103,24 @@
   }
 
   async function installRkhApp() {
-    if (!deferredInstallPrompt) return;
-    deferredInstallPrompt.prompt();
-    await deferredInstallPrompt.userChoice.catch(() => null);
-    deferredInstallPrompt = null;
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice.catch(() => null);
+      deferredInstallPrompt = null;
+      updateInstallButton();
+      return;
+    }
+
+    if (isIosInstallCandidate()) {
+      window.alert('To install RealKingHubs Academy on iPhone: tap Share in Safari, then choose Add to Home Screen.');
+      return;
+    }
+
+    if (isAndroidInstallFallbackCandidate()) {
+      window.alert('To install RealKingHubs Academy on your phone: open the browser menu, then choose Install app or Add to Home screen.');
+      return;
+    }
+
     updateInstallButton();
   }
 
@@ -1112,10 +1128,40 @@
     if (!('serviceWorker' in navigator)) return;
 
     try {
-      await navigator.serviceWorker.register('./install-as-app/service-worker.js');
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(
+        registrations
+          .filter(registration => {
+            const scriptUrl =
+              registration.active?.scriptURL ||
+              registration.waiting?.scriptURL ||
+              registration.installing?.scriptURL ||
+              '';
+            return scriptUrl.includes('/install-as-app/service-worker.js');
+          })
+          .map(registration => registration.unregister())
+      );
+
+      await navigator.serviceWorker.register('./service-worker-root.js');
     } catch (error) {
       console.warn('Service worker registration failed', error);
     }
+  }
+
+  function isIosInstallCandidate() {
+    const isAppleMobileDevice = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    return isAppleMobileDevice && !isStandalone;
+  }
+
+  function isAndroidInstallFallbackCandidate() {
+    const isAndroidDevice = /android/i.test(window.navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    return isAndroidDevice && !isStandalone;
+  }
+
+  function isInstallFallbackCandidate() {
+    return isIosInstallCandidate() || isAndroidInstallFallbackCandidate();
   }
 
   function switchAuthMode(mode) {

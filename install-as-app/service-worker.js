@@ -3,27 +3,31 @@
 // This file turns the LMS into an installable PWA shell by caching the core
 // files needed to reopen the app faster and keep the base UI available offline.
 // ---------------------------------------------------------------------------
-const CACHE_NAME = 'rkh-academy-shell-v1';
+const CACHE_NAME = 'rkh-academy-shell-v2';
 
 // Keep this list focused on the app shell only.
 // Dynamic API content should continue to load from the network at runtime.
 const APP_SHELL = [
-  './',
-  './index.html',
-  './app.webmanifest',
-  './Page-Css/style.css',
-  './Page-Js/data.js',
-  './Page-Js/app.js',
-  './Page-Js/lms-search.js',
-  './Page-Assets/icon-192.svg',
-  './Page-Assets/icon-512.svg'
+  '/',
+  '/index.html',
+  '/install-as-app/app.webmanifest',
+  '/Page-Css/style.css',
+  '/Page-Js/data.js',
+  '/Page-Js/app.js',
+  '/Page-Js/lms-search.js',
+  '/Page-Assets/icon-192.png',
+  '/Page-Assets/icon-512.png',
+  '/Page-Assets/icon-192.svg',
+  '/Page-Assets/icon-512.svg'
 ];
 
 self.addEventListener('install', event => {
   // Pre-cache the minimal app shell during install so the LMS can reopen
   // quickly after the first successful visit.
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
+    caches.open(CACHE_NAME).then(cache =>
+      cache.addAll(APP_SHELL.map(path => new Request(path, { cache: 'reload' })))
+    )
   );
   self.skipWaiting();
 });
@@ -49,7 +53,7 @@ self.addEventListener('fetch', event => {
     // Navigation requests should prefer the network when possible, then fall
     // back to the main HTML shell if the learner is offline.
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('./index.html'))
+      fetch(event.request).catch(() => caches.match('/index.html'))
     );
     return;
   }

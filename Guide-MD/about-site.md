@@ -240,21 +240,33 @@ Files:
 
 - [app.webmanifest](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/install-as-app/app.webmanifest)
 - [service-worker.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/install-as-app/service-worker.js)
+- [service-worker-root.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/service-worker-root.js)
+- [icon-192.png](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Assets/icon-192.png)
+- [icon-512.png](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Assets/icon-512.png)
 - [icon-192.svg](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Assets/icon-192.svg)
 - [icon-512.svg](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Assets/icon-512.svg)
 
 What they do:
 
 - `app.webmanifest` tells browsers how to install the LMS like an app
-- `service-worker.js` caches the app shell for faster load and install behavior
-- the SVG icons are used as install icons
+- `service-worker.js` stores the real cache logic for the installable app
+- `service-worker-root.js` gives the service worker root scope, which is required for installability when the real worker file lives inside `install-as-app`
+- the PNG icons are the main install icons used by phones and Android browsers
+- the SVG icons stay as scalable fallbacks for browsers that can use them
 
 How the install flow works:
 
 1. Browser reads the manifest from `index.html`.
-2. `app.js` registers the service worker.
-3. Browser decides if install prompt is available.
-4. `app.js` shows the `Install app` button when the prompt is available.
+2. `app.js` registers `service-worker-root.js` from the project root.
+3. The root worker loads the real worker code from `install-as-app/service-worker.js`.
+4. Browser decides if install prompt is available.
+5. `app.js` shows the `Install app` button when the prompt is available.
+6. On phones that do not expose the browser install prompt, the app shows a fallback button and tells the learner how to add the LMS to the home screen manually.
+
+Important install note:
+
+- When install files live in a subfolder, the manifest and worker paths must use root-aware URLs.
+- If the worker only runs from the subfolder, it will not control `/index.html`, and browsers may refuse to install the LMS.
 
 ## Step-By-Step: How The LMS Was Built
 
