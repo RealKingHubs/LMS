@@ -6,8 +6,8 @@
   // into the learner dashboard code.
   // ---------------------------------------------------------------------------
 
-  const SUPABASE_URL = 'https://gelpzfafiiudidxmpofo.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlbHB6ZmFmaWl1ZGlkeG1wb2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTIwNzcsImV4cCI6MjA5MDk4ODA3N30.82lZQg6ZYr1SsK9SFsbszby5QEf6HENgnYn1ynS0ZhE';
+  const SUPABASE_URL = 'https://nigzxgzzvyzecezhstdi.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pZ3p4Z3p6dnl6ZWNlemhzdGRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNjk2NzUsImV4cCI6MjA5Mzc0NTY3NX0._gLm_GPtNHlWkeDg2mKXP7lUyFYjZRLP40uk95QYSjY';
   const COMMUNITY_TABLE = 'community_messages';
   const ANNOUNCEMENTS_TABLE = 'lms_announcements';
   const TRACK_SETTINGS_TABLE = 'lms_track_settings';
@@ -53,7 +53,15 @@
   async function initAdmin() {
     bindDom();
     bindEvents();
-    supabaseClient = window.supabase?.createClient ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+    supabaseClient = window.supabase?.createClient
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: false
+          }
+        })
+      : null;
 
     if (!supabaseClient) {
       showMessage(dom.adminAuthMessage, 'Supabase client could not be initialized for admin tools.', 'error');
@@ -219,7 +227,7 @@
 
     const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) {
-      showMessage(dom.adminAuthMessage, error.message, 'error');
+      showMessage(dom.adminAuthMessage, await getAdminAuthErrorMessage(error), 'error');
       return;
     }
 
@@ -227,6 +235,33 @@
     if (!verified) {
       await supabaseClient.auth.signOut();
       showMessage(dom.adminAuthMessage, 'This authenticated account is not registered as an LMS admin.', 'error');
+    }
+  }
+
+  // Supabase returns "Failed to fetch" when the browser cannot reach the
+  // backend at all. This helper turns that raw network error into an action
+  // message that is useful to the admin.
+  async function getAdminAuthErrorMessage(error) {
+    const message = error?.message || 'Admin sign in failed.';
+    if (!/failed to fetch/i.test(message)) return message;
+
+    const backendReachable = await canReachSupabase();
+    if (!backendReachable) {
+      return 'Could not reach Supabase. Check your internet connection, browser ad blocker, and make sure this page is opened from localhost or your HTTPS domain.';
+    }
+
+    return 'Supabase is reachable, but the sign-in request was blocked. Confirm Email/Password auth is enabled in Supabase and that this admin user exists.';
+  }
+
+  async function canReachSupabase() {
+    try {
+      await fetch(`${SUPABASE_URL}/auth/v1/health`, {
+        method: 'GET',
+        cache: 'no-store'
+      });
+      return true;
+    } catch (error) {
+      return false;
     }
   }
 

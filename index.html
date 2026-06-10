@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-title" content="RealKingHubs" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="manifest" href="install-as-app/app.webmanifest" />
   <link rel="icon" href="Page-Assets/icon-192.png" type="image/png" sizes="192x192" />
   <link rel="icon" href="Page-Assets/icon-192.svg" type="image/svg+xml" />
@@ -33,19 +33,23 @@
         </div>
         <!-- Mobile uses this trigger to open the landing navigation as a right-side drawer. -->
         <button id="landingMenuToggle" class="mobile-menu-button marketing-menu-toggle" type="button" onclick="toggleLandingMenu()" aria-label="Open navigation" aria-expanded="false" aria-controls="landingMenuDrawer">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="icon-menu">
             <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
           </svg>
         </button>
         <div id="landingMenuDrawer" class="marketing-drawer">
+          <button class="drawer-close-btn" type="button" onclick="closeLandingMenu()" aria-label="Close menu">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 18L18 6M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+            </svg>
+          </button>
           <nav class="marketing-nav">
             <a href="#landingHero">Overview</a>
-            <a href="#programmes">Programmes</a>
             <a href="#platformFlow">Platform</a>
             <a href="https://realkinghubs.netlify.app" target="_blank" rel="noreferrer">Contact</a>
           </nav>
           <div class="marketing-actions">
-            <button id="installAppBtn" class="btn btn-ghost hidden" type="button" onclick="installRkhApp()">Install app</button>
+            <button id="installAppBtn" class="btn btn-ghost" type="button" onclick="installRkhApp()">Install app</button>
             <button class="btn btn-secondary" type="button" onclick="showAuthPage('login')">Sign in</button>
             <button class="btn btn-primary" type="button" onclick="showAuthPage('register')">Start learning</button>
           </div>
@@ -55,80 +59,20 @@
 
       <main class="marketing-main">
         <!-- Public hero: first impression, key value proposition, and quick access into the LMS -->
-        <section id="landingHero" class="hero-grid">
-          <div class="hero-copy">
+        <section id="landingHero" class="hero-full">
+          <div class="hero-copy hero-copy-wide">
             <div class="hero-badge-row">
               <span class="floating-badge">RealKingHubs learning management system</span>
-              <span class="hero-status">Admissions open for all tracks</span>
+              <span class="hero-status">Hands-on labs • guided videos • live progress</span>
             </div>
             <p class="section-kicker">Structured learning platform</p>
-            <h1>Build real skills in Cloud, Frontend, and Backend Engineering.</h1>
+            <h1>Master Tech Skills</h1>
             <p class="hero-text">
-              Learn through a professional LMS with guided curriculum, hands-on lab months,
-              community communication, announcements, and progress tracking that actually reflects what learners complete.
+              Master Cloud, Frontend, and Backend skills with guided videos, labs, and a calm LMS flow.
             </p>
             <div class="hero-actions">
               <button class="btn btn-primary" type="button" onclick="showAuthPage('register')">Create account</button>
-              <button class="btn btn-secondary" type="button" onclick="document.getElementById('programmes').scrollIntoView({ behavior: 'smooth' })">Explore programmes</button>
-            </div>
-            <div class="hero-proof-row">
-              <span class="proof-chip">Track-based communities</span>
-              <span class="proof-chip">Hands-on lab month</span>
-              <span class="proof-chip">Announcements and learner updates</span>
-            </div>
-            <div class="hero-metrics">
-              <div class="metric-card">
-                <strong>3 tracks</strong>
-                <span>Cloud, Frontend, Backend</span>
-              </div>
-              <div class="metric-card">
-                <strong>3 semesters</strong>
-                <span>Each semester has 4 months</span>
-              </div>
-              <div class="metric-card">
-                <strong>12 months</strong>
-                <span>Learning and hands-on lab delivery</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="hero-panel">
-            <div class="hero-panel-header">
-              <p>Inside the LMS</p>
-              <h2>Professional learning operations in one place</h2>
-            </div>
-            <div class="hero-stage-card">
-              <div class="signal-grid">
-                <article class="signal-card">
-                  <small>Curriculum</small>
-                  <strong>Semester-led roadmap</strong>
-                  <span>3 semesters, 4 months each, with a dedicated month four hands-on lab built in.</span>
-                </article>
-                <article class="signal-card">
-                  <small>Hands-on lab</small>
-                  <strong>Practical month four delivery</strong>
-                  <span>Each semester closes with a guided hands-on lab, testing cycle, and showcase delivery.</span>
-                </article>
-                <article class="signal-card">
-                  <small>Community</small>
-                  <strong>Programme-specific rooms</strong>
-                  <span>Each track sees its own communication room, announcements, and updates.</span>
-                </article>
-              </div>
-            </div>
-            <div class="hero-panel-grid">
-              <article>
-                <h3>Curriculum</h3>
-                <p>Semester-based roadmap with weekly lessons and a dedicated hands-on lab month.</p>
-              </article>
-              <article>
-                <h3>Community</h3>
-                <p>Share updates, ask questions, and respond to other learners from one communication room.</p>
-              </article>
-              <article>
-                <h3>Progress</h3>
-                <p>Track completion by week, month, semester, and overall programme progress.</p>
-              </article>
+              <button class="btn btn-secondary" type="button" onclick="document.getElementById('platformFlow').scrollIntoView({ behavior: 'smooth' })">Explore platform</button>
             </div>
           </div>
         </section>
@@ -136,9 +80,9 @@
         <section class="trust-strip">
           <span>Built for serious learning operations</span>
           <div class="trust-strip-items">
-            <strong>Cloud Engineering</strong>
-            <strong>Frontend Engineering</strong>
-            <strong>Backend Engineering</strong>
+            <strong id="anim-cloud" class="animated-text">Cloud Engineering</strong>
+            <strong id="anim-frontend" class="animated-text">Frontend Engineering</strong>
+            <strong id="anim-backend" class="animated-text">Backend Engineering</strong>
             <strong>Hands-on lab month</strong>
             <strong>Track-based community</strong>
             <strong>Announcements</strong>
@@ -159,15 +103,6 @@
             <strong>Career-focused delivery</strong>
             <span>Built for learners who want practical skills, portfolio proof, and professional momentum.</span>
           </article>
-        </section>
-
-        <!-- Programme cards are rendered from shared track data so content stays in sync with the LMS -->
-        <section id="programmes" class="tracks-section">
-          <div class="section-heading">
-            <p class="section-kicker">Available programmes</p>
-            <h2>Choose the school that fits your career path</h2>
-          </div>
-          <div id="marketingTracks" class="tracks-grid"></div>
         </section>
 
         <!-- Supporting details: programme structure on the left and platform features on the right -->
@@ -263,58 +198,65 @@
           </article>
         </section>
 
-        <!-- Founder spotlight: gives the landing page a human face and lets
-             visitors support the academy through a payment link if they want to. -->
-        <section class="founder-section">
-          <article class="founder-card">
-            <div class="founder-photo-panel">
-              <div /*id="founderAvatar"*/ class="founder-avatar-frame">
-                <img src="https://cdn.buymeacoffee.com/uploads/profile_pictures/2026/04/2HfAYhVty9asKHEY.png@300w_0e.webp" alt="Odo Uchenna" />
-              </div>
-            </div>
-            <div class="founder-copy-panel">
-              <p class="section-kicker">Owner and founder</p>
-              <h2 id="founderName">Odo Uchenna</h2>
-              <p id="founderRole" class="founder-role">Owner and Founder, RealKingHubs Academy</p>
-              <p id="founderBio" class="copy-muted">
-                RealKingHubs Academy was built to give learners a cleaner and more practical path into modern engineering careers.
-              </p>
-              <div class="founder-actions">
-                <a
-                  id="founderSupportLink"
-                  class="btn btn-primary"
-                  href="https://selar.com/showlove/realkinghubs"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Buy me a coffee
-                </a>
-                <a class="btn btn-secondary" href="https://realkinghubs.netlify.app" target="_blank" rel="noreferrer">Contact the academy</a>
-              </div>
-            </div>
-          </article>
-        </section>
+
       </main>
 
       <!-- Landing footer keeps contact and core platform links in one place -->
       <footer id="landingFooter" class="landing-footer">
-        <div class="landing-footer-inner">
-          <div class="landing-footer-brand">
-            <strong>RealKingHubs Academy</strong>
-            <span>Cloud Engineering, Frontend Engineering, and Backend Engineering for career-focused learners.</span>
-            <small>Professional learning operations for modern African tech talent.</small>
+        <div class="landing-footer-container">
+          <div class="landing-footer-top">
+            <div class="landing-footer-brand-col">
+              <div class="brand-block">
+                <div class="brand-mark">RK</div>
+                <div>
+                  <div class="brand-name footer-brand-name">RealKingHubs Academy</div>
+                </div>
+              </div>
+              <p class="footer-desc">
+                Cloud Engineering, Frontend Engineering, and Backend Engineering for career-focused learners.<br/>
+                Professional learning operations for modern African tech talent.
+              </p>
+              <div class="footer-socials">
+                <a href="#" aria-label="LinkedIn">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                </a>
+                <a href="#" aria-label="Twitter">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/></svg>
+                </a>
+              </div>
+            </div>
+            
+            <div class="landing-footer-links-col">
+              <strong>Platform</strong>
+              <a href="#landingHero">Overview</a>
+              <a href="#platformFlow">Curriculum flow</a>
+              <a href="#platformFlow">Features</a>
+              <a href="#">Pricing</a>
+            </div>
+
+            <div class="landing-footer-links-col">
+              <strong>Experience</strong>
+              <a href="#">Structured curriculum</a>
+              <a href="#">Hands-on lab month</a>
+              <a href="#">Community</a>
+              <a href="#">Announcements</a>
+            </div>
+
+            <div class="landing-footer-links-col">
+              <strong>Company</strong>
+              <a href="#">About Us</a>
+              <a href="#">Contact Support</a>
+              <a href="#">Careers</a>
+              <a href="#">Blog</a>
+            </div>
           </div>
-          <div class="landing-footer-links">
-            <strong>Platform</strong>
-            <a href="#programmes">Programmes</a>
-            <a href="#platformFlow">Curriculum flow</a>
-            <a href="#landingHero">Overview</a>
-          </div>
-          <div class="landing-footer-links">
-            <strong>Experience</strong>
-            <span>Structured curriculum</span>
-            <span>Hands-on lab month</span>
-            <span>Community and announcements</span>
+          
+          <div class="landing-footer-bottom">
+            <p>&copy; 2026 RealKingHubs Academy. All rights reserved.</p>
+            <div class="footer-legal-links">
+              <a href="#">Terms of Service</a>
+              <a href="#">Privacy Policy</a>
+            </div>
           </div>
         </div>
       </footer>
@@ -493,10 +435,8 @@
           <!-- app.js swaps every dashboard page into this container -->
           <main id="appContent" class="app-content"></main>
 
-          <!-- Shared footer for the signed-in workspace -->
-          <footer class="app-footer">
-            <p id="appFooterText">© 2026 RealKingHubs · Learning Management System</p>
-          </footer>
+          <!-- Shared footer for the signed-in workspace (hidden to prevent layout rendering) -->
+          <p id="appFooterText" style="display: none;"></p>
         </div>
       </div>
     </section>
@@ -514,5 +454,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="Page-Js/app.js"></script>
   <script src="Page-Js/lms-search.js"></script>
+  <script src="Page-Js/animations.js"></script>
 </body>
 </html>

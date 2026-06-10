@@ -1,5 +1,30 @@
 # RealKingHubs Academy - Page Implementation Summary
 
+## Date: June 10, 2026
+
+### Completed Tasks
+
+#### 1. **Landing and Dashboard Visual Refresh** ✅
+
+- **Files Updated:**
+  - [index.html](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/index.html)
+  - [style.css](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Css/style.css)
+  - [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js)
+- **Design Direction:**
+  - adopted a KodeKloud-inspired look with Inter typography, navy text, bright blue and purple accents, white cards, pill buttons, and soft blue-tinted page surfaces
+  - refreshed the landing header, hero area, feature panels, dashboard sidebar, dashboard topbar, KPI cards, progress bars, avatars, and active navigation states
+- **Landing Cleanup:**
+  - removed public programme cards and demo account shortcut actions
+  - updated the hero secondary action to scroll to the platform section
+- **Demo Account Cleanup:**
+  - removed demo-user seeding and quick demo login
+  - filtered old local demo users and cleared stale demo sessions at startup
+
+### Verification
+
+- `node --check Page-Js/app.js`
+- `git diff --check`
+
 ## Date: April 5, 2026
 
 ### Completed Tasks
@@ -259,3 +284,44 @@ All pages now feature clean, professional titles without emoji stickers, functio
 
 - install prompts still require the site to be served in a secure context, which means `https` in production or `localhost` during development
 - if the app is updated again, bump the service worker cache name so browsers refresh the app shell cleanly
+
+---
+
+## Date: June 4, 2026
+
+### Completed Tasks
+
+#### 1. **Supabase Project URL Replacement** ✅
+
+- **Files Updated:**
+  - [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js)
+  - [admin.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/admin.js)
+  - [about-site.md](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Guide-MD/about-site.md)
+- **Problem Addressed:**
+  - the previous Supabase hostname could not resolve, causing `ERR_NAME_NOT_RESOLVED` and `Failed to fetch`
+- **What Changed:**
+  - replaced the old Supabase base URL with `https://nigzxgzzvyzecezhstdi.supabase.co`
+
+#### 2. **Admin Login Error Diagnosis** ✅
+
+- **File Updated:**
+  - [admin.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/admin.js)
+- **Problem Addressed:**
+  - `/uc-admin/` was showing the raw Supabase Auth message `Failed to fetch`
+- **What Changed:**
+  - added explicit Supabase Auth client session options
+  - added a reachability check for the Supabase backend when network-style auth failures happen
+  - replaced the vague error with clearer guidance about internet access, browser blockers, local/prod origin, Email/Password Auth, and admin user setup
+
+#### 3. **Documentation Update** ✅
+
+- **Files Updated:**
+  - [about-site.md](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Guide-MD/about-site.md)
+  - [changes.md](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Guide-MD/changes.md)
+  - [IMPLEMENTATION_SUMMARY.md](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Guide-MD/IMPLEMENTATION_SUMMARY.md)
+- **Reason:**
+  - keep the admin login troubleshooting steps documented for junior developers
+
+### Verification
+
+- `node --check uc-admin/admin.js`

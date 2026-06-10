@@ -83,6 +83,12 @@ What it does:
 - styles the landing page, auth pages, dashboard, curriculum, community, resources, and certificates
 - contains the responsive mobile behavior
 
+Current visual direction:
+
+- the learner UI uses a KodeKloud-inspired training-platform style
+- primary surfaces use white cards, soft blue-tinted backgrounds, rounded pill controls, and navy text
+- accents use blue and purple gradients for primary actions, active navigation, avatars, and progress states
+
 How to update it:
 
 1. Change tokens in `:root` first when changing the color system.
@@ -192,6 +198,15 @@ What the admin dashboard does:
 - manages semester resources
 - manages learner tracks
 - manages learner public profile data
+
+Admin login troubleshooting:
+
+1. The admin page signs in through Supabase Auth, not a hardcoded password in the frontend.
+2. The admin user must exist in Supabase Authentication.
+3. The same email must also exist in `public.lms_admin_users`.
+4. The page must be able to reach `https://nigzxgzzvyzecezhstdi.supabase.co`.
+5. If the page shows a network message, check internet access, browser blockers, and whether the site is running from `localhost` or the production HTTPS domain.
+6. If Supabase is reachable but access is denied, rerun the SQL setup file and confirm the admin email is active.
 
 How curriculum editing works:
 

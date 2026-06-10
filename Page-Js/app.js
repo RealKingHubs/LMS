@@ -14,8 +14,8 @@
   const USERS_KEY = 'rkh_fresh_users';
   const SESSION_KEY = 'rkh_fresh_session';
   const COMMUNITY_KEY = 'rkh_fresh_community';
-  const SUPABASE_URL = 'https://gelpzfafiiudidxmpofo.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlbHB6ZmFmaWl1ZGlkeG1wb2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTIwNzcsImV4cCI6MjA5MDk4ODA3N30.82lZQg6ZYr1SsK9SFsbszby5QEf6HENgnYn1ynS0ZhE';
+  const SUPABASE_URL = 'https://nigzxgzzvyzecezhstdi.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pZ3p4Z3p6dnl6ZWNlemhzdGRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNjk2NzUsImV4cCI6MjA5Mzc0NTY3NX0._gLm_GPtNHlWkeDg2mKXP7lUyFYjZRLP40uk95QYSjY';
   const COMMUNITY_SYNC_INTERVAL_MS = 15000;
   const COMMUNITY_ATTACHMENT_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
   const COMMUNITY_ATTACHMENT_BUCKET = 'community-attachments';
@@ -119,7 +119,6 @@
     persistUsers();
     initializeCommunitySync();
     await bootstrapRemoteLmsData();
-    renderMarketingTracks();
     renderFounderShowcase();
     populateRegisterTrackSelect();
     bindEvents();
@@ -140,7 +139,6 @@
     dom.landingPage = document.getElementById('landingPage');
     dom.authPage = document.getElementById('authPage');
     dom.appPage = document.getElementById('appPage');
-    dom.marketingTracks = document.getElementById('marketingTracks');
     dom.founderAvatar = document.getElementById('founderAvatar');
     dom.founderName = document.getElementById('founderName');
     dom.founderRole = document.getElementById('founderRole');
@@ -279,50 +277,32 @@
 
   // ---------------------------------------------------------------------------
   // Data bootstrapping and normalization
-  // These helpers prepare a stable app state from local storage and demo seed data.
+  // These helpers prepare a stable app state from local storage.
   // ---------------------------------------------------------------------------
   function seedStorage() {
     if (!localStorage.getItem(COMMUNITY_KEY)) {
       localStorage.setItem(COMMUNITY_KEY, JSON.stringify(window.RKH_DATA.demoMessages));
     }
-
-    if (!localStorage.getItem(USERS_KEY)) {
-      const demoUsers = [
-        createDemoUser('demo-cloud', 'Adewale', 'King', 'cloud@realkinghubs.demo', 'cloud-engineering', 'Cloud learner building production-ready cloud operations.'),
-        createDemoUser('demo-frontend', 'Martha', 'Bello', 'frontend@realkinghubs.demo', 'frontend-engineering', 'Frontend learner focused on clean UI delivery.'),
-        createDemoUser('demo-backend', 'David', 'Uche', 'backend@realkinghubs.demo', 'backend-engineering', 'Backend learner improving API design and reliability.')
-      ];
-      localStorage.setItem(USERS_KEY, JSON.stringify(demoUsers));
-    }
-  }
-
-  function createDemoUser(id, firstName, lastName, email, trackId, headline) {
-    return {
-      id,
-      firstName,
-      lastName,
-      email,
-      password: 'password123',
-      trackId,
-      timezone: 'Africa/Lagos',
-      headline,
-      bio: 'This learner profile can be updated from profile and settings at any time.',
-      avatar: '',
-      completedLessonIds: [],
-      joinedClassIds: [],
-      assessmentSubmissions: {},
-      lastSeenCommunityAt: '',
-      lastSeenAnnouncementsAt: '',
-      lastSeenAssessmentsAt: ''
-    };
   }
 
   function hydrateState() {
-    state.users = readJson(USERS_KEY, []).map(normalizeUser);
+    state.users = readJson(USERS_KEY, [])
+      .filter(user => !isDemoUser(user))
+      .map(normalizeUser);
     state.communityMessages = readJson(COMMUNITY_KEY, window.RKH_DATA.demoMessages)
       .map(normalizeCommunityMessage)
       .sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt));
     state.currentUserId = localStorage.getItem(SESSION_KEY) || null;
+    if (!state.users.some(user => user.id === state.currentUserId)) {
+      state.currentUserId = null;
+      localStorage.removeItem(SESSION_KEY);
+    }
+  }
+
+  function isDemoUser(user) {
+    const email = String(user?.email || '').toLowerCase();
+    const id = String(user?.id || '').toLowerCase();
+    return email.endsWith('@realkinghubs.demo') || id.startsWith('demo-');
   }
 
   function normalizeUser(user) {
@@ -582,7 +562,9 @@
   }
 
   function getAvailableTracks() {
-    return getResolvedTracks().filter(track => track.isEnabled !== false);
+    const resolvedTracks = getResolvedTracks();
+    const enabledTracks = resolvedTracks.filter(track => track.isEnabled !== false);
+    return enabledTracks.length ? enabledTracks : resolvedTracks;
   }
 
   function getResolvedTrack(trackId) {
@@ -882,7 +864,6 @@
     ]));
 
     if (!options.silent) {
-      renderMarketingTracks();
       populateRegisterTrackSelect();
       if (getCurrentUser()) renderAppShell();
     }
@@ -1183,41 +1164,21 @@
     dom.authMessage.className = 'form-message';
   }
 
-  // Build the landing-page programme cards from the same track data used by the LMS.
-  // That way, entry-level developers only need to update one source of truth.
   // ---------------------------------------------------------------------------
   // Landing page rendering and auth actions
   // ---------------------------------------------------------------------------
-  function renderMarketingTracks() {
-    const tracks = getAvailableTracks();
-    dom.marketingTracks.innerHTML = tracks.map(track => `
-      <article class="track-card">
-        <div class="track-card-copy">
-          <p class="section-kicker">${track.label}</p>
-          <h3>${track.label}</h3>
-          <p>${track.summary}</p>
-        </div>
-        <div class="track-facts">
-          <span>${track.semesters.length} semesters</span>
-          <span>${track.semesters.reduce((total, semester) => total + semester.months.length, 0)} months</span>
-          <span>Month 4 hands-on lab</span>
-          <span>Track-based community</span>
-        </div>
-        <div class="tag-row">
-          ${track.outcomes.map(outcome => `<span class="tag">${outcome}</span>`).join('')}
-        </div>
-        <div class="track-card-footer">
-          <button class="btn btn-secondary btn-small" type="button" onclick="quickDemoLogin('${track.id}')">Open ${track.label}</button>
-          <button class="btn btn-ghost btn-small" type="button" onclick="showAuthPage('register')">Create account</button>
-        </div>
-      </article>
-    `).join('');
-  }
-
   function populateRegisterTrackSelect() {
-    dom.registerTrack.innerHTML = getAvailableTracks()
-      .map(track => `<option value="${track.id}">${track.label}</option>`)
-      .join('');
+    if (!dom.registerTrack) return;
+
+    const tracks = getAvailableTracks();
+    const currentValue = dom.registerTrack.value;
+    dom.registerTrack.innerHTML = [
+      `<option value="" disabled ${currentValue ? '' : 'selected'}>Select your track</option>`,
+      ...tracks.map(track => `<option value="${track.id}">${track.label}</option>`)
+    ].join('');
+    if (tracks.some(track => track.id === currentValue)) {
+      dom.registerTrack.value = currentValue;
+    }
   }
 
   async function handleLogin(event) {
@@ -1297,21 +1258,6 @@
     state.showOlderMessages = false;
     localStorage.removeItem(SESSION_KEY);
     showLandingPage();
-  }
-
-  async function quickDemoLogin(trackId) {
-    const track = trackId || 'cloud-engineering';
-    let user = state.users.find(item => item.trackId === track);
-    if (!user) {
-      const trackPrefix = track.split('-')[0];
-      user = createDemoUser(`demo-${trackPrefix}`, 'Demo', 'Learner', `${trackPrefix}@realkinghubs.demo`, track, 'Demo learner profile for platform review.');
-      state.users.unshift(user);
-      persistUsers();
-    }
-
-    state.currentUserId = user.id;
-    localStorage.setItem(SESSION_KEY, user.id);
-    openApp('dashboard');
   }
 
   // ---------------------------------------------------------------------------
@@ -3255,7 +3201,6 @@
   window.togglePasswordVisibility = togglePasswordVisibility;
   window.installRkhApp = installRkhApp;
   window.scrollToTopPage = scrollToTopPage;
-  window.quickDemoLogin = quickDemoLogin;
   window.openDashboardView = openApp;
   window.toggleResourcesSemester = toggleResourcesSemester;
   window.logoutUser = logoutUser;
