@@ -2036,22 +2036,51 @@
       <section class="community-layout">
         <aside class="composer-panel">
           <div class="composer-header"><div><p class="section-kicker">Communication room</p><h3>${track.label} community room</h3><p class="copy-muted">Only learners in ${track.label} can see the messages posted in this room.</p></div></div>
-          <div class="community-sync-status ${state.communitySyncError ? 'error' : 'success'}">${state.communitySyncError ? `Sync issue: ${escapeHtml(state.communitySyncError)}` : state.communitySyncMode === 'remote' ? 'Cross-browser sync is active for this programme room.' : 'Community is using local browser storage only.'}</div>
+          <div class="community-sync-status ${state.communitySyncError ? 'error' : 'success'}">${state.communitySyncError ? `Sync issue: ${escapeHtml(state.communitySyncError)}` : state.communitySyncMode === 'remote' ? 'Connected' : 'Community is using local browser storage only.'}</div>
           <div id="communityComposerMessage" class="form-message ${state.communityComposerMessage ? state.communityComposerMessage.type : ''}">${state.communityComposerMessage ? state.communityComposerMessage.text : ''}</div>
-          <div class="field-group"><label for="communityMessage">Post a message</label><textarea id="communityMessage" placeholder="Write an update for ${track.label} learners...">${escapeHtml(state.communityDraftText)}</textarea></div>
-          <div class="community-composer-toolbar">
-            <button class="btn btn-secondary btn-small" type="button" onclick="toggleCommunityStickerPack()">${state.communityStickerPackOpen ? 'Hide sticker pack' : 'Open sticker pack'}</button>
-            <input id="communityFileInput" type="file" class="hidden" onchange="handleCommunityFileSelect(event)" />
-            <input id="communityFolderInput" type="file" class="hidden" webkitdirectory directory multiple onchange="handleCommunityFolderSelect(event)" />
-            <button class="btn btn-secondary btn-small" type="button" onclick="document.getElementById('communityFileInput').click()">Attach file</button>
-            <button class="btn btn-secondary btn-small" type="button" onclick="document.getElementById('communityFolderInput').click()">Attach folder</button>
+          
+          <div class="field-group">
+            <label for="communityMessage">Post a message</label>
+            <div class="chat-composer-box">
+              <textarea id="communityMessage" placeholder="Write an update for ${track.label} learners...">${escapeHtml(state.communityDraftText)}</textarea>
+              <div class="chat-composer-footer">
+                <div class="chat-composer-tools">
+                  <button class="btn-chat-tool ${state.communityStickerPackOpen ? 'active' : ''}" type="button" onclick="toggleCommunityStickerPack()" title="Stickers" aria-label="Stickers">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                      <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                      <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                    </svg>
+                  </button>
+                  <input id="communityFileInput" type="file" class="hidden" onchange="handleCommunityFileSelect(event)" />
+                  <input id="communityFolderInput" type="file" class="hidden" webkitdirectory directory multiple onchange="handleCommunityFolderSelect(event)" />
+                  <button class="btn-chat-tool" type="button" onclick="document.getElementById('communityFileInput').click()" title="Attach file" aria-label="Attach file">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                    </svg>
+                  </button>
+                  <button class="btn-chat-tool" type="button" onclick="document.getElementById('communityFolderInput').click()" title="Attach folder" aria-label="Attach folder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                  </button>
+                </div>
+                <button class="btn-chat-send" type="button" onclick="postCommunityMessage()" title="Send message" aria-label="Send message">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
+
           ${state.communityStickerPackOpen ? renderCommunityStickerPack() : ''}
           ${state.communitySelectedSticker ? `<div class="community-selection-pill"><span>Selected sticker</span><strong>${escapeHtml(state.communitySelectedSticker)}</strong><button type="button" onclick="clearCommunitySticker()">Clear</button></div>` : ''}
           <div class="community-upload-row">
-            ${state.communityAttachment ? renderCommunityComposerAttachmentSummary(state.communityAttachment) : '<span class="copy-muted">Add a file, folder, or sticker from the pack before you send.</span>'}
+            ${state.communityAttachment ? renderCommunityComposerAttachmentSummary(state.communityAttachment) : ''}
           </div>
-          <div class="composer-actions"><button class="btn btn-primary btn-small" type="button" onclick="postCommunityMessage()">Post message</button><button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('announcements')">Check announcements</button></div>
         </aside>
         <article class="message-card">
           <div class="content-header"><div><p class="section-kicker">Shared learner feed</p><h2>${track.label} learner communication</h2><p>The latest messages are shown first. Use view older messages to inspect earlier posts for this programme only.</p></div></div>
@@ -2110,14 +2139,14 @@
 
   function renderMessageRow(user, message) {
     const ownMessage = user.id === message.authorId || user.email === message.authorEmail;
-    const canDeleteLocally = !communitySupabase && ownMessage;
+    const canDelete = ownMessage;
     return `
       <div class="message-row">
         <div class="meta-row"><strong>${message.authorName}</strong><span class="pill">${message.authorTrack}</span><small>${formatDateTime(message.createdAt)}</small></div>
         ${message.sticker ? `<div class="message-sticker">${escapeHtml(message.sticker)}</div>` : ''}
         ${message.body ? `<div class="message-text">${escapeHtml(message.body)}</div>` : ''}
         ${message.attachment ? renderCommunityAttachment(message.attachment) : ''}
-        ${canDeleteLocally ? `<div class="card-actions"><button class="btn btn-ghost btn-small" type="button" onclick="deleteCommunityMessage('${message.id}')">Delete</button></div>` : ''}
+        ${canDelete ? `<div class="card-actions"><button class="btn btn-ghost btn-small" type="button" onclick="deleteCommunityMessage('${message.id}')">Delete</button></div>` : ''}
       </div>
     `;
   }
@@ -2899,15 +2928,21 @@
     const user = getCurrentUser();
     const track = getCurrentTrack();
     if (!user || !track) return;
-    const message = state.communityMessages.find(item => item.id === String(messageId));
 
     if (communitySupabase) {
-      state.communityComposerMessage = {
-        type: 'error',
-        text: 'Learner-side message deletion is disabled in the secured workspace. Use /uc-admin/ for moderation.'
-      };
-      renderAppShell();
-      return;
+      const { error } = await communitySupabase
+        .from('community_messages')
+        .delete()
+        .eq('id', messageId)
+        .eq('author_email', user.email);
+      if (error) {
+        state.communityComposerMessage = {
+          type: 'error',
+          text: `Message deletion failed: ${error.message}`
+        };
+        renderAppShell();
+        return;
+      }
     } else {
       const localMessages = readStoredCommunityMessages().filter(message => !(message.id === String(messageId) && (message.authorId === user.id || message.authorEmail === user.email)));
       writeStoredCommunityMessages(localMessages);
