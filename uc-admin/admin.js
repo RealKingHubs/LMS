@@ -69,6 +69,7 @@
     }
 
     populateTrackSelects();
+    showAdminSection('overview');
 
     const restored = await restoreAdminSession();
     if (!restored) {
@@ -139,6 +140,8 @@
     dom.userManagedNote = document.getElementById('userManagedNote');
     dom.userBio = document.getElementById('userBio');
     dom.adminUserMessage = document.getElementById('adminUserMessage');
+    dom.adminSectionButtons = document.querySelectorAll('.admin-nav-pill');
+    dom.adminSectionPanels = document.querySelectorAll('[data-admin-section]');
   }
 
   // Every admin form or toolbar action is connected here.
@@ -172,6 +175,25 @@
     dom.semesterResourcesForm.addEventListener('submit', saveSemesterResources);
     dom.resetSemesterResourcesBtn.addEventListener('click', resetSemesterResources);
     dom.userForm.addEventListener('submit', saveUserProfile);
+
+    dom.adminSectionButtons.forEach(button => {
+      button.addEventListener('click', () => showAdminSection(button.dataset.section));
+    });
+  }
+
+  function showAdminSection(sectionName) {
+    const section = sectionName || 'overview';
+
+    dom.adminSectionPanels.forEach(panel => {
+      const isVisible = panel.getAttribute('data-admin-section') === section;
+      panel.classList.toggle('hidden', !isVisible);
+    });
+
+    dom.adminSectionButtons.forEach(button => {
+      const isActive = button.dataset.section === section;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-pressed', String(isActive));
+    });
   }
 
   function populateTrackSelects() {

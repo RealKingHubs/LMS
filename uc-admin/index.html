@@ -50,9 +50,19 @@
         </div>
       </header>
 
+      <nav class="admin-section-nav" aria-label="Admin dashboard sections">
+        <button class="admin-nav-pill active" type="button" data-section="overview">Overview</button>
+        <button class="admin-nav-pill" type="button" data-section="announcements">Announcements</button>
+        <button class="admin-nav-pill" type="button" data-section="messages">Messages</button>
+        <button class="admin-nav-pill" type="button" data-section="curriculum">Curriculum</button>
+        <button class="admin-nav-pill" type="button" data-section="tracks">Tracks</button>
+        <button class="admin-nav-pill" type="button" data-section="resources">Resources</button>
+        <button class="admin-nav-pill" type="button" data-section="learners">Learners</button>
+      </nav>
+
       <main class="admin-main">
         <!-- Overview cards help the admin understand platform status at a glance -->
-        <section class="admin-panel">
+        <section id="overviewSection" data-admin-section="overview" class="admin-panel">
           <div class="panel-header">
             <div>
               <p class="eyebrow">Overview</p>
@@ -62,9 +72,9 @@
           <div id="adminOverviewCards" class="overview-grid"></div>
         </section>
 
-        <section class="admin-grid">
+        <section data-admin-section="announcements" class="admin-grid">
           <!-- Announcement publishing is track-based so learners only see updates for their programme -->
-          <article class="admin-panel">
+          <article id="announcementsSection" class="admin-panel">
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Announcements</p>
@@ -99,8 +109,11 @@
             <div id="announcementList" class="admin-list"></div>
           </article>
 
+        </section>
+
+        <section data-admin-section="messages" class="admin-panel">
           <!-- Community moderation supports single-message deletion or bulk cleanup -->
-          <article class="admin-panel">
+          <article class="admin-panel compact-section-panel">
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Community moderation</p>
@@ -122,9 +135,9 @@
           </article>
         </section>
 
-        <section class="admin-grid">
+        <section data-admin-section="curriculum" class="admin-panel">
           <!-- Curriculum editing changes the shared month and week content shown in the LMS -->
-          <article class="admin-panel">
+          <article class="admin-panel compact-section-panel">
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Curriculum editing</p>
@@ -177,9 +190,9 @@
                   <span>Phase</span>
                   <input id="curriculumMonthPhase" type="text" placeholder="Learning or Hands-on Lab" />
                 </label>
-                <div class="button-row">
-                  <button class="btn btn-primary" type="submit">Save month changes</button>
-                  <button id="resetMonthOverrideBtn" class="btn btn-secondary" type="button">Reset month override</button>
+                <div class="button-row compact-actions">
+                  <button class="btn btn-primary btn-small" type="submit">Save M</button>
+                  <button id="resetMonthOverrideBtn" class="btn btn-secondary btn-small" type="button">Reset M</button>
                 </div>
               </form>
 
@@ -210,16 +223,19 @@
                   <span>Week resources</span>
                   <textarea id="curriculumWeekResources" rows="6" placeholder="One resource per line&#10;Format: Title | https://resource-link.com&#10;Example: Lab brief | https://example.com/lab-brief"></textarea>
                 </label>
-                <div class="button-row">
-                  <button class="btn btn-primary" type="submit">Save week changes</button>
-                  <button id="resetWeekOverrideBtn" class="btn btn-secondary" type="button">Reset week override</button>
+                <div class="button-row compact-actions">
+                  <button class="btn btn-primary btn-small" type="submit">Save W</button>
+                  <button id="resetWeekOverrideBtn" class="btn btn-secondary btn-small" type="button">Reset W</button>
                 </div>
               </form>
             </div>
           </article>
 
+        </section>
+
+        <section data-admin-section="tracks" class="admin-panel">
           <!-- Track management keeps programme naming and availability inside admin instead of code-only edits -->
-          <article class="admin-panel">
+          <article class="admin-panel compact-section-panel">
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Track management</p>
@@ -232,7 +248,7 @@
           </article>
         </section>
 
-        <section class="admin-panel">
+        <section data-admin-section="resources" class="admin-panel">
           <div class="panel-header">
             <div>
               <p class="eyebrow">Semester resources</p>
@@ -264,7 +280,7 @@
           </form>
         </section>
 
-        <section class="admin-panel">
+        <section data-admin-section="learners" class="admin-panel">
           <div class="panel-header">
             <div>
               <p class="eyebrow">Learner management</p>

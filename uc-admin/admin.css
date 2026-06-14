@@ -8,27 +8,36 @@
 /*    smaller screens without changing learner-side styles.                   */
 /* -------------------------------------------------------------------------- */
 :root {
-  --ink-950: #121a4b;
-  --ink-900: #182456;
-  --ink-800: #4d5678;
-  --blue-600: #f7aa23;
-  --blue-100: #fff3d8;
-  --surface: #fffdf8;
-  --surface-alt: #fff7ea;
-  --card: #ffffff;
-  --line: #e8e3d6;
-  --line-strong: #d9d2c1;
-  --text: #182456;
-  --muted: #67708f;
-  --danger: #dc2626;
-  --success: #10b981;
-  --radius-xl: 28px;
+  --ink-950: #07111f;
+  --ink-900: #eff6ff;
+  --ink-800: #e2e8f0;
+  --ink-700: #cbd5e1;
+  --ink-600: #94a3b8;
+  --brand-1: #2563eb;
+  --brand-2: #5b5cf6;
+  --brand-3: #7c3aed;
+  --brand-4: #22d3ee;
+  --blue-600: var(--brand-1);
+  --blue-100: rgba(37, 99, 235, 0.12);
+  --surface: #07111f;
+  --surface-alt: #0f1b35;
+  --card: #101b33;
+  --line: rgba(148, 163, 184, 0.18);
+  --line-strong: rgba(129, 140, 248, 0.35);
+  --text: #eff6ff;
+  --muted: #cbd5e1;
+  --subtle: #94a3b8;
+  --danger: #f87171;
+  --success: #22c55e;
+  --radius-xl: 30px;
   --radius-lg: 22px;
   --radius-md: 16px;
-  --shadow-lg: 0 28px 58px rgba(24, 36, 86, 0.14);
-  --shadow-md: 0 16px 34px rgba(24, 36, 86, 0.1);
-  --shadow-sm: 0 10px 22px rgba(24, 36, 86, 0.07);
-  --transition: 180ms ease;
+  --radius-sm: 12px;
+  --shadow-xl: 0 30px 80px rgba(8, 15, 28, 0.35);
+  --shadow-lg: 0 20px 52px rgba(8, 15, 28, 0.24);
+  --shadow-md: 0 14px 34px rgba(8, 15, 28, 0.18);
+  --shadow-sm: 0 10px 22px rgba(8, 15, 28, 0.12);
+  --transition: 220ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 *,
@@ -40,11 +49,23 @@
 body {
   margin: 0;
   min-width: 320px;
-  font-family: "DM Sans", sans-serif;
+  font-family: "Inter", "DM Sans", sans-serif;
   color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(247, 170, 35, 0.08), transparent 30%),
-    linear-gradient(180deg, #ffffff 0%, #fff9ee 100%);
+  background-color: #060b16;
+  background-image:
+    radial-gradient(ellipse 60% 40% at 8% -4%, rgba(56, 189, 248, 0.14), transparent 42%),
+    radial-gradient(ellipse 46% 32% at 96% 0%, rgba(124, 58, 237, 0.20), transparent 46%),
+    radial-gradient(ellipse 36% 24% at 50% 0%, rgba(59, 130, 246, 0.14), transparent 36%),
+    linear-gradient(180deg, #070d1a 0%, #091224 30%, #0b1630 100%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), transparent 55%);
+  z-index: -1;
 }
 
 button,
@@ -69,9 +90,9 @@ a {
 }
 
 .admin-shell {
-  width: min(1380px, calc(100% - 32px));
+  width: min(1360px, calc(100% - 24px));
   margin: 0 auto;
-  padding: 24px 0 40px;
+  padding: 16px 0 32px;
 }
 
 /* Gate = the sign-in screen shown before an admin session is verified. */
@@ -84,10 +105,18 @@ a {
 .admin-gate-card,
 .admin-panel,
 .admin-topbar {
-  background: rgba(255, 255, 255, 0.98);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(8, 15, 28, 0.98));
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.admin-panel:hover,
+.admin-topbar:hover {
+  border-color: rgba(129, 140, 248, 0.28);
+  box-shadow: 0 24px 62px rgba(15, 23, 42, 0.24);
 }
 
 .admin-gate-card {
@@ -100,10 +129,10 @@ a {
 /* Reusable small uppercase label used in cards and panel headers. */
 .eyebrow {
   margin: 0;
-  color: var(--blue-600);
+  color: #a78bfa;
   font-size: 0.78rem;
   font-weight: 800;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
@@ -130,7 +159,7 @@ a {
 .admin-main,
 .admin-grid {
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 /* Standard form field layout so new admin tools can reuse the same pattern. */
@@ -155,9 +184,10 @@ a {
   min-width: 0;
   padding: 14px 15px;
   color: var(--text);
-  background: #fff;
+  background: rgba(8, 15, 28, 0.82);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .admin-form input:focus,
@@ -165,8 +195,8 @@ a {
 .admin-form textarea:focus,
 .inline-field select:focus {
   outline: none;
-  border-color: rgba(247, 170, 35, 0.42);
-  box-shadow: 0 0 0 4px rgba(247, 170, 35, 0.14);
+  border-color: rgba(129, 140, 248, 0.55);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.16);
 }
 
 .btn {
@@ -177,7 +207,23 @@ a {
   padding: 12px 18px;
   border-radius: 999px;
   font-weight: 700;
-  transition: transform var(--transition), box-shadow var(--transition), background-color var(--transition), border-color var(--transition);
+  letter-spacing: 0.01em;
+  transition: transform var(--transition), box-shadow var(--transition), background-color var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn-small {
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
+
+.btn:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.45);
+  outline-offset: 3px;
 }
 
 .btn:hover {
@@ -186,20 +232,30 @@ a {
 
 .btn-primary {
   color: #fff;
-  background: linear-gradient(135deg, #f7aa23 0%, #f3a000 100%);
-  box-shadow: 0 12px 28px rgba(247, 170, 35, 0.26);
+  background: linear-gradient(135deg, #2563eb 0%, #5b5cf6 52%, #7c3aed 100%);
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 18px 36px rgba(56, 189, 248, 0.18);
 }
 
 .btn-secondary {
-  color: var(--ink-900);
-  background: rgba(255, 255, 255, 0.98);
-  border: 1px solid var(--line-strong);
+  color: #eff6ff;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+}
+
+.btn-secondary:hover {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.98), rgba(124, 58, 237, 0.98));
+  border-color: rgba(129, 140, 248, 0.3);
 }
 
 .btn-danger {
   color: #fff;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  box-shadow: 0 12px 28px rgba(220, 38, 38, 0.22);
+  background: linear-gradient(135deg, #fb7185 0%, #dc2626 100%);
+  box-shadow: 0 14px 30px rgba(236, 72, 153, 0.16);
 }
 
 .form-message {
@@ -222,16 +278,28 @@ a {
 
 .admin-app,
 .admin-main {
-  gap: 20px;
+  gap: 16px;
 }
 
 .admin-topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 18px;
-  padding: 18px 22px;
-  margin-bottom: 20px;
+  gap: 14px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  position: sticky;
+  top: 14px;
+  z-index: 2;
+}
+
+.admin-topbar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), transparent 40%, rgba(124, 58, 237, 0.08));
+  pointer-events: none;
 }
 
 .admin-topbar-actions,
@@ -242,28 +310,65 @@ a {
   align-items: end;
 }
 
+.admin-section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.admin-nav-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(8, 15, 28, 0.78);
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform var(--transition), border-color var(--transition), background-color var(--transition), color var(--transition);
+}
+
+.admin-nav-pill:hover,
+.admin-nav-pill:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(129, 140, 248, 0.38);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(124, 58, 237, 0.12));
+  color: var(--text);
+}
+
+.admin-nav-pill.active {
+  border-color: rgba(129, 140, 248, 0.45);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(124, 58, 237, 0.18));
+  color: var(--text);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
+}
+
 .admin-grid {
   grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
 }
 
 .admin-panel {
-  padding: 24px;
+  padding: 18px;
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: end;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
 .panel-header.compact {
-  margin-top: 22px;
+  margin-top: 14px;
 }
 
 .overview-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .overview-card,
@@ -271,8 +376,16 @@ a {
   padding: 18px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(10, 18, 34, 0.98));
   box-shadow: var(--shadow-sm);
+  transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+
+.overview-card:hover,
+.admin-list-item:hover {
+  transform: translateY(-2px);
+  border-color: rgba(129, 140, 248, 0.34);
+  box-shadow: var(--shadow-md);
 }
 
 .overview-card strong {
@@ -313,8 +426,8 @@ a {
   align-items: center;
   padding: 8px 12px;
   border-radius: 999px;
-  background: var(--blue-100);
-  color: var(--blue-600);
+  background: rgba(124, 58, 237, 0.14);
+  color: #c4b5fd;
   font-size: 0.82rem;
   font-weight: 800;
 }
@@ -333,12 +446,12 @@ a {
 .admin-subgrid,
 .user-management-grid {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .curriculum-toolbar {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 .admin-subgrid {
@@ -348,6 +461,10 @@ a {
 .button-row,
 .form-columns {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.compact-actions {
+  gap: 8px;
 }
 
 .user-management-grid {
