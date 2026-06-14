@@ -2517,10 +2517,15 @@ img {
 /* Dashboard                                                                   */
 /* -------------------------------------------------------------------------- */
 .dashboard-grid,
-.dashboard-shell-grid,
 .profile-grid,
 .live-grid {
   grid-template-columns: minmax(0, 1.18fr) minmax(320px, 0.82fr);
+}
+
+.dashboard-shell-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .dashboard-stack,
@@ -3858,6 +3863,7 @@ img {
   .founder-card,
   .auth-layout,
   .dashboard-grid,
+  .dashboard-shell-grid,
   .curriculum-layout,
   .curriculum-viewing-layout,
   .community-layout,
@@ -4649,4 +4655,46 @@ img {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.4); 
+}
+
+/* App preloader screen */
+.app-preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #060b16;
+  background-image: radial-gradient(ellipse 50% 35% at 50% 50%, rgba(124, 58, 237, 0.12), transparent 60%);
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.preload-authenticated .app-preloader {
+  display: flex;
+}
+
+/* Hide landing page during preload */
+.preload-authenticated #landingPage {
+  display: none !important;
+}
+
+.preloader-mark {
+  width: 70px;
+  height: 70px;
+  border-radius: 20px;
+  font-size: 1.25rem;
+  animation: preloader-pulse 1.6s infinite ease-in-out;
+}
+
+@keyframes preloader-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+    box-shadow: 0 4px 12px rgba(13, 27, 62, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+    box-shadow: 0 0 24px rgba(37, 99, 235, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
 }

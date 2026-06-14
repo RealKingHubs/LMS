@@ -13,6 +13,7 @@
   // Local storage keys keep user data and session data persistent between refreshes.
   const USERS_KEY = 'rkh_fresh_users';
   const SESSION_KEY = 'rkh_fresh_session';
+  const STATE_NAV_KEY = 'rkh_nav_state';
   const COMMUNITY_KEY = 'rkh_fresh_community';
   const SUPABASE_URL = 'https://nigzxgzzvyzecezhstdi.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pZ3p4Z3p6dnl6ZWNlemhzdGRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNjk2NzUsImV4cCI6MjA5Mzc0NTY3NX0._gLm_GPtNHlWkeDg2mKXP7lUyFYjZRLP40uk95QYSjY';
@@ -127,12 +128,14 @@
       const profileAvailable = await syncCurrentUserProfileFromRemote();
       if (profileAvailable === false) {
         showAuthPage('login');
+        document.documentElement.classList.remove('preload-authenticated');
         return;
       }
-      openApp('dashboard');
+      openApp(state.currentView || 'dashboard');
     } else {
       showLandingPage();
     }
+    document.documentElement.classList.remove('preload-authenticated');
   }
 
   function bindDom() {
@@ -296,6 +299,17 @@
     if (!state.users.some(user => user.id === state.currentUserId)) {
       state.currentUserId = null;
       localStorage.removeItem(SESSION_KEY);
+    } else {
+      const navState = readJson(STATE_NAV_KEY, null);
+      if (navState) {
+        state.currentView = navState.currentView || 'dashboard';
+        state.currentLessonId = navState.currentLessonId || null;
+        state.currentLessonVideoIndex = Number(navState.currentLessonVideoIndex) || 0;
+        state.currentLiveClassId = navState.currentLiveClassId || null;
+        state.currentCurriculumSemesterId = navState.currentCurriculumSemesterId || null;
+        state.currentCurriculumMonthId = navState.currentCurriculumMonthId || null;
+        state.currentResourcesSemesterId = navState.currentResourcesSemesterId || null;
+      }
     }
   }
 
@@ -1252,11 +1266,14 @@
     state.currentUserId = null;
     state.currentView = 'dashboard';
     state.currentLessonId = null;
+    state.currentLessonVideoIndex = 0;
     state.currentLiveClassId = null;
     state.currentCurriculumSemesterId = null;
     state.currentCurriculumMonthId = null;
+    state.currentResourcesSemesterId = null;
     state.showOlderMessages = false;
     localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(STATE_NAV_KEY);
     showLandingPage();
   }
 
@@ -1278,6 +1295,21 @@
     renderSidebar(user, track);
     renderTopbar(user, track);
     renderCurrentView(user, track);
+    saveNavigationState();
+  }
+
+  function saveNavigationState() {
+    if (!state.currentUserId) return;
+    const navState = {
+      currentView: state.currentView,
+      currentLessonId: state.currentLessonId,
+      currentLessonVideoIndex: state.currentLessonVideoIndex,
+      currentLiveClassId: state.currentLiveClassId,
+      currentCurriculumSemesterId: state.currentCurriculumSemesterId,
+      currentCurriculumMonthId: state.currentCurriculumMonthId,
+      currentResourcesSemesterId: state.currentResourcesSemesterId
+    };
+    localStorage.setItem(STATE_NAV_KEY, JSON.stringify(navState));
   }
 
   // The sidebar uses an icon rail so the dashboard feels closer to a compact product workspace.
@@ -1656,57 +1688,26 @@
       </section>
 
       <section class="dashboard-shell-grid">
-        <article class="surface-card dashboard-priority-panel">
-          <div class="content-header"><div><h2>Priority queue</h2><p>The dashboard only shows what needs attention next.</p></div></div>
-          <div class="dashboard-priority-list">
-            <div class="dashboard-priority-item">
-              <div>
-                <strong>Month 4 hands-on lab</strong>
-                <span>${monthFour ? monthFour.title : 'Hands-on Lab'}</span>
-                <small>${monthFour ? monthFour.summary : 'Practical delivery and showcase work.'}</small>
-              </div>
-              <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('curriculum')">Open curriculum</button>
+        <article class="surface-card dashboard-side-card">
+          <div class="content-header"><div><h2>Latest announcement</h2><p>Programme notices stay here instead of filling the main dashboard.</p></div></div>
+          ${latestAnnouncement ? `
+            <div class="dashboard-side-note">
+              <strong>${latestAnnouncement.title}</strong>
+              <span>${latestAnnouncement.body}</span>
+              <small>${latestAnnouncement.date}</small>
             </div>
-            <div class="dashboard-priority-item">
-              <div>
-                <strong>Updates</strong>
-                <span>${notificationCounts.community} new community messages and ${notificationCounts.announcements} announcements</span>
-                <small>Track updates stay organised between community and announcements.</small>
-              </div>
-              <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('announcements')">Open updates</button>
-            </div>
-            <div class="dashboard-priority-item dashboard-priority-item-compact">
-              <div>
-                <strong>Community room</strong>
-                <span>Stay in touch with other ${track.label} learners in one shared room.</span>
-                <small>Messages are organised by track so each programme sees its own feed.</small>
-              </div>
-              <button class="btn btn-ghost btn-small" type="button" onclick="openDashboardView('community')">View room</button>
-            </div>
-          </div>
+          ` : '<div class="empty-state">No announcement available yet.</div>'}
         </article>
-        <aside class="dashboard-side-column">
-          <article class="surface-card dashboard-side-card">
-            <div class="content-header"><div><h2>Latest announcement</h2><p>Programme notices stay here instead of filling the main dashboard.</p></div></div>
-            ${latestAnnouncement ? `
-              <div class="dashboard-side-note">
-                <strong>${latestAnnouncement.title}</strong>
-                <span>${latestAnnouncement.body}</span>
-                <small>${latestAnnouncement.date}</small>
-              </div>
-            ` : '<div class="empty-state">No announcement available yet.</div>'}
-          </article>
-          <article class="surface-card dashboard-side-card">
-            <div class="content-header"><div><h2>Community activity</h2><p>The newest message in your track room appears here.</p></div></div>
-            ${latestCommunityMessage ? `
-              <div class="dashboard-side-note">
-                <strong>${latestCommunityMessage.authorName}</strong>
-                <span>${latestCommunityMessage.body || 'Shared an attachment in the community room.'}</span>
-                <small>${formatDateTime(latestCommunityMessage.createdAt)}</small>
-              </div>
-            ` : '<div class="empty-state">No community message available yet.</div>'}
-          </article>
-        </aside>
+        <article class="surface-card dashboard-side-card">
+          <div class="content-header"><div><h2>Community activity</h2><p>The newest message in your track room appears here.</p></div></div>
+          ${latestCommunityMessage ? `
+            <div class="dashboard-side-note">
+              <strong>${latestCommunityMessage.authorName}</strong>
+              <span>${latestCommunityMessage.body || 'Shared an attachment in the community room.'}</span>
+              <small>${formatDateTime(latestCommunityMessage.createdAt)}</small>
+            </div>
+          ` : '<div class="empty-state">No community message available yet.</div>'}
+        </article>
       </section>
 
       <section class="surface-card dashboard-board-card">

@@ -19,8 +19,16 @@
   <link rel="icon" href="Page-Assets/icon-192.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="Page-Assets/icon-192.png" />
   <link rel="stylesheet" href="Page-Css/style.css" />
+  <script>
+    if (localStorage.getItem('rkh_fresh_session')) {
+      document.documentElement.classList.add('preload-authenticated');
+    }
+  </script>
 </head>
 <body>
+  <div id="appPreloader" class="app-preloader">
+    <div class="brand-mark preloader-mark">RK</div>
+  </div>
   <div class="site-shell">
     <!-- Public landing page shown before a learner signs in -->
     <section id="landingPage" class="page page-active">
