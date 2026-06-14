@@ -13,6 +13,8 @@
   // Local storage keys keep user data and session data persistent between refreshes.
   const USERS_KEY = 'rkh_fresh_users';
   const SESSION_KEY = 'rkh_fresh_session';
+  const SESSION_COOKIE_NAME = 'rkh_auth_session';
+  const SESSION_COOKIE_MAX_AGE_DAYS = 7;
   const STATE_NAV_KEY = 'rkh_nav_state';
   const COMMUNITY_KEY = 'rkh_fresh_community';
   const SUPABASE_URL = 'https://gelpzfafiiudidxmpofo.supabase.co';
@@ -298,9 +300,13 @@
     state.communityMessages = readJson(COMMUNITY_KEY, window.RKH_DATA.demoMessages)
       .map(normalizeCommunityMessage)
       .sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt));
-    state.currentUserId = localStorage.getItem(SESSION_KEY) || null;
+
+    const sessionId = readSessionCookie() || localStorage.getItem(SESSION_KEY) || null;
+    state.currentUserId = sessionId;
+
     if (!state.users.some(user => user.id === state.currentUserId)) {
       state.currentUserId = null;
+      clearSessionCookie();
       localStorage.removeItem(SESSION_KEY);
     } else {
       const navState = readJson(STATE_NAV_KEY, null);
@@ -343,6 +349,29 @@
       console.warn(`Failed to read ${key}`, error);
       return fallback;
     }
+  }
+
+  function readSessionCookie() {
+    if (typeof document === 'undefined') return '';
+
+    const cookieValue = document.cookie
+      .split('; ')
+      .find(item => item.startsWith(`${SESSION_COOKIE_NAME}=`))
+      ?.split('=')[1];
+
+    return cookieValue ? decodeURIComponent(cookieValue) : '';
+  }
+
+  function writeSessionCookie(userId) {
+    if (!userId || typeof document === 'undefined') return;
+
+    const maxAge = SESSION_COOKIE_MAX_AGE_DAYS * 24 * 60 * 60;
+    document.cookie = `${SESSION_COOKIE_NAME}=${encodeURIComponent(userId)}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+  }
+
+  function clearSessionCookie() {
+    if (typeof document === 'undefined') return;
+    document.cookie = `${SESSION_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
   }
 
   function persistUsers() {
@@ -1258,6 +1287,7 @@
 
     state.currentUserId = user.id;
     localStorage.setItem(SESSION_KEY, user.id);
+    writeSessionCookie(user.id);
     const profileAvailable = await syncCurrentUserProfileFromRemote();
     if (profileAvailable === false) return;
     openApp('dashboard');
@@ -1307,6 +1337,7 @@
     persistUsers();
     state.currentUserId = user.id;
     localStorage.setItem(SESSION_KEY, user.id);
+    writeSessionCookie(user.id);
     await syncUserProfileToRemote(user);
     openApp('dashboard');
   }
@@ -1321,6 +1352,7 @@
     state.currentCurriculumMonthId = null;
     state.currentResourcesSemesterId = null;
     state.showOlderMessages = false;
+    clearSessionCookie();
     localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(STATE_NAV_KEY);
     showLandingPage();

@@ -11,6 +11,29 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="RealKingHubs" />
+  <script>
+    (function () {
+      // Step 1: Read the session cookie from the browser.
+      // This is safer than localStorage because the browser can share the same
+      // authenticated state across desktop and mobile sessions.
+      function readCookie(name) {
+        return document.cookie
+          .split('; ')
+          .find(part => part.startsWith(name + '='))
+          ?.split('=')[1] || '';
+      }
+
+      // Step 2: Add the preload class as early as possible.
+      // This keeps the landing page from flashing before the real LMS shell renders.
+      const sessionCookie = readCookie('rkh_auth_session');
+      if (sessionCookie) {
+        document.documentElement.classList.add('preload-authenticated');
+      }
+
+      // Step 3: In production, your server should set this cookie with HttpOnly + Secure.
+      // The browser-side check below remains lightweight and easy to maintain.
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
@@ -19,11 +42,6 @@
   <link rel="icon" href="Page-Assets/icon-192.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="Page-Assets/icon-192.png" />
   <link rel="stylesheet" href="Page-Css/style.css" />
-  <script>
-    if (localStorage.getItem('rkh_fresh_session')) {
-      document.documentElement.classList.add('preload-authenticated');
-    }
-  </script>
 </head>
 <body>
   <div id="appPreloader" class="app-preloader">
@@ -55,7 +73,6 @@
             <a href="#landingHero">OVERVIEW</a>
             <a href="#platformFlow">PLATFORM</a>
             <a href="https://selar.com/m/kingsleyodo" target="_blank" rel="noreferrer">BOOKS</a>
-            <a href="https://realkinghubs.netlify.app" target="_blank" rel="noreferrer">CONTACT</a>
           </nav>
           <div class="marketing-actions">
             <button id="installAppBtn" class="btn btn-ghost" type="button" onclick="installRkhApp()">Install app</button>
@@ -240,7 +257,6 @@
               <a href="#landingHero">Overview</a>
               <a href="#platformFlow">Curriculum flow</a>
               <a href="#platformFlow">Features</a>
-              <a href="#">Pricing</a>
             </div>
 
             <div class="landing-footer-links-col">
@@ -254,9 +270,6 @@
             <div class="landing-footer-links-col">
               <strong>Company</strong>
               <a href="#">About Us</a>
-              <a href="#">Contact Support</a>
-              <a href="#">Careers</a>
-              <a href="#">Blog</a>
             </div>
           </div>
           
@@ -451,6 +464,14 @@
     </section>
   </div>
 
+  <!-- Floating support button is shared across the landing page and dashboard so learners always have one clear help path. -->
+  <a class="whatsapp-support-fab" href="https://wa.me/2349135025695?text=Hello%20RealKingHubs%20Academy%2C%20I%20need%20support." target="_blank" rel="noreferrer" aria-label="Chat with RealKingHubs support on WhatsApp">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 3a9 9 0 0 0-7.8 13.6L3 21l4.5-1.2A9 9 0 1 0 12 3Zm0 16.2a7.2 7.2 0 0 1-3.7-.98l-.26-.16-2.7.72.72-2.64-.17-.27A7.2 7.2 0 1 1 12 19.2Zm4.1-5.5c-.22-.11-1.3-.64-1.5-.71-.2-.07-.35-.11-.49.11-.14.22-.55.71-.67.86-.12.14-.25.16-.46.05-.22-.11-.92-.34-1.76-1.08-.65-.58-1.09-1.3-1.22-1.52-.13-.22-.01-.34.1-.45.1-.1.22-.25.33-.38.11-.12.15-.21.22-.35.07-.14.03-.27-.02-.38-.05-.11-.49-1.18-.67-1.62-.18-.43-.36-.37-.49-.37h-.42c-.14 0-.38.05-.58.27-.2.22-.77.75-.77 1.82 0 1.07.79 2.11 9e-2 2.53.09.12.74 1.14 1.8 1.79.97.44 1.48.56 2 .6.84.07 1.61-.06 2.08-.27.47-.2 1.3-.53 1.48-1.02.18-.49.18-.92.13-1.01-.05-.09-.19-.14-.41-.25Z" fill="currentColor"></path>
+    </svg>
+    <span>WhatsApp Support</span>
+  </a>
+
   <button id="scrollTopButton" class="scroll-top-button" type="button" onclick="scrollToTopPage()" aria-label="Scroll to top">
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 18V6M12 6l-5 5M12 6l5 5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -458,11 +479,11 @@
   </button>
 
   <!-- Script order matters: data first, app second, search last -->
-  <script src="Page-Js/data.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="Page-Js/app.js"></script>
-  <script src="Page-Js/lms-search.js"></script>
-  <script src="Page-Js/animations.js"></script>
+  <script defer src="Page-Js/data.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script defer src="Page-Js/app.js"></script>
+  <script defer src="Page-Js/lms-search.js"></script>
+  <script defer src="Page-Js/animations.js"></script>
 </body>
 </html>

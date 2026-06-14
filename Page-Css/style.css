@@ -77,6 +77,10 @@ html {
   overflow-x: hidden;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -110,14 +114,37 @@ textarea {
   color: inherit;
 }
 
+button,
+a,
+input,
+select,
+textarea {
+  min-height: 44px;
+}
+
 button {
   border: 0;
   cursor: pointer;
 }
 
-img {
-  max-width: 100%;
+img,
+svg {
   display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.topbar-search input,
+.field-group input,
+.field-group select,
+.field-group textarea {
+  width: 100%;
+  min-width: 0;
+}
+
+.topbar-search-panel {
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -140,6 +167,66 @@ img {
   pointer-events: none;
   background: linear-gradient(160deg, rgba(255,255,255,0.10), transparent 60%);
   z-index: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Floating support button                                                     */
+/* -------------------------------------------------------------------------- */
+.whatsapp-support-fab {
+  position: fixed;
+  right: 18px;
+  bottom: 76px;
+  z-index: 55;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
+  color: #fff;
+  box-shadow: 0 18px 40px rgba(18, 140, 126, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: transform var(--transition), box-shadow var(--transition), opacity var(--transition);
+}
+
+.whatsapp-support-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 46px rgba(18, 140, 126, 0.42);
+}
+
+.whatsapp-support-fab svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.whatsapp-support-fab span {
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* Keep the floating button easy to tap on small screens without shifting layout. */
+@media (max-width: 560px) {
+  .whatsapp-support-fab {
+    right: 14px;
+    bottom: 68px;
+    min-height: 46px;
+    padding: 8px;
+    border-radius: 999px;
+  }
+
+  .whatsapp-support-fab span {
+    display: none;
+  }
+
+  .whatsapp-support-fab svg {
+    width: 22px;
+    height: 22px;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
