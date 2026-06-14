@@ -478,6 +478,7 @@
     { id: 'resources', label: 'Resources' },
     { id: 'community', label: 'Community' },
     { id: 'announcements', label: 'Announcements' },
+    { id: 'feedback', label: 'Feedback' },
     { id: 'progress', label: 'Progress' },
     { id: 'certificates', label: 'Certificates' },
     { id: 'profile', label: 'Profile and Settings' }

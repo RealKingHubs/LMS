@@ -120,6 +120,44 @@ to authenticated
 using (public.is_lms_admin());
 
 -- ---------------------------------------------------------------------------
+-- Learner feedback
+-- Learners can submit feedback through the dashboard. Only authenticated LMS
+-- admins can read or remove those records from the admin workspace.
+-- ---------------------------------------------------------------------------
+create table if not exists public.lms_feedback (
+  id bigint generated always as identity primary key,
+  user_email text not null default '',
+  user_name text not null default '',
+  track_id text not null default 'community',
+  category text not null default 'General',
+  message text not null default '',
+  created_at timestamptz not null default now()
+);
+
+alter table public.lms_feedback enable row level security;
+
+drop policy if exists "Feedback public insert" on public.lms_feedback;
+create policy "Feedback public insert"
+on public.lms_feedback for insert
+to anon, authenticated
+with check (
+  coalesce(user_email, '') <> ''
+  and coalesce(message, '') <> ''
+);
+
+drop policy if exists "Feedback admin read" on public.lms_feedback;
+create policy "Feedback admin read"
+on public.lms_feedback for select
+to authenticated
+using (public.is_lms_admin());
+
+drop policy if exists "Feedback admin delete" on public.lms_feedback;
+create policy "Feedback admin delete"
+on public.lms_feedback for delete
+to authenticated
+using (public.is_lms_admin());
+
+-- ---------------------------------------------------------------------------
 -- Announcements
 -- Learners can read programme announcements. Only admins can publish or remove
 -- them from the shared backend.

@@ -6,10 +6,11 @@
   // into the learner dashboard code.
   // ---------------------------------------------------------------------------
 
-  const SUPABASE_URL = 'https://nigzxgzzvyzecezhstdi.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pZ3p4Z3p6dnl6ZWNlemhzdGRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNjk2NzUsImV4cCI6MjA5Mzc0NTY3NX0._gLm_GPtNHlWkeDg2mKXP7lUyFYjZRLP40uk95QYSjY';
+  const SUPABASE_URL = 'https://gelpzfafiiudidxmpofo.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlbHB6ZmFmaWl1ZGlkeG1wb2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTIwNzcsImV4cCI6MjA5MDk4ODA3N30.82lZQg6ZYr1SsK9SFsbszby5QEf6HENgnYn1ynS0ZhE';
   const COMMUNITY_TABLE = 'community_messages';
   const ANNOUNCEMENTS_TABLE = 'lms_announcements';
+  const FEEDBACK_TABLE = 'lms_feedback';
   const TRACK_SETTINGS_TABLE = 'lms_track_settings';
   const PUBLIC_PROFILES_TABLE = 'lms_public_profiles';
   const MONTH_OVERRIDES_TABLE = 'lms_curriculum_month_overrides';
@@ -27,6 +28,7 @@
     adminName: '',
     messages: [],
     announcements: [],
+    feedbackItems: [],
     publicProfiles: [],
     trackSettingsById: {},
     monthOverridesById: {},
@@ -94,6 +96,8 @@
     dom.announcementForm = document.getElementById('announcementForm');
     dom.announcementList = document.getElementById('announcementList');
     dom.adminAnnouncementMessage = document.getElementById('adminAnnouncementMessage');
+    dom.feedbackList = document.getElementById('feedbackList');
+    dom.adminFeedbackMessage = document.getElementById('adminFeedbackMessage');
     dom.messageTrackFilter = document.getElementById('messageTrackFilter');
     dom.deleteFilteredMessagesBtn = document.getElementById('deleteFilteredMessagesBtn');
     dom.deleteAllMessagesBtn = document.getElementById('deleteAllMessagesBtn');
@@ -341,6 +345,7 @@
     await Promise.all([
       fetchMessages(),
       fetchAnnouncements(),
+      fetchFeedback(),
       fetchPublicProfiles(),
       fetchTrackSettings(),
       fetchCurriculumOverrides(),
@@ -348,6 +353,7 @@
     ]);
     renderOverview();
     renderAnnouncements();
+    renderFeedbackList();
     renderMessages();
     renderTrackSettings();
     renderCurriculumEditor();
@@ -390,6 +396,29 @@
       createdBy: item.created_by || ''
     }));
     hideMessage(dom.adminAnnouncementMessage);
+  }
+
+  async function fetchFeedback() {
+    const { data, error } = await supabaseClient
+      .from(FEEDBACK_TABLE)
+      .select('id, user_email, user_name, track_id, category, message, created_at')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      showMessage(dom.adminFeedbackMessage, error.message, 'error');
+      return;
+    }
+
+    state.feedbackItems = (data || []).map(item => ({
+      id: String(item.id),
+      userEmail: item.user_email || '',
+      userName: item.user_name || 'Learner',
+      trackId: item.track_id || 'community',
+      category: item.category || 'General',
+      message: item.message || '',
+      createdAt: item.created_at || ''
+    }));
+    hideMessage(dom.adminFeedbackMessage);
   }
 
   async function fetchPublicProfiles() {
@@ -702,10 +731,34 @@
     `).join('');
   }
 
+  function renderFeedbackList() {
+    if (!state.feedbackItems.length) {
+      dom.feedbackList.innerHTML = '<div class="empty-state">No learner feedback has been submitted yet.</div>';
+      return;
+    }
+
+    dom.feedbackList.innerHTML = state.feedbackItems.map(item => `
+      <article class="admin-list-item">
+        <div class="admin-list-meta">
+          <span class="pill">${escapeHtml(item.category)}</span>
+          <span class="pill">${escapeHtml(getResolvedTrack(item.trackId)?.label || item.trackId)}</span>
+          <small>${escapeHtml(formatDateTime(item.createdAt))}</small>
+        </div>
+        <h3>${escapeHtml(item.userName)}</h3>
+        <p>${escapeHtml(item.message)}</p>
+        <div class="admin-list-actions">
+          <small>${escapeHtml(item.userEmail || 'No email on file')}</small>
+          <button class="btn btn-danger btn-small" type="button" onclick="deleteAdminFeedback('${item.id}')">Delete feedback</button>
+        </div>
+      </article>
+    `).join('');
+  }
+
   function renderTrackSettings() {
     const tracks = getResolvedTracks();
     dom.trackSettingsList.innerHTML = tracks.map(track => {
       const outcomes = track.outcomes.join('\n');
+      const isCustomTrack = Boolean(state.trackSettingsById[track.id]);
       return `
         <article class="admin-list-item">
           <div class="admin-list-meta">
@@ -741,6 +794,7 @@
             <div class="button-row">
               <button class="btn btn-primary" type="button" onclick="saveAdminTrackSettings('${track.id}')">Save track</button>
               <button class="btn btn-secondary" type="button" onclick="resetAdminTrackSettings('${track.id}')">Reset overrides</button>
+              ${isCustomTrack ? `<button class="btn btn-danger" type="button" onclick="deleteAdminTrack('${track.id}')">Delete track</button>` : ''}
             </div>
           </div>
         </article>
@@ -1293,6 +1347,40 @@
     renderCurriculumEditor();
   }
 
+  async function deleteTrack(trackId) {
+    if (!trackId) return;
+
+    if (!state.trackSettingsById[trackId]) {
+      showMessage(dom.adminTrackMessage, 'Only custom tracks created from the admin dashboard can be deleted here.', 'error');
+      return;
+    }
+
+    const trackLabel = getResolvedTrack(trackId)?.label || trackId;
+    const shouldDelete = window.confirm(`Delete custom track "${trackLabel}"? This removes its admin override and local fallback entry.`);
+    if (!shouldDelete) return;
+
+    const { error } = await supabaseClient
+      .from(TRACK_SETTINGS_TABLE)
+      .delete()
+      .eq('id', trackId);
+
+    if (error) {
+      showMessage(dom.adminTrackMessage, error.message, 'error');
+      return;
+    }
+
+    if (window.RKH_DATA?.tracks) {
+      delete window.RKH_DATA.tracks[trackId];
+    }
+    delete state.trackSettingsById[trackId];
+
+    showMessage(dom.adminTrackMessage, 'Track deleted successfully.', 'success');
+    populateTrackSelects();
+    await fetchTrackSettings();
+    renderTrackSettings();
+    renderCurriculumEditor();
+  }
+
   async function deleteSelectedUserProfile() {
     if (!state.selectedUserEmail) {
       showMessage(dom.adminUserMessage, 'Select a learner profile before deleting it.', 'error');
@@ -1352,6 +1440,27 @@
     await fetchPublicProfiles();
     renderUsers();
     renderOverview();
+  }
+
+  async function deleteFeedback(id) {
+    const entry = state.feedbackItems.find(item => item.id === String(id));
+    const label = entry ? `${entry.userName} (${entry.category})` : 'this feedback entry';
+    const shouldDelete = window.confirm(`Delete feedback from ${label}? This can only be done by an admin.`);
+    if (!shouldDelete) return;
+
+    const { error } = await supabaseClient
+      .from(FEEDBACK_TABLE)
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      showMessage(dom.adminFeedbackMessage, error.message, 'error');
+      return;
+    }
+
+    showMessage(dom.adminFeedbackMessage, 'Feedback deleted successfully.', 'success');
+    await fetchFeedback();
+    renderFeedbackList();
   }
 
   async function deleteAnnouncement(id) {
@@ -1491,6 +1600,8 @@
 
   window.deleteAdminMessage = deleteMessage;
   window.deleteAdminAnnouncement = deleteAnnouncement;
+  window.deleteAdminFeedback = deleteFeedback;
+  window.deleteAdminTrack = deleteTrack;
   window.selectAdminUser = selectUser;
   window.saveAdminTrackSettings = saveTrackSettings;
   window.resetAdminTrackSettings = resetTrackSettings;

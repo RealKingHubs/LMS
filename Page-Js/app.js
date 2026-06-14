@@ -15,12 +15,13 @@
   const SESSION_KEY = 'rkh_fresh_session';
   const STATE_NAV_KEY = 'rkh_nav_state';
   const COMMUNITY_KEY = 'rkh_fresh_community';
-  const SUPABASE_URL = 'https://nigzxgzzvyzecezhstdi.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pZ3p4Z3p6dnl6ZWNlemhzdGRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNjk2NzUsImV4cCI6MjA5Mzc0NTY3NX0._gLm_GPtNHlWkeDg2mKXP7lUyFYjZRLP40uk95QYSjY';
+  const SUPABASE_URL = 'https://gelpzfafiiudidxmpofo.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlbHB6ZmFmaWl1ZGlkeG1wb2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTIwNzcsImV4cCI6MjA5MDk4ODA3N30.82lZQg6ZYr1SsK9SFsbszby5QEf6HENgnYn1ynS0ZhE';
   const COMMUNITY_SYNC_INTERVAL_MS = 15000;
   const COMMUNITY_ATTACHMENT_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
   const COMMUNITY_ATTACHMENT_BUCKET = 'community-attachments';
   const ANNOUNCEMENTS_TABLE = 'lms_announcements';
+  const FEEDBACK_TABLE = 'lms_feedback';
   const TRACK_SETTINGS_TABLE = 'lms_track_settings';
   const MONTH_OVERRIDES_TABLE = 'lms_curriculum_month_overrides';
   const WEEK_OVERRIDES_TABLE = 'lms_curriculum_week_overrides';
@@ -1363,7 +1364,7 @@
     const notificationCounts = getNotificationCounts(user, track);
     const navGroups = [
       { title: 'Workspace', items: ['dashboard', 'curriculum', 'resources', 'progress'] },
-      { title: 'Collaboration', items: ['community', 'announcements'] },
+      { title: 'Collaboration', items: ['community', 'announcements', 'feedback'] },
       { title: 'Account', items: ['certificates', 'profile'] }
     ];
 
@@ -1455,6 +1456,7 @@
       community: 'Community',
       progress: 'Progress',
       announcements: 'Announcements',
+      feedback: 'Feedback',
       certificates: 'Certificates',
       profile: 'Profile and Settings'
     };
@@ -1465,6 +1467,7 @@
       community: 'Learner communication',
       progress: 'Completion tracking',
       announcements: 'Programme updates',
+      feedback: 'Learner feedback',
       certificates: 'Programme completion',
       profile: 'Learner account'
     };
@@ -1487,6 +1490,7 @@
       community: renderCommunity,
       progress: renderProgress,
       announcements: renderAnnouncements,
+      feedback: renderFeedback,
       certificates: renderCertificates,
       profile: renderProfileAndSettings
     };
@@ -1496,6 +1500,7 @@
 
     if (state.currentView === 'profile') bindProfileForm();
     if (state.currentView === 'community') bindCommunityComposer();
+    if (state.currentView === 'feedback') bindFeedbackForm();
     if (['community', 'announcements'].includes(state.currentView)) markSectionSeen(state.currentView);
   }
 
@@ -2411,6 +2416,39 @@
     `;
   }
 
+  function renderFeedback(user, track) {
+    return `
+      <section class="surface-card">
+        <div class="content-header">
+          <div>
+            <p class="section-kicker">Learner feedback</p>
+            <h2>Share what is working and what needs attention</h2>
+            <p class="copy-muted">This message goes directly to the admin workspace so only the LMS team can review and remove it.</p>
+          </div>
+        </div>
+        <div id="feedbackMessage" class="form-message hidden"></div>
+        <form id="feedbackForm" class="dashboard-stack">
+          <div class="field-group">
+            <label for="feedbackCategory">Feedback category</label>
+            <select id="feedbackCategory">
+              <option value="General">General feedback</option>
+              <option value="Course">Course content</option>
+              <option value="Platform">Platform experience</option>
+              <option value="Support">Support request</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="feedbackMessageText">Your message</label>
+            <textarea id="feedbackMessageText" rows="6" placeholder="Tell us what you need help with, what you love, or what should improve."></textarea>
+          </div>
+          <div class="field-group">
+            <button class="btn btn-primary btn-small" type="submit">Send feedback</button>
+          </div>
+        </form>
+      </section>
+    `;
+  }
+
   function renderProfileAndSettings(user, track) {
     return `
       <section class="profile-grid">
@@ -2587,6 +2625,62 @@
 
   // Community composer helpers manage the sticker picker, file selection,
   // folder zipping, payload uploads, and final message submission.
+  function bindFeedbackForm() {
+    const form = document.getElementById('feedbackForm');
+    if (!form || form.dataset.bound === 'true') return;
+    form.addEventListener('submit', submitFeedbackForm);
+    form.dataset.bound = 'true';
+  }
+
+  async function submitFeedbackForm(event) {
+    event.preventDefault();
+
+    const user = getCurrentUser();
+    const track = getCurrentTrack();
+    if (!user || !track) return;
+
+    const category = document.getElementById('feedbackCategory')?.value || 'General';
+    const message = document.getElementById('feedbackMessageText')?.value.trim() || '';
+    const feedbackMessage = document.getElementById('feedbackMessage');
+
+    if (!message) {
+      feedbackMessage.className = 'form-message error';
+      feedbackMessage.textContent = 'Please write a short message before sending feedback.';
+      feedbackMessage.classList.remove('hidden');
+      return;
+    }
+
+    const payload = {
+      user_email: user.email,
+      user_name: `${user.firstName} ${user.lastName}`.trim(),
+      track_id: track.id,
+      category,
+      message,
+      created_at: new Date().toISOString()
+    };
+
+    try {
+      if (communitySupabase) {
+        const { error } = await communitySupabase.from(FEEDBACK_TABLE).insert(payload);
+        if (error) throw error;
+      } else {
+        const stored = JSON.parse(localStorage.getItem('rkh_feedback_submissions') || '[]');
+        stored.unshift({ id: `feedback-${Date.now()}`, ...payload });
+        localStorage.setItem('rkh_feedback_submissions', JSON.stringify(stored));
+      }
+
+      feedbackMessage.className = 'form-message success';
+      feedbackMessage.textContent = 'Your feedback has been sent to the admin team.';
+      feedbackMessage.classList.remove('hidden');
+      document.getElementById('feedbackForm').reset();
+      renderAppShell();
+    } catch (error) {
+      feedbackMessage.className = 'form-message error';
+      feedbackMessage.textContent = error?.message || 'Feedback could not be sent right now.';
+      feedbackMessage.classList.remove('hidden');
+    }
+  }
+
   function bindCommunityComposer() {
     const input = document.getElementById('communityMessage');
     if (!input || input.dataset.bound === 'true') return;
