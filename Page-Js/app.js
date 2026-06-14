@@ -20,6 +20,8 @@
   const COMMUNITY_SYNC_INTERVAL_MS = 15000;
   const COMMUNITY_ATTACHMENT_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
   const COMMUNITY_ATTACHMENT_BUCKET = 'community-attachments';
+  const FEEDBACK_IMAGE_LIMIT = 4;
+  const FEEDBACK_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
   const ANNOUNCEMENTS_TABLE = 'lms_announcements';
   const FEEDBACK_TABLE = 'lms_feedback';
   const TRACK_SETTINGS_TABLE = 'lms_track_settings';
@@ -2442,6 +2444,12 @@
             <textarea id="feedbackMessageText" rows="6" placeholder="Tell us what you need help with, what you love, or what should improve."></textarea>
           </div>
           <div class="field-group">
+            <label for="feedbackImageInput">Attach images (optional)</label>
+            <input id="feedbackImageInput" type="file" accept="image/*" multiple />
+            <span class="field-help">Up to 4 images, each up to 5 MB. Screenshots and UI references are welcome.</span>
+            <div id="feedbackImagePreview" class="field-help"></div>
+          </div>
+          <div class="field-group">
             <button class="btn btn-primary btn-small" type="submit">Send feedback</button>
           </div>
         </form>
@@ -2627,9 +2635,48 @@
   // folder zipping, payload uploads, and final message submission.
   function bindFeedbackForm() {
     const form = document.getElementById('feedbackForm');
+    const imageInput = document.getElementById('feedbackImageInput');
     if (!form || form.dataset.bound === 'true') return;
     form.addEventListener('submit', submitFeedbackForm);
+    if (imageInput && !imageInput.dataset.bound) {
+      imageInput.addEventListener('change', previewFeedbackImages);
+      imageInput.dataset.bound = 'true';
+    }
     form.dataset.bound = 'true';
+  }
+
+  function previewFeedbackImages(event) {
+    const files = Array.from(event.target.files || []);
+    const preview = document.getElementById('feedbackImagePreview');
+    if (!preview) return;
+
+    if (!files.length) {
+      preview.textContent = '';
+      return;
+    }
+
+    preview.textContent = `${files.length} image${files.length === 1 ? '' : 's'} selected: ${files.map(file => file.name).join(', ')}`;
+  }
+
+  async function readFeedbackImageFiles(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return [];
+
+    if (files.length > FEEDBACK_IMAGE_LIMIT) {
+      throw new Error(`You can attach up to ${FEEDBACK_IMAGE_LIMIT} images.`);
+    }
+
+    const oversized = files.find(file => file.size > FEEDBACK_IMAGE_MAX_BYTES);
+    if (oversized) {
+      throw new Error('Each image must be 5 MB or smaller.');
+    }
+
+    return Promise.all(files.map(file => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error || new Error('Could not read the selected image.'));
+      reader.readAsDataURL(file);
+    })));
   }
 
   async function submitFeedbackForm(event) {
@@ -2642,10 +2689,21 @@
     const category = document.getElementById('feedbackCategory')?.value || 'General';
     const message = document.getElementById('feedbackMessageText')?.value.trim() || '';
     const feedbackMessage = document.getElementById('feedbackMessage');
+    const imageFiles = document.getElementById('feedbackImageInput')?.files || null;
 
     if (!message) {
       feedbackMessage.className = 'form-message error';
       feedbackMessage.textContent = 'Please write a short message before sending feedback.';
+      feedbackMessage.classList.remove('hidden');
+      return;
+    }
+
+    let imageUrls = [];
+    try {
+      imageUrls = imageFiles?.length ? await readFeedbackImageFiles(imageFiles) : [];
+    } catch (error) {
+      feedbackMessage.className = 'form-message error';
+      feedbackMessage.textContent = error?.message || 'The selected images could not be attached.';
       feedbackMessage.classList.remove('hidden');
       return;
     }
@@ -2656,6 +2714,7 @@
       track_id: track.id,
       category,
       message,
+      image_urls: imageUrls,
       created_at: new Date().toISOString()
     };
 
@@ -2673,6 +2732,7 @@
       feedbackMessage.textContent = 'Your feedback has been sent to the admin team.';
       feedbackMessage.classList.remove('hidden');
       document.getElementById('feedbackForm').reset();
+      document.getElementById('feedbackImagePreview').textContent = '';
       renderAppShell();
     } catch (error) {
       feedbackMessage.className = 'form-message error';

@@ -401,7 +401,7 @@
   async function fetchFeedback() {
     const { data, error } = await supabaseClient
       .from(FEEDBACK_TABLE)
-      .select('id, user_email, user_name, track_id, category, message, created_at')
+      .select('id, user_email, user_name, track_id, category, message, image_urls, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -416,6 +416,7 @@
       trackId: item.track_id || 'community',
       category: item.category || 'General',
       message: item.message || '',
+      imageUrls: Array.isArray(item.image_urls) ? item.image_urls : [],
       createdAt: item.created_at || ''
     }));
     hideMessage(dom.adminFeedbackMessage);
@@ -746,6 +747,7 @@
         </div>
         <h3>${escapeHtml(item.userName)}</h3>
         <p>${escapeHtml(item.message)}</p>
+        ${item.imageUrls.length ? `<div class="feedback-image-grid">${item.imageUrls.map(url => `<a href="${escapeAttribute(url)}" target="_blank" rel="noreferrer"><img src="${escapeAttribute(url)}" alt="Feedback image from ${escapeAttribute(item.userName)}" /></a>`).join('')}</div>` : ''}
         <div class="admin-list-actions">
           <small>${escapeHtml(item.userEmail || 'No email on file')}</small>
           <button class="btn btn-danger btn-small" type="button" onclick="deleteAdminFeedback('${item.id}')">Delete feedback</button>

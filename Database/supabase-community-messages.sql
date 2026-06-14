@@ -131,9 +131,11 @@ create table if not exists public.lms_feedback (
   track_id text not null default 'community',
   category text not null default 'General',
   message text not null default '',
+  image_urls jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
 
+alter table public.lms_feedback add column if not exists image_urls jsonb not null default '[]'::jsonb;
 alter table public.lms_feedback enable row level security;
 
 drop policy if exists "Feedback public insert" on public.lms_feedback;
