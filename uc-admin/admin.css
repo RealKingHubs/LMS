@@ -51,12 +51,12 @@ body {
   min-width: 320px;
   font-family: "Inter", "DM Sans", sans-serif;
   color: var(--text);
-  background-color: #060b16;
+  background-color: #040914;
   background-image:
-    radial-gradient(ellipse 60% 40% at 8% -4%, rgba(56, 189, 248, 0.14), transparent 42%),
-    radial-gradient(ellipse 46% 32% at 96% 0%, rgba(124, 58, 237, 0.20), transparent 46%),
-    radial-gradient(ellipse 36% 24% at 50% 0%, rgba(59, 130, 246, 0.14), transparent 36%),
-    linear-gradient(180deg, #070d1a 0%, #091224 30%, #0b1630 100%);
+    radial-gradient(ellipse 68% 42% at 8% -4%, rgba(56, 189, 248, 0.16), transparent 42%),
+    radial-gradient(ellipse 48% 34% at 96% -2%, rgba(124, 58, 237, 0.18), transparent 42%),
+    radial-gradient(ellipse 40% 24% at 50% 0%, rgba(59, 130, 246, 0.12), transparent 34%),
+    linear-gradient(180deg, #07101d 0%, #091322 32%, #0b1528 100%);
 }
 
 body::before {
@@ -64,7 +64,7 @@ body::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), transparent 55%);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.06), transparent 52%);
   z-index: -1;
 }
 
@@ -110,6 +110,7 @@ a {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl);
   backdrop-filter: blur(18px);
+  position: relative;
   -webkit-backdrop-filter: blur(18px);
 }
 
@@ -285,6 +286,7 @@ a {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  overflow: hidden;
   gap: 14px;
   padding: 16px 18px;
   margin-bottom: 14px;
@@ -300,6 +302,25 @@ a {
   border-radius: inherit;
   background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), transparent 40%, rgba(124, 58, 237, 0.08));
   pointer-events: none;
+}
+
+.topbar-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.topbar-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  color: #dbe6ff;
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .admin-topbar-actions,

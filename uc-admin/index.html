@@ -42,6 +42,10 @@
           <p class="eyebrow">Admin workspace</p>
           <h1>RealKingHubs LMS control panel</h1>
           <p id="adminIdentity" class="muted">Signed in as admin.</p>
+          <div class="topbar-badges" aria-label="Workspace summary">
+            <span class="topbar-chip">Secure and live</span>
+            <span class="topbar-chip">Track + curriculum controls</span>
+          </div>
         </div>
         <div class="admin-topbar-actions">
           <a class="btn btn-secondary" href="../index.html">Open learner LMS</a>
@@ -243,6 +247,47 @@
               </div>
             </div>
 
+            <form id="createTrackForm" class="admin-form compact-form-card">
+              <div class="panel-header compact">
+                <div>
+                  <p class="eyebrow">Create a new track</p>
+                  <h3>Add a custom programme track</h3>
+                </div>
+              </div>
+              <div class="form-columns">
+                <label>
+                  <span>Track ID</span>
+                  <input id="newTrackId" type="text" placeholder="ai-product-design" />
+                </label>
+                <label>
+                  <span>Display name</span>
+                  <input id="newTrackLabel" type="text" placeholder="AI Product Design" />
+                </label>
+              </div>
+              <label>
+                <span>Track summary</span>
+                <textarea id="newTrackSummary" rows="3" placeholder="Describe what this track focuses on"></textarea>
+              </label>
+              <label>
+                <span>Outcomes (one per line)</span>
+                <textarea id="newTrackOutcomes" rows="3" placeholder="Design thinking&#10;Prototype delivery&#10;User research"></textarea>
+              </label>
+              <div class="form-columns">
+                <label>
+                  <span>Sort order</span>
+                  <input id="newTrackSort" type="number" value="10" />
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select id="newTrackEnabled">
+                    <option value="true">Enabled</option>
+                    <option value="false">Disabled</option>
+                  </select>
+                </label>
+              </div>
+              <button class="btn btn-primary" type="submit">Create track</button>
+            </form>
+
             <div id="adminTrackMessage" class="form-message hidden"></div>
             <div id="trackSettingsList" class="admin-list"></div>
           </article>
@@ -352,6 +397,7 @@
               </label>
               <div class="button-row">
                 <button class="btn btn-primary" type="submit">Save learner changes</button>
+                <button id="deleteUserBtn" class="btn btn-danger" type="button">Delete learner</button>
               </div>
             </form>
           </div>

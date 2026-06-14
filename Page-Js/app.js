@@ -564,8 +564,13 @@
   // Track settings and curriculum overrides are merged into the static data layer
   // so the LMS can stay fast in the browser while still supporting admin edits.
   function getResolvedTracks() {
-    return Object.values(window.RKH_DATA?.tracks || {})
-      .map(track => getResolvedTrack(track.id))
+    const trackIds = Array.from(new Set([
+      ...Object.keys(window.RKH_DATA?.tracks || {}),
+      ...Object.keys(state.trackSettingsById || {})
+    ]));
+
+    return trackIds
+      .map(trackId => getResolvedTrack(trackId))
       .filter(Boolean)
       .sort((left, right) => {
         const leftOrder = Number.isFinite(left.sortOrder) ? left.sortOrder : 0;
@@ -575,6 +580,48 @@
       });
   }
 
+  function buildFallbackTrack(trackId, trackSettings = {}) {
+    return {
+      id: trackId,
+      label: trackSettings.label || 'Custom track',
+      summary: trackSettings.summary || 'Custom programme track created from the admin dashboard.',
+      outcomes: Array.isArray(trackSettings.outcomes) && trackSettings.outcomes.length
+        ? trackSettings.outcomes
+        : ['Track outcomes'],
+      liveClasses: [],
+      announcements: [],
+      assessments: [],
+      semesters: [
+        {
+          id: `${trackId}-semester-1`,
+          label: 'Semester 1',
+          title: 'Foundation pathway',
+          months: [
+            {
+              id: `${trackId}-month-1`,
+              label: 'Month 1',
+              title: 'Foundation',
+              summary: 'Starter structure for the new track.',
+              phase: 'Foundation',
+              weeks: [
+                {
+                  id: `${trackId}-week-1`,
+                  title: 'Welcome and orientation',
+                  objective: 'Set up the new track for learners and administrators.',
+                  type: 'learning',
+                  videoUrl: '',
+                  videoUrls: [],
+                  resources: [],
+                  resourceItems: []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+  }
+
   function getAvailableTracks() {
     const resolvedTracks = getResolvedTracks();
     const enabledTracks = resolvedTracks.filter(track => track.isEnabled !== false);
@@ -582,10 +629,9 @@
   }
 
   function getResolvedTrack(trackId) {
-    const baseTrack = window.RKH_DATA?.tracks?.[trackId];
-    if (!baseTrack) return null;
-
     const trackSettings = state.trackSettingsById[trackId] || {};
+    const baseTrack = window.RKH_DATA?.tracks?.[trackId] || buildFallbackTrack(trackId, trackSettings);
+    if (!baseTrack) return null;
     const resolvedOutcomes = Array.isArray(trackSettings.outcomes) && trackSettings.outcomes.length
       ? trackSettings.outcomes
       : baseTrack.outcomes;
@@ -3073,6 +3119,11 @@
   }
 
   function handleStorageSync(event) {
+    if (event.key === 'rkh-track-refresh') {
+      void refreshTrackSettings({ silent: false });
+      return;
+    }
+
     if (![USERS_KEY, COMMUNITY_KEY, SESSION_KEY].includes(event.key)) return;
     hydrateState();
     if (getCurrentUser()) renderAppShell();

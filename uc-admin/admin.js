@@ -121,6 +121,13 @@
     dom.adminCurriculumMessage = document.getElementById('adminCurriculumMessage');
     dom.trackSettingsList = document.getElementById('trackSettingsList');
     dom.adminTrackMessage = document.getElementById('adminTrackMessage');
+    dom.createTrackForm = document.getElementById('createTrackForm');
+    dom.newTrackId = document.getElementById('newTrackId');
+    dom.newTrackLabel = document.getElementById('newTrackLabel');
+    dom.newTrackSummary = document.getElementById('newTrackSummary');
+    dom.newTrackOutcomes = document.getElementById('newTrackOutcomes');
+    dom.newTrackSort = document.getElementById('newTrackSort');
+    dom.newTrackEnabled = document.getElementById('newTrackEnabled');
     dom.userTrackFilter = document.getElementById('userTrackFilter');
     dom.userList = document.getElementById('userList');
     dom.resourceTrackSelect = document.getElementById('resourceTrackSelect');
@@ -130,6 +137,7 @@
     dom.resetSemesterResourcesBtn = document.getElementById('resetSemesterResourcesBtn');
     dom.adminResourcesMessage = document.getElementById('adminResourcesMessage');
     dom.userForm = document.getElementById('userForm');
+    dom.deleteUserBtn = document.getElementById('deleteUserBtn');
     dom.userEmail = document.getElementById('userEmail');
     dom.userFirstName = document.getElementById('userFirstName');
     dom.userLastName = document.getElementById('userLastName');
@@ -175,6 +183,8 @@
     dom.semesterResourcesForm.addEventListener('submit', saveSemesterResources);
     dom.resetSemesterResourcesBtn.addEventListener('click', resetSemesterResources);
     dom.userForm.addEventListener('submit', saveUserProfile);
+    dom.createTrackForm.addEventListener('submit', createTrackFromAdmin);
+    dom.deleteUserBtn.addEventListener('click', deleteSelectedUserProfile);
 
     dom.adminSectionButtons.forEach(button => {
       button.addEventListener('click', () => showAdminSection(button.dataset.section));
@@ -197,7 +207,7 @@
   }
 
   function populateTrackSelects() {
-    const tracks = Object.keys(state.trackSettingsById).length ? getResolvedTracks() : Object.values(window.RKH_DATA.tracks);
+    const tracks = getResolvedTracks();
     const trackOptions = [
       '<option value="all">All tracks</option>',
       ...tracks.map(track => `<option value="${track.id}">${track.label}</option>`)
@@ -533,8 +543,14 @@
   }
 
   function getResolvedTracks() {
-    return Object.values(window.RKH_DATA.tracks)
-      .map(track => getResolvedTrack(track.id))
+    const trackIds = Array.from(new Set([
+      ...Object.keys(window.RKH_DATA.tracks || {}),
+      ...Object.keys(state.trackSettingsById || {})
+    ]));
+
+    return trackIds
+      .map(trackId => getResolvedTrack(trackId))
+      .filter(Boolean)
       .sort((left, right) => {
         const leftOrder = Number.isFinite(left.sortOrder) ? left.sortOrder : 0;
         const rightOrder = Number.isFinite(right.sortOrder) ? right.sortOrder : 0;
@@ -544,10 +560,9 @@
   }
 
   function getResolvedTrack(trackId) {
-    const baseTrack = window.RKH_DATA.tracks[trackId];
-    if (!baseTrack) return null;
-
     const settings = state.trackSettingsById[trackId] || {};
+    const baseTrack = window.RKH_DATA.tracks[trackId] || buildFallbackTrack(trackId, settings);
+    if (!baseTrack) return null;
     return {
       ...baseTrack,
       label: settings.label || baseTrack.label,
@@ -1130,8 +1145,98 @@
     renderResourcesEditor();
   }
 
+  async function createTrackFromAdmin(event) {
+    event.preventDefault();
+
+    const rawId = (dom.newTrackId.value || dom.newTrackLabel.value || '').trim();
+    const trackId = rawId.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const label = dom.newTrackLabel.value.trim();
+    const summary = dom.newTrackSummary.value.trim();
+    const outcomes = (dom.newTrackOutcomes.value || '')
+      .split(/\r?\n/)
+      .map(item => item.trim())
+      .filter(Boolean);
+
+    if (!trackId || !label) {
+      showMessage(dom.adminTrackMessage, 'Enter both a track ID and a display name.', 'error');
+      return;
+    }
+
+    const isEnabled = dom.newTrackEnabled.value !== 'false';
+    const sortOrder = Number(dom.newTrackSort.value || 0);
+
+    const { error } = await supabaseClient.from(TRACK_SETTINGS_TABLE).upsert({
+      id: trackId,
+      label,
+      summary: summary || `${label} track created from the admin dashboard.`,
+      outcomes,
+      is_enabled: isEnabled,
+      sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
+      updated_by: state.adminEmail
+    }, { onConflict: 'id' });
+
+    if (error) {
+      showMessage(dom.adminTrackMessage, error.message, 'error');
+      return;
+    }
+
+    if (!window.RKH_DATA.tracks[trackId]) {
+      window.RKH_DATA.tracks[trackId] = buildFallbackTrack(trackId, { label, summary, outcomes });
+    }
+
+    dom.createTrackForm.reset();
+    dom.newTrackSort.value = '10';
+    dom.newTrackEnabled.value = 'true';
+    localStorage.setItem('rkh-track-refresh', String(Date.now()));
+    showMessage(dom.adminTrackMessage, 'Track created successfully.', 'success');
+    await fetchTrackSettings();
+    populateTrackSelects();
+    renderTrackSettings();
+    renderCurriculumEditor();
+  }
+
+  function buildFallbackTrack(trackId, settings = {}) {
+    return {
+      id: trackId,
+      label: settings.label || 'New track',
+      summary: settings.summary || 'Custom track created from the admin dashboard.',
+      outcomes: Array.isArray(settings.outcomes) && settings.outcomes.length ? settings.outcomes : ['Track outcomes'],
+      liveClasses: [],
+      announcements: [],
+      assessments: [],
+      semesters: [
+        {
+          id: `${trackId}-semester-1`,
+          label: 'Semester 1',
+          title: 'Foundation pathway',
+          months: [
+            {
+              id: `${trackId}-month-1`,
+              label: 'Month 1',
+              title: 'Foundation',
+              summary: 'Starter structure for the new track.',
+              phase: 'Foundation',
+              weeks: [
+                {
+                  id: `${trackId}-week-1`,
+                  title: 'Welcome and orientation',
+                  objective: 'Set up the new track for learners and administrators.',
+                  type: 'learning',
+                  videoUrl: '',
+                  videoUrls: [],
+                  resources: [],
+                  resourceItems: []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+  }
+
   async function saveTrackSettings(trackId) {
-    const baseTrack = window.RKH_DATA.tracks[trackId];
+    const baseTrack = window.RKH_DATA.tracks[trackId] || buildFallbackTrack(trackId, state.trackSettingsById[trackId] || {});
     if (!baseTrack) return;
 
     const label = document.getElementById(`track-label-${trackId}`)?.value.trim() || baseTrack.label;
@@ -1158,6 +1263,10 @@
       return;
     }
 
+    if (!window.RKH_DATA.tracks[trackId]) {
+      window.RKH_DATA.tracks[trackId] = baseTrack;
+    }
+
     showMessage(dom.adminTrackMessage, 'Track settings saved successfully.', 'success');
     await fetchTrackSettings();
     renderTrackSettings();
@@ -1182,6 +1291,31 @@
     await fetchTrackSettings();
     renderTrackSettings();
     renderCurriculumEditor();
+  }
+
+  async function deleteSelectedUserProfile() {
+    if (!state.selectedUserEmail) {
+      showMessage(dom.adminUserMessage, 'Select a learner profile before deleting it.', 'error');
+      return;
+    }
+
+    const profile = state.publicProfiles.find(item => item.email === state.selectedUserEmail);
+    const label = profile ? `${profile.firstName} ${profile.lastName}`.trim() || profile.email : state.selectedUserEmail;
+    const shouldDelete = window.confirm(`Delete learner profile for ${label}? This removes the record from the admin learner list.`);
+    if (!shouldDelete) return;
+
+    const { error } = await supabaseClient
+      .from(PUBLIC_PROFILES_TABLE)
+      .delete()
+      .eq('email', state.selectedUserEmail);
+
+    if (error) {
+      showMessage(dom.adminUserMessage, error.message, 'error');
+      return;
+    }
+
+    showMessage(dom.adminUserMessage, 'Learner profile deleted successfully.', 'success');
+    await refreshAdminData();
   }
 
   async function saveUserProfile(event) {
