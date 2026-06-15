@@ -3,13 +3,16 @@
 // This file turns the LMS into an installable PWA shell by caching the core
 // files needed to reopen the app faster and keep the base UI available offline.
 // ---------------------------------------------------------------------------
-const CACHE_NAME = 'rkh-academy-shell-v2';
+const CACHE_NAME = 'rkh-academy-shell-v3';
 
 // Keep this list focused on the app shell only.
 // Dynamic API content should continue to load from the network at runtime.
 const APP_SHELL = [
   '/',
   '/index.html',
+  '/uc-admin/',
+  '/uc-admin/admin.css',
+  '/uc-admin/admin.js',
   '/install-as-app/app.webmanifest',
   '/Page-Css/style.css',
   '/Page-Js/data.js',
