@@ -513,6 +513,43 @@ a {
   align-items: center;
 }
 
+.admin-book-card {
+  display: flex;
+  gap: 16px;
+  margin: 16px 0;
+  align-items: flex-start;
+}
+
+.admin-book-card img,
+.admin-book-card .book-placeholder {
+  width: 110px;
+  height: 160px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  flex-shrink: 0;
+  background: rgba(8, 15, 28, 0.4);
+}
+
+.admin-book-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-book-copy h3 {
+  margin: 0;
+}
+
+.admin-book-copy p {
+  margin: 0;
+}
+
+.admin-book-copy .btn {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;

@@ -135,6 +135,45 @@ create table if not exists public.lms_feedback (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.lms_books (
+  id bigint generated always as identity primary key,
+  title text not null default '',
+  summary text not null default '',
+  link text not null default '',
+  image_url text not null default '',
+  created_at timestamptz not null default now()
+);
+
+alter table public.lms_books enable row level security;
+
+create index if not exists lms_books_created_at_idx
+  on public.lms_books (created_at desc);
+
+drop policy if exists "Books public read" on public.lms_books;
+create policy "Books public read"
+on public.lms_books for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "Books admin insert" on public.lms_books;
+create policy "Books admin insert"
+on public.lms_books for insert
+to authenticated
+with check (public.is_lms_admin());
+
+drop policy if exists "Books admin update" on public.lms_books;
+create policy "Books admin update"
+on public.lms_books for update
+to authenticated
+using (public.is_lms_admin())
+with check (public.is_lms_admin());
+
+drop policy if exists "Books admin delete" on public.lms_books;
+create policy "Books admin delete"
+on public.lms_books for delete
+to authenticated
+using (public.is_lms_admin());
+
 alter table public.lms_feedback add column if not exists image_urls jsonb not null default '[]'::jsonb;
 alter table public.lms_feedback enable row level security;
 

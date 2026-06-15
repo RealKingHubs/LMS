@@ -476,6 +476,7 @@
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'curriculum', label: 'Curriculum' },
     { id: 'resources', label: 'Resources' },
+    { id: 'books', label: 'Books' },
     { id: 'community', label: 'Community' },
     { id: 'announcements', label: 'Announcements' },
     { id: 'feedback', label: 'Feedback' },

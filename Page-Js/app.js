@@ -15,6 +15,8 @@
   const SESSION_KEY = 'rkh_fresh_session';
   const SESSION_COOKIE_NAME = 'rkh_auth_session';
   const SESSION_COOKIE_MAX_AGE_DAYS = 7;
+  const BOOKS_KEY = 'rkh_books_catalog';
+  const BOOKS_TABLE = 'lms_books';
   const STATE_NAV_KEY = 'rkh_nav_state';
   const COMMUNITY_KEY = 'rkh_fresh_community';
   const SUPABASE_URL = 'https://gelpzfafiiudidxmpofo.supabase.co';
@@ -846,6 +848,7 @@
       void refreshTrackSettings({ silent: true });
       void refreshCurriculumOverrides({ silent: true });
       void refreshSemesterResources({ silent: true });
+      void fetchBooksCatalog();
     }, COMMUNITY_SYNC_INTERVAL_MS);
   }
 
@@ -1362,7 +1365,7 @@
   // Main app shell rendering
   // The LMS redraws the shell when the active page or learner state changes.
   // ---------------------------------------------------------------------------
-  function renderAppShell() {
+  async function renderAppShell() {
     const user = getCurrentUser();
     const track = getCurrentTrack();
     if (!user || !track) {
@@ -1375,7 +1378,7 @@
     ensureAnnouncementsFeedForTrack(track);
     renderSidebar(user, track);
     renderTopbar(user, track);
-    renderCurrentView(user, track);
+    await renderCurrentView(user, track);
     saveNavigationState();
   }
 
@@ -1397,7 +1400,7 @@
   function renderSidebar(user, track) {
     const notificationCounts = getNotificationCounts(user, track);
     const navGroups = [
-      { title: 'Workspace', items: ['dashboard', 'curriculum', 'resources', 'progress'] },
+      { title: 'Workspace', items: ['dashboard', 'curriculum', 'resources', 'books', 'progress'] },
       { title: 'Collaboration', items: ['community', 'announcements', 'feedback'] },
       { title: 'Account', items: ['certificates', 'profile'] }
     ];
@@ -1464,6 +1467,11 @@
           <path d="M7 5h8l4 4v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
           <path d="M15 5v4h4M9 13h6M9 17h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
         </svg>`,
+      books: `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 5.5A2.5 2.5 0 0 1 8.5 3H18v15H8.5A2.5 2.5 0 0 0 6 20.5V5.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+          <path d="M8.5 6.5h6M8.5 10.5h6M8.5 14.5h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+        </svg>`,
       certificates: `
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M7 4h10a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
@@ -1487,6 +1495,7 @@
       dashboard: 'Dashboard',
       curriculum: 'Curriculum',
       resources: 'Resources',
+      books: 'Books',
       community: 'Community',
       progress: 'Progress',
       announcements: 'Announcements',
@@ -1498,6 +1507,7 @@
       dashboard: 'Track workspace',
       curriculum: 'Semester learning plan',
       resources: 'Semester resource library',
+      books: 'Recommended learning books',
       community: 'Learner communication',
       progress: 'Completion tracking',
       announcements: 'Programme updates',
@@ -1516,11 +1526,12 @@
     document.querySelector('.topbar-alert-button')?.classList.toggle('topbar-alert-active', totalAlerts > 0);
   }
 
-  function renderCurrentView(user, track) {
+  async function renderCurrentView(user, track) {
     const renderers = {
       dashboard: renderDashboard,
       curriculum: renderCurriculum,
       resources: renderResources,
+      books: renderBooks,
       community: renderCommunity,
       progress: renderProgress,
       announcements: renderAnnouncements,
@@ -1530,7 +1541,8 @@
     };
 
     const renderer = renderers[state.currentView] || renderDashboard;
-    dom.appContent.innerHTML = renderer(user, track);
+    const html = await renderer(user, track);
+    dom.appContent.innerHTML = html;
 
     if (state.currentView === 'profile') bindProfileForm();
     if (state.currentView === 'community') bindCommunityComposer();
@@ -2385,6 +2397,138 @@
       </section>
     `;
   }
+
+  async function fetchBooksCatalog() {
+    if (!communitySupabase) return readBooksCatalog();
+
+    const { data, error } = await communitySupabase
+      .from(BOOKS_TABLE)
+      .select('id, title, summary, link, image_url, created_at')
+      .order('created_at', { ascending: false });
+
+    if (!error && Array.isArray(data)) {
+      const normalized = data.map(book => ({
+        id: String(book.id),
+        title: book.title || '',
+        summary: book.summary || '',
+        link: book.link || '',
+        imageUrl: book.image_url || ''
+      }));
+      persistBooksCatalog(normalized);
+      return normalized;
+    }
+
+    return readBooksCatalog();
+  }
+
+  function readBooksCatalog() {
+    try {
+      return JSON.parse(localStorage.getItem(BOOKS_KEY) || '[]');
+    } catch (error) {
+      console.warn('Failed to read books catalog', error);
+      return [];
+    }
+  }
+
+  function persistBooksCatalog(books) {
+    const dataString = JSON.stringify(Array.isArray(books) ? books : []);
+    const oldString = localStorage.getItem(BOOKS_KEY);
+    localStorage.setItem(BOOKS_KEY, dataString);
+    if (oldString !== dataString) {
+      window.dispatchEvent(new CustomEvent('rkh-books-updated'));
+    }
+  }
+
+  function refreshBooksView() {
+    try {
+      const books = readBooksCatalog();
+      const booksRoot = document.querySelector('.books-page-shell');
+      if (!booksRoot) return;
+      booksRoot.outerHTML = renderBooksHTML(books);
+    } catch (error) {
+      console.warn('Failed to refresh books view', error);
+    }
+  }
+
+  function renderBooks(user, track) {
+    const books = readBooksCatalog();
+
+    setTimeout(async () => {
+      try {
+        await fetchBooksCatalog();
+      } catch (e) {
+        console.warn('Background books catalog load failed', e);
+      }
+    }, 0);
+
+    return renderBooksHTML(books);
+  }
+
+  function renderBooksHTML(books) {
+    return `
+      <section class="dashboard-stack books-page-shell">
+        <article class="surface-card books-hero-card">
+          <div class="content-header">
+            <div>
+              <p class="section-kicker">Books</p>
+              <h2>Recommended learning books</h2>
+              <p>Browse calm, professional book cards with cover previews, direct links, and quick access to your next reading resource.</p>
+            </div>
+          </div>
+        </article>
+
+        ${books.length ? `<div class="books-grid">${books.map(book => `
+          <article class="book-card" aria-label="${escapeAttribute(book.title)} book card">
+            <div class="book-photo-link" ${book.imageUrl ? `onclick="openBookPreview('${escapeAttribute(book.imageUrl)}')" style="cursor: pointer;"` : ''} aria-label="Preview ${escapeAttribute(book.title)}">
+              ${book.imageUrl ? `<img src="${escapeAttribute(book.imageUrl)}" alt="${escapeAttribute(book.title)} cover" />` : '<span class="book-cover-placeholder">No cover image</span>'}
+              <span class="book-photo-tag">Book</span>
+              ${book.imageUrl ? `<div class="book-photo-overlay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg><span>Click to preview</span></div>` : ''}
+            </div>
+            <div class="book-card-copy">
+              <p class="book-eyebrow">Learning resource</p>
+              <h3>${escapeHtml(book.title)}</h3>
+              <p class="book-summary">${escapeHtml(book.summary || 'A practical reference made for learners who want faster progress.')}</p>
+              <div class="book-card-actions">
+                <a class="btn btn-primary btn-small btn-open-book" href="${escapeAttribute(book.link || FOUNDER_PROFILE.supportUrl)}" target="_blank" rel="noreferrer">Open Book</a>
+              </div>
+            </div>
+          </article>
+        `).join('')}</div>` : '<div class="empty-state">No books have been added yet. Ask the admin to create a book card from the admin dashboard.</div>'}
+
+        <div id="bookPreviewModal" class="book-preview-modal hidden" onclick="closeBookPreview()">
+          <button class="book-preview-close" type="button" aria-label="Close preview" onclick="event.stopPropagation(); closeBookPreview();">×</button>
+          <img id="bookPreviewImage" src="" alt="Book cover preview" />
+        </div>
+      </section>
+    `;
+  }
+
+  window.openBookPreview = function (imageUrl) {
+    if (!imageUrl) return;
+    const modal = document.getElementById('bookPreviewModal');
+    const image = document.getElementById('bookPreviewImage');
+    if (!modal || !image) return;
+    image.src = imageUrl;
+    modal.classList.remove('hidden');
+    document.body.classList.add('modal-open');
+  };
+
+  window.closeBookPreview = function () {
+    const modal = document.getElementById('bookPreviewModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    document.body.classList.remove('modal-open');
+  };
+
+  window.addEventListener('storage', event => {
+    if (event.key === 'rkh_books_catalog') {
+      refreshBooksView();
+    }
+  });
+
+  window.addEventListener('rkh-books-updated', () => {
+    refreshBooksView();
+  });
 
   function renderResources(user, track) {
     const semesterCards = track.semesters.map((semester, semesterIndex) => {

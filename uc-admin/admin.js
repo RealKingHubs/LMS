@@ -16,6 +16,7 @@
   const MONTH_OVERRIDES_TABLE = 'lms_curriculum_month_overrides';
   const WEEK_OVERRIDES_TABLE = 'lms_curriculum_week_overrides';
   const SEMESTER_RESOURCES_TABLE = 'lms_semester_resources';
+  const BOOKS_TABLE = 'lms_books';
   const ADMIN_USERS_TABLE = 'lms_admin_users';
 
   // Admin state mirrors the visible tools in /uc-admin:
@@ -42,7 +43,8 @@
     curriculumWeekId: '',
     resourceTrackId: '',
     resourceSemesterId: '',
-    semesterResourcesByKey: {}
+    semesterResourcesByKey: {},
+    books: []
   };
 
   const dom = {};
@@ -150,6 +152,14 @@
     dom.semesterResourceLinks = document.getElementById('semesterResourceLinks');
     dom.resetSemesterResourcesBtn = document.getElementById('resetSemesterResourcesBtn');
     dom.adminResourcesMessage = document.getElementById('adminResourcesMessage');
+    dom.bookForm = document.getElementById('bookForm');
+    dom.bookTitle = document.getElementById('bookTitle');
+    dom.bookLink = document.getElementById('bookLink');
+    dom.bookSummary = document.getElementById('bookSummary');
+    dom.bookImage = document.getElementById('bookImage');
+    dom.bookImagePreview = document.getElementById('bookImagePreview');
+    dom.adminBookMessage = document.getElementById('adminBookMessage');
+    dom.bookList = document.getElementById('bookList');
     dom.userForm = document.getElementById('userForm');
     dom.deleteUserBtn = document.getElementById('deleteUserBtn');
     dom.userEmail = document.getElementById('userEmail');
@@ -201,6 +211,8 @@
     dom.resetSemesterResourcesBtn.addEventListener('click', resetSemesterResources);
     dom.userForm.addEventListener('submit', saveUserProfile);
     dom.createTrackForm.addEventListener('submit', createTrackFromAdmin);
+    dom.bookForm.addEventListener('submit', handleBookSubmit);
+    dom.bookImage?.addEventListener('change', previewBookImage);
     dom.deleteUserBtn.addEventListener('click', deleteSelectedUserProfile);
 
     dom.adminSectionButtons.forEach(button => {
@@ -362,7 +374,8 @@
       fetchPublicProfiles(),
       fetchTrackSettings(),
       fetchCurriculumOverrides(),
-      fetchSemesterResources()
+      fetchSemesterResources(),
+      fetchBooks()
     ]);
     renderOverview();
     renderAnnouncements();
@@ -372,6 +385,7 @@
     renderCurriculumEditor();
     renderResourcesEditor();
     renderUsers();
+    renderBookList();
     await loadSystemLogs();
   }
 
@@ -889,6 +903,81 @@
     `).join('');
   }
 
+  async function fetchBooks() {
+    try {
+      const { data, error } = await supabaseClient
+        .from(BOOKS_TABLE)
+        .select('id, title, summary, link, image_url, created_at')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      const normalized = (data || []).map(item => ({
+        id: String(item.id),
+        title: item.title || '',
+        summary: item.summary || '',
+        link: item.link || '',
+        imageUrl: item.image_url || ''
+      }));
+
+      state.books = normalized;
+      persistBooksCatalog(normalized);
+      renderBookList();
+      return normalized;
+    } catch (error) {
+      state.books = readBooksCatalog();
+      renderBookList();
+      return state.books;
+    }
+  }
+
+  function readBooksCatalog() {
+    try {
+      return JSON.parse(localStorage.getItem('rkh_books_catalog') || '[]');
+    } catch (error) {
+      console.warn('Failed to read books catalog', error);
+      return [];
+    }
+  }
+
+  function persistBooksCatalog(books) {
+    localStorage.setItem('rkh_books_catalog', JSON.stringify(books));
+    state.books = Array.isArray(books) ? books : [];
+  }
+
+  function renderBookList() {
+    const books = state.books.length ? state.books : readBooksCatalog();
+    state.books = books;
+
+    if (!books.length) {
+      dom.bookList.innerHTML = '<div class="empty-state">No books have been created yet. Add one above to show it on the learner dashboard.</div>';
+      return;
+    }
+
+    dom.bookList.innerHTML = books.map(book => `
+      <article class="admin-list-item admin-book-item">
+        <div class="admin-list-meta">
+          <span class="pill">Book</span>
+          <small>${escapeHtml(book.title)}</small>
+        </div>
+        <div class="admin-book-card">
+          ${book.imageUrl ? `<img src="${escapeAttribute(book.imageUrl)}" alt="${escapeAttribute(book.title)} cover" />` : '<div class="book-placeholder">No cover image</div>'}
+          <div class="admin-book-copy">
+            <h3>${escapeHtml(book.title)}</h3>
+            <p>${escapeHtml(book.summary || 'A calm, practical book resource for the learners dashboard.')}</p>
+            <a class="btn btn-secondary btn-small" href="${escapeAttribute(book.link)}" target="_blank" rel="noreferrer">Open link</a>
+          </div>
+        </div>
+        <div class="admin-list-actions">
+          <small>${escapeHtml(book.link)}</small>
+          <button class="btn btn-danger btn-small" type="button" onclick="deleteAdminBook('${book.id}')">Delete book</button>
+        </div>
+      </article>
+    `).join('');
+  }
+
   function renderFeedbackList() {
     if (!state.feedbackItems.length) {
       dom.feedbackList.innerHTML = '<div class="empty-state">No learner feedback has been submitted yet.</div>';
@@ -912,6 +1001,118 @@
       </article>
     `).join('');
   }
+
+  async function handleBookSubmit(event) {
+    event.preventDefault();
+
+    const title = dom.bookTitle.value.trim();
+    const link = dom.bookLink.value.trim();
+    const summary = dom.bookSummary.value.trim();
+
+    if (!title || !link || !summary) {
+      showMessage(dom.adminBookMessage, 'Book title, description, and link are required.', 'error');
+      return;
+    }
+
+    const imageUrl = await readBookImageFile();
+
+    try {
+      const { error } = await supabaseClient
+        .from(BOOKS_TABLE)
+        .insert({
+          title,
+          summary,
+          link,
+          image_url: imageUrl || ''
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      dom.bookForm.reset();
+      dom.bookImagePreview.innerHTML = '';
+      await fetchBooks();
+      showMessage(dom.adminBookMessage, 'Book card created successfully.', 'success');
+      window.dispatchEvent(new CustomEvent('rkh-books-updated'));
+      return;
+    } catch (error) {
+      const books = readBooksCatalog();
+      books.unshift({
+        id: `book-${Date.now()}`,
+        title,
+        summary,
+        link,
+        imageUrl: imageUrl || ''
+      });
+      persistBooksCatalog(books);
+      state.books = books;
+      dom.bookForm.reset();
+      dom.bookImagePreview.innerHTML = '';
+      renderBookList();
+      showMessage(dom.adminBookMessage, 'Book card saved locally because remote sync is unavailable right now.', 'success');
+      window.dispatchEvent(new CustomEvent('rkh-books-updated'));
+    }
+  }
+
+  function previewBookImage() {
+    const file = dom.bookImage?.files?.[0];
+    if (!file) {
+      dom.bookImagePreview.innerHTML = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      dom.bookImagePreview.innerHTML = `<img src="${escapeAttribute(String(reader.result || ''))}" alt="Book cover preview" />`;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function readBookImageFile() {
+    return new Promise(resolve => {
+      const file = dom.bookImage?.files?.[0];
+      if (!file) {
+        resolve('');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+  }
+
+  window.deleteAdminBook = async function (bookId) {
+    try {
+      if (supabaseClient) {
+        const { error } = await supabaseClient
+          .from(BOOKS_TABLE)
+          .delete()
+          .eq('id', bookId);
+
+        if (error) {
+          throw error;
+        }
+      }
+
+      const books = readBooksCatalog().filter(item => item.id !== bookId);
+      persistBooksCatalog(books);
+      state.books = books;
+      renderBookList();
+      showMessage(dom.adminBookMessage, 'Book card deleted successfully.', 'success');
+      window.dispatchEvent(new CustomEvent('rkh-books-updated'));
+      return;
+    } catch (error) {
+      const books = readBooksCatalog().filter(item => item.id !== bookId);
+      persistBooksCatalog(books);
+      state.books = books;
+      renderBookList();
+      showMessage(dom.adminBookMessage, 'Book card removed from the local catalog. Remote deletion could not be completed.', 'error');
+      window.dispatchEvent(new CustomEvent('rkh-books-updated'));
+    }
+  };
 
   function renderTrackSettings() {
     const tracks = getResolvedTracks();

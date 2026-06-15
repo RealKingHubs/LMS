@@ -64,6 +64,7 @@
         <button class="admin-nav-pill" type="button" data-section="curriculum">Curriculum</button>
         <button class="admin-nav-pill" type="button" data-section="tracks">Tracks</button>
         <button class="admin-nav-pill" type="button" data-section="resources">Resources</button>
+        <button class="admin-nav-pill" type="button" data-section="books">Books</button>
         <button class="admin-nav-pill" type="button" data-section="learners">Learners</button>
       </nav>
 
@@ -355,6 +356,44 @@
               <button id="resetSemesterResourcesBtn" class="btn btn-secondary" type="button">Reset semester resources</button>
             </div>
           </form>
+        </section>
+
+        <section data-admin-section="books" class="admin-panel">
+          <article class="admin-panel compact-section-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Books</p>
+                <h2>Create and manage book cards</h2>
+                <p class="muted">Add a smart book card with a title, CTA link, and cover image for the learner dashboard.</p>
+              </div>
+            </div>
+
+            <form id="bookForm" class="admin-form compact-form-card">
+              <div class="form-columns">
+                <label>
+                  <span>Book title</span>
+                  <input id="bookTitle" type="text" placeholder="Cloud Engineering Essentials" required />
+                </label>
+                <label>
+                  <span>Button link</span>
+                  <input id="bookLink" type="url" placeholder="https://selar.com/..." required />
+                </label>
+              </div>
+              <label>
+                <span>Description</span>
+                <textarea id="bookSummary" rows="3" placeholder="Add a short description learners will see on the card." required></textarea>
+              </label>
+              <label>
+                <span>Cover image</span>
+                <input id="bookImage" type="file" accept="image/*" />
+              </label>
+              <div class="book-image-preview" id="bookImagePreview"></div>
+              <button class="btn btn-primary" type="submit">Create book card</button>
+            </form>
+
+            <div id="adminBookMessage" class="form-message hidden"></div>
+            <div id="bookList" class="admin-list"></div>
+          </article>
         </section>
 
         <section data-admin-section="learners" class="admin-panel">
