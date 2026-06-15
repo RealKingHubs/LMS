@@ -1008,15 +1008,26 @@
     const title = dom.bookTitle.value.trim();
     const link = dom.bookLink.value.trim();
     const summary = dom.bookSummary.value.trim();
+    const submitBtn = dom.bookForm.querySelector('button[type="submit"]');
 
     if (!title || !link || !summary) {
       showMessage(dom.adminBookMessage, 'Book title, description, and link are required.', 'error');
       return;
     }
 
-    const imageUrl = await readBookImageFile();
+    const originalBtnText = submitBtn ? submitBtn.textContent : 'Create book card';
+    if (submitBtn) {
+      submitBtn.textContent = 'Saving...';
+      submitBtn.disabled = true;
+    }
 
     try {
+      const imageUrl = await readBookImageFile();
+
+      if (!supabaseClient) {
+        throw new Error('Supabase client unavailable');
+      }
+
       const { error } = await supabaseClient
         .from(BOOKS_TABLE)
         .insert({
@@ -1030,28 +1041,53 @@
         throw error;
       }
 
+      if (submitBtn) {
+        submitBtn.textContent = 'Saved!';
+      }
+
+      // Add a slight delay so the user can actually read "Saved!"
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      await fetchBooks();
       dom.bookForm.reset();
       dom.bookImagePreview.innerHTML = '';
-      await fetchBooks();
       showMessage(dom.adminBookMessage, 'Book card created successfully.', 'success');
       window.dispatchEvent(new CustomEvent('rkh-books-updated'));
-      return;
+
     } catch (error) {
-      const books = readBooksCatalog();
-      books.unshift({
-        id: `book-${Date.now()}`,
+      console.warn('Remote sync failed, falling back to local storage', error);
+      
+      const imageUrl = await readBookImageFile();
+      const tempId = `book-${Date.now()}`;
+      const newBook = {
+        id: tempId,
         title,
         summary,
         link,
         imageUrl: imageUrl || ''
-      });
+      };
+      
+      const books = readBooksCatalog();
+      books.unshift(newBook);
       persistBooksCatalog(books);
       state.books = books;
+
+      if (submitBtn) {
+        submitBtn.textContent = 'Saved Locally!';
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 800));
+
       dom.bookForm.reset();
       dom.bookImagePreview.innerHTML = '';
       renderBookList();
       showMessage(dom.adminBookMessage, 'Book card saved locally because remote sync is unavailable right now.', 'success');
       window.dispatchEvent(new CustomEvent('rkh-books-updated'));
+    } finally {
+      if (submitBtn) {
+        submitBtn.textContent = originalBtnText;
+        submitBtn.disabled = false;
+      }
     }
   }
 
@@ -1086,6 +1122,17 @@
 
   window.deleteAdminBook = async function (bookId) {
     try {
+      if (String(bookId).startsWith('book-')) {
+        // It's a temporary optimistic ID, just remove it locally
+        const books = readBooksCatalog().filter(item => item.id !== bookId);
+        persistBooksCatalog(books);
+        state.books = books;
+        renderBookList();
+        showMessage(dom.adminBookMessage, 'Temporary book card deleted.', 'success');
+        window.dispatchEvent(new CustomEvent('rkh-books-updated'));
+        return;
+      }
+
       if (supabaseClient) {
         const { error } = await supabaseClient
           .from(BOOKS_TABLE)
@@ -1097,20 +1144,15 @@
         }
       }
 
-      const books = readBooksCatalog().filter(item => item.id !== bookId);
+      const books = readBooksCatalog().filter(item => String(item.id) !== String(bookId));
       persistBooksCatalog(books);
       state.books = books;
       renderBookList();
       showMessage(dom.adminBookMessage, 'Book card deleted successfully.', 'success');
       window.dispatchEvent(new CustomEvent('rkh-books-updated'));
-      return;
     } catch (error) {
-      const books = readBooksCatalog().filter(item => item.id !== bookId);
-      persistBooksCatalog(books);
-      state.books = books;
-      renderBookList();
-      showMessage(dom.adminBookMessage, 'Book card removed from the local catalog. Remote deletion could not be completed.', 'error');
-      window.dispatchEvent(new CustomEvent('rkh-books-updated'));
+      console.warn('Failed to delete book remotely', error);
+      showMessage(dom.adminBookMessage, 'Remote deletion could not be completed. Please check your connection.', 'error');
     }
   };
 
