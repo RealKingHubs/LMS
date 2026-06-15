@@ -47,6 +47,12 @@
 
   const dom = {};
   let supabaseClient = null;
+  const LOGS_ENDPOINT = `${SUPABASE_URL}/rest/v1/system_logs?select=*&order=timestamp.desc&limit=50`;
+  const LOGS_DELETE_ENDPOINT = `${SUPABASE_URL}/rest/v1/system_logs`;
+  const SUPABASE_REST_HEADERS = {
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+  };
 
   document.addEventListener('DOMContentLoaded', () => {
     void initAdmin();
@@ -90,6 +96,10 @@
     dom.adminPassword = document.getElementById('adminPassword');
     dom.adminAuthMessage = document.getElementById('adminAuthMessage');
     dom.adminOverviewCards = document.getElementById('adminOverviewCards');
+    dom.refreshLogsBtn = document.getElementById('refreshLogsBtn');
+    dom.clearLogsBtn = document.getElementById('clearLogsBtn');
+    dom.logsStatus = document.getElementById('logsStatus');
+    dom.systemLogsList = document.getElementById('systemLogsList');
     dom.announcementTrack = document.getElementById('announcementTrack');
     dom.announcementTitle = document.getElementById('announcementTitle');
     dom.announcementBody = document.getElementById('announcementBody');
@@ -173,6 +183,9 @@
     dom.deleteFilteredMessagesBtn.addEventListener('click', deleteFilteredMessages);
     dom.deleteAllMessagesBtn.addEventListener('click', deleteAllMessages);
     dom.refreshAdminDataBtn.addEventListener('click', refreshAdminData);
+    dom.refreshLogsBtn?.addEventListener('click', loadSystemLogs);
+    dom.clearLogsBtn?.addEventListener('click', clearAllLogs);
+    dom.systemLogsList?.addEventListener('click', handleSystemLogsClick);
     dom.adminLogoutBtn.addEventListener('click', logoutAdmin);
     dom.curriculumTrackSelect.addEventListener('change', handleCurriculumTrackChange);
     dom.curriculumSemesterSelect.addEventListener('change', handleCurriculumSemesterChange);
@@ -359,6 +372,150 @@
     renderCurriculumEditor();
     renderResourcesEditor();
     renderUsers();
+    await loadSystemLogs();
+  }
+
+  async function loadSystemLogs() {
+    if (!dom.logsStatus || !dom.systemLogsList) return;
+
+    dom.logsStatus.textContent = 'Loading the latest logs…';
+    dom.systemLogsList.innerHTML = '';
+
+    try {
+      const response = await fetch(LOGS_ENDPOINT, {
+        method: 'GET',
+        headers: {
+          ...SUPABASE_REST_HEADERS,
+          'Content-Type': 'application/json'
+        },
+        cache: 'no-store'
+      });
+
+      if (!response.ok) {
+        throw new Error(`Unable to load logs (${response.status})`);
+      }
+
+      const data = await response.json();
+      const records = Array.isArray(data) ? data : Array.isArray(data?.logs) ? data.logs : [];
+
+      if (!records.length) {
+        dom.logsStatus.textContent = 'No logs were returned from the logging endpoint.';
+        dom.systemLogsList.innerHTML = '<article class="empty-state">No log entries are available yet.</article>';
+        return;
+      }
+
+      dom.logsStatus.textContent = `${records.length} log entries loaded.`;
+      dom.systemLogsList.innerHTML = records.map(renderLogCard).join('');
+    } catch (error) {
+      dom.logsStatus.textContent = 'Logs are currently unavailable. Please try again shortly.';
+      dom.systemLogsList.innerHTML = `<article class="empty-state">${escapeHtml(error?.message || 'Failed to load logs')}</article>`;
+    }
+  }
+
+  function renderLogCard(entry) {
+    const type = String(entry?.type || entry?.severity || 'info').toLowerCase();
+    const severity = type.includes('error') || type.includes('crash') ? 'error' : type.includes('warn') || type.includes('slow') ? 'warning' : 'info';
+    const message = escapeHtml(String(entry?.message || entry?.error || 'No message recorded'));
+    const location = escapeHtml(String(entry?.file || entry?.source || 'Unknown script location'));
+    const line = entry?.line ? `Line ${entry.line}` : 'Line unavailable';
+    const pageUrl = escapeHtml(String(entry?.url || entry?.page || entry?.pathname || 'Unknown page'));
+    const timestamp = escapeHtml(String(entry?.timestamp || entry?.created_at || 'Unknown time'));
+    const width = entry?.viewport?.width || 0;
+    const height = entry?.viewport?.height || 0;
+    const resolution = escapeHtml(`${width} × ${height}`);
+    const deviceType = escapeHtml(String(entry?.viewport?.deviceType || entry?.deviceType || (width < 768 ? 'Mobile' : 'Desktop')));
+    const logId = escapeHtml(String(entry?.id || ''));
+
+    return `
+      <article class="log-card ${severity}" data-log-id="${logId}" aria-label="Log entry ${severity}">
+        <div class="log-card-header">
+          <span class="log-card-label">${severity.toUpperCase()} • ${escapeHtml(type)}</span>
+          <button class="btn btn-secondary delete-log-btn" type="button" data-log-id="${logId}">Delete Log</button>
+        </div>
+        <strong class="log-card-message">${message}</strong>
+        <div class="log-card-meta">${escapeHtml(timestamp)} • ${escapeHtml(line)} • ${resolution} (${deviceType})</div>
+        <div class="log-card-location">Script location: ${location}</div>
+        <div class="log-card-url">Page: ${pageUrl}</div>
+      </article>
+    `;
+  }
+
+  async function deleteLogById(logId) {
+    if (!logId) return false;
+
+    const response = await fetch(`${LOGS_DELETE_ENDPOINT}?id=eq.${encodeURIComponent(logId)}`, {
+      method: 'DELETE',
+      headers: {
+        ...LOGS_REST_HEADERS,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal'
+      }
+    });
+
+    return response.ok;
+  }
+
+  function handleSystemLogsClick(event) {
+    const target = event.target;
+    const button = target.closest('.delete-log-btn');
+    if (!button) return;
+
+    const logId = button.dataset.logId;
+    if (!logId) return;
+
+    event.preventDefault();
+    deleteLogAndHideCard(logId, button);
+  }
+
+  async function deleteLogAndHideCard(logId, button) {
+    const card = button.closest('.log-card');
+    if (card) {
+      card.style.transition = 'opacity 180ms ease, transform 180ms ease, max-height 180ms ease';
+      card.style.opacity = '0';
+      card.style.transform = 'scale(0.98) translateY(-4px)';
+      card.style.maxHeight = '0';
+      card.style.overflow = 'hidden';
+    }
+
+    const deleted = await deleteLogById(logId);
+    if (!deleted) {
+      if (card) {
+        card.style.opacity = '';
+        card.style.transform = '';
+        card.style.maxHeight = '';
+        card.style.overflow = '';
+      }
+      dom.logsStatus.textContent = 'Failed to delete the selected log. Please try again.';
+      return;
+    }
+
+    if (card) {
+      window.setTimeout(() => card.remove(), 200);
+    }
+    dom.logsStatus.textContent = 'Log deleted successfully.';
+  }
+
+  async function clearAllLogs() {
+    if (!dom.logsStatus || !dom.systemLogsList) return;
+
+    dom.logsStatus.textContent = 'Clearing all logs…';
+
+    const response = await fetch(`${LOGS_DELETE_ENDPOINT}?id=not.is.null`, {
+      method: 'DELETE',
+      headers: {
+        ...LOGS_REST_HEADERS,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal'
+      }
+    });
+
+    if (!response.ok) {
+      dom.logsStatus.textContent = 'Unable to clear logs. Try refreshing instead.';
+      return;
+    }
+
+    dom.systemLogsList.innerHTML = '<article class="empty-state">All logs have been cleared.</article>';
+    dom.logsStatus.textContent = 'All log records were cleared.';
   }
 
   async function fetchMessages() {

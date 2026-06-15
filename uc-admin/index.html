@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="admin.css" />
+  <script defer src="../Page-Js/performance-logger.js"></script>
 </head>
 <body>
   <div class="admin-shell">
@@ -75,6 +76,22 @@
             </div>
           </div>
           <div id="adminOverviewCards" class="overview-grid"></div>
+
+          <section id="system-logs-monitor" class="logs-monitor-panel admin-panel compact-monitor-panel">
+            <div class="panel-header compact-log-header">
+              <div>
+                <p class="eyebrow">System logs</p>
+                <h3>Telemetry management</h3>
+                <p class="muted">This section loads the latest 50 crash and performance log entries from Supabase. Use the buttons to refresh or delete records safely.</p>
+              </div>
+              <div class="logs-toolbar">
+                <button id="refreshLogsBtn" class="btn btn-secondary" type="button">↻ Refresh Logs</button>
+                <button id="clearLogsBtn" class="btn btn-danger" type="button">🗑️ Clear All Logs</button>
+              </div>
+            </div>
+            <div id="logsStatus" class="logs-status">Waiting for log refresh.</div>
+            <div id="systemLogsList" class="logs-grid" aria-live="polite"></div>
+          </section>
         </section>
 
         <section data-admin-section="announcements" class="admin-grid">

@@ -160,6 +160,49 @@ to authenticated
 using (public.is_lms_admin());
 
 -- ---------------------------------------------------------------------------
+-- System logs
+-- This table stores frontend crash and performance telemetry from the browser.
+-- The admin dashboard reads and deletes log entries through Supabase REST.
+-- ---------------------------------------------------------------------------
+create table if not exists public.system_logs (
+  id bigint generated always as identity primary key,
+  type text not null default 'info',
+  severity text not null default 'info',
+  timestamp timestamptz not null default now(),
+  url text not null default '',
+  screen_resolution text not null default '',
+  user_agent text not null default '',
+  message text not null default '',
+  file text not null default '',
+  line integer not null default 0
+);
+
+create index if not exists system_logs_timestamp_idx
+  on public.system_logs (timestamp desc);
+
+alter table public.system_logs enable row level security;
+
+drop policy if exists "System logs public insert" on public.system_logs;
+create policy "System logs public insert"
+on public.system_logs for insert
+to anon, authenticated
+with check (
+  coalesce(message, '') <> ''
+);
+
+drop policy if exists "System logs admin read" on public.system_logs;
+create policy "System logs admin read"
+on public.system_logs for select
+to authenticated
+using (public.is_lms_admin());
+
+drop policy if exists "System logs admin delete" on public.system_logs;
+create policy "System logs admin delete"
+on public.system_logs for delete
+to authenticated
+using (public.is_lms_admin());
+
+-- ---------------------------------------------------------------------------
 -- Announcements
 -- Learners can read programme announcements. Only admins can publish or remove
 -- them from the shared backend.

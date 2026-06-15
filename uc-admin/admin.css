@@ -215,7 +215,8 @@ a {
 .admin-list,
 .overview-grid,
 .admin-main,
-.admin-grid {
+.admin-grid,
+.logs-grid {
   display: grid;
   gap: 14px;
 }
@@ -529,6 +530,150 @@ a {
   border-radius: var(--radius-lg);
   color: var(--muted);
   text-align: center;
+}
+
+.logs-monitor-panel {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid rgba(129, 140, 248, 0.18);
+  background: linear-gradient(180deg, rgba(8, 15, 28, 0.96), rgba(15, 23, 42, 0.98));
+}
+
+.compact-monitor-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.compact-log-header {
+  align-items: center;
+  gap: 16px;
+}
+
+.logs-toolbar {
+  display: grid;
+  gap: 10px;
+  grid-auto-flow: column;
+  justify-content: end;
+}
+
+.logs-status {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.logs-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.log-card-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, rgba(248, 113, 113, 0.18), rgba(135, 23, 23, 0.18));
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #fee2e2;
+}
+
+.btn-danger:hover {
+  background: rgba(248, 113, 113, 0.22);
+}
+
+.log-card {
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: rgba(8, 15, 28, 0.88);
+  box-shadow: var(--shadow-sm);
+  display: grid;
+  gap: 8px;
+}
+
+.log-card.error {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: linear-gradient(180deg, rgba(127, 29, 29, 0.18), rgba(8, 15, 28, 0.95));
+}
+
+.log-card.warning {
+  border-color: rgba(250, 204, 21, 0.45);
+  background: linear-gradient(180deg, rgba(120, 53, 15, 0.2), rgba(8, 15, 28, 0.95));
+}
+
+.log-card.info {
+  border-color: rgba(125, 211, 252, 0.35);
+  background: linear-gradient(180deg, rgba(8, 47, 73, 0.2), rgba(8, 15, 28, 0.95));
+}
+
+.log-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.delete-log-btn {
+  white-space: nowrap;
+}
+
+.log-card-label,
+.log-card-meta,
+.log-card-message,
+.log-card-location,
+.log-card-url,
+.log-card-actions {
+  color: var(--text);
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+.log-card-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.log-card-meta {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.log-card-message {
+  color: var(--ink-900);
+  font-weight: 700;
+}
+
+.log-card-location,
+.log-card-url {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 1080px) {
+  .logs-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .compact-log-header {
+    align-items: stretch;
+  }
+
+  .logs-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  #refreshLogsBtn,
+  #clearLogsBtn {
+    width: 100%;
+  }
 }
 
 .curriculum-toolbar,
