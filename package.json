@@ -4,7 +4,7 @@
   "description": "RealKingHubs LMS",
   "main": "index.html",
   "scripts": {
-    "test": "node --test tests/**/*.test.js",
+    "test": "node --test tests/*.test.js",
     "syntax-check": "node --check Page-Js/data.js Page-Js/app.js Page-Js/animations.js Page-Js/performance-logger.js Page-Js/lms-search.js uc-admin/admin.js",
     "lint": "eslint Page-Js/*.js uc-admin/*.js"
   },
