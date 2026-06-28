@@ -764,8 +764,27 @@
 
   function getResolvedTrack(trackId) {
     const settings = state.trackSettingsById[trackId] || {};
-    const baseTrack = window.RKH_DATA.tracks[trackId] || buildFallbackTrack(trackId, settings);
+
+    // Determine the effective semester count: prefer the admin-set value, otherwise
+    // fall back to however many semesters the base track already has.
+    const effectiveSemesterCount = Number.isFinite(settings.semesterCount) ? settings.semesterCount : null;
+
+    // Resolve the base track. For custom (admin-created) tracks there is no entry in
+    // RKH_DATA so we build a fallback. For predefined tracks we check whether the
+    // admin has changed the semester count; if so we rebuild the semesters array to
+    // match instead of using the hardcoded 3-semester structure from data.js.
+    let baseTrack = window.RKH_DATA.tracks[trackId] || null;
+    if (baseTrack && effectiveSemesterCount !== null && baseTrack.semesters.length !== effectiveSemesterCount) {
+      baseTrack = {
+        ...baseTrack,
+        semesters: buildFallbackTrack(trackId, { semesterCount: effectiveSemesterCount }).semesters
+      };
+    } else if (!baseTrack) {
+      baseTrack = buildFallbackTrack(trackId, settings);
+    }
+
     if (!baseTrack) return null;
+
     return {
       ...baseTrack,
       label: settings.label || baseTrack.label,
@@ -773,7 +792,7 @@
       outcomes: Array.isArray(settings.outcomes) && settings.outcomes.length ? settings.outcomes : baseTrack.outcomes,
       isEnabled: settings.isEnabled !== false,
       sortOrder: Number.isFinite(settings.sortOrder) ? settings.sortOrder : 0,
-      semesterCount: Number.isFinite(settings.semesterCount) ? settings.semesterCount : (baseTrack.semesters?.length || 3),
+      semesterCount: effectiveSemesterCount ?? (baseTrack.semesters?.length || 3),
       semesters: baseTrack.semesters.map(semester => ({
         ...semester,
         months: semester.months.map(month => {
