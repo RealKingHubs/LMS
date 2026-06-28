@@ -11,12 +11,14 @@
   - [admin.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/admin.js)
   - [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js)
   - [supabase-community-messages.sql](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Database/supabase-community-messages.sql)
-  - [about-site.md](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Guide-MD/about-site.md)
-  - [changes.md](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Guide-MD/changes.md)
-- **Features Implemented:**
-  - dynamic semester generation in track fallbacks (1 to 6 semesters)
-  - "Total semesters" number inputs on both track creation and existing track settings
-  - SQL migration schema updates for `lms_track_settings.semester_count`
+- **Bug Found and Fixed (same session):**
+  - `getResolvedTrack` in both `admin.js` and `app.js` was always using the hardcoded `baseTrack.semesters` array even when `semesterCount` in the database was set to a different value
+  - fixed by checking if `settings.semesterCount` differs from `baseTrack.semesters.length` and, when it does, calling `buildFallbackTrack` to rebuild the correct number of semesters before applying curriculum overrides
+- **Action Required (database):**
+  ```sql
+  ALTER TABLE lms_track_settings
+    ADD COLUMN IF NOT EXISTS semester_count INTEGER NOT NULL DEFAULT 3;
+  ```
 
 #### 2. **Automated Testing & CI/CD Setup** ✅
 

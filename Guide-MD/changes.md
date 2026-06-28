@@ -5,6 +5,25 @@ Whenever a new feature, fix, refactor, or backend update is added, append a new 
 
 ## 2026-06-28
 
+### Fix: Semester Count Not Applied to Track Structure
+
+What changed:
+
+- updated [admin.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/admin.js) — fixed `getResolvedTrack` to rebuild the semesters array when `semesterCount` from admin settings differs from the base track's hardcoded count
+- updated [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js) — same fix applied on the learner side
+
+Why it changed:
+
+- `getResolvedTrack` was always using `baseTrack.semesters` (the hardcoded array from `data.js`) even when the admin had set a different `semesterCount` in the database
+- this meant changing the "Total semesters" input saved the value but the track structure never reflected it
+- the fix checks if `settings.semesterCount` differs from the base track's actual semester count and, when it does, calls `buildFallbackTrack` to generate the correct number of semesters before applying overrides
+
+> **Action required**: Run this SQL in your Supabase console if you have not already:
+> ```sql
+> ALTER TABLE lms_track_settings
+>   ADD COLUMN IF NOT EXISTS semester_count INTEGER NOT NULL DEFAULT 3;
+> ```
+
 ### Fix: GitHub Actions Test Glob Pattern
 
 What changed:
