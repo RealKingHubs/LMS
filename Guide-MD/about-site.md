@@ -34,6 +34,8 @@ Root folder:
 - [Guide-MD](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Guide-MD)
 - [uc-admin](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin)
 - [install-as-app](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/install-as-app)
+- [tests](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/tests)
+- [package.json](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/package.json)
 
 Folder purpose:
 
@@ -282,6 +284,26 @@ Important install note:
 
 - When install files live in a subfolder, the manifest and worker paths must use root-aware URLs.
 - If the worker only runs from the subfolder, it will not control `/index.html`, and browsers may refuse to install the LMS.
+
+### 9. Automated Testing and CI/CD
+
+Files:
+
+- [package.json](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/package.json)
+- [tests/lms.test.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/tests/lms.test.js)
+- [.github/workflows/test.yml](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/.github/workflows/test.yml)
+
+What they do:
+
+- `package.json` manages dependencies (like `jsdom`) and defines npm scripts for syntax checks and running tests.
+- `tests/lms.test.js` contains JSDOM-based tests that validate the structure of `index.html` and `uc-admin/index.html`, and verify that `Page-Js/data.js` loads and populates the `RKH_DATA` object correctly.
+- `test.yml` defines the GitHub Actions workflow that automatically runs syntax checks and JSDOM tests on every push and pull request to the `main` branch.
+
+How to run tests locally:
+
+1. Run `npm install` to install dependencies.
+2. Run `npm run syntax-check` to verify JavaScript files are free of syntax errors.
+3. Run `npm test` to execute the JSDOM test suite.
 
 ## Step-By-Step: How The LMS Was Built
 

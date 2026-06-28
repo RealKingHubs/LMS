@@ -461,7 +461,7 @@
     const response = await fetch(`${LOGS_DELETE_ENDPOINT}?id=eq.${encodeURIComponent(logId)}`, {
       method: 'DELETE',
       headers: {
-        ...LOGS_REST_HEADERS,
+        ...SUPABASE_REST_HEADERS,
         'Content-Type': 'application/json',
         Prefer: 'return=minimal'
       }
@@ -518,7 +518,7 @@
     const response = await fetch(`${LOGS_DELETE_ENDPOINT}?id=not.is.null`, {
       method: 'DELETE',
       headers: {
-        ...LOGS_REST_HEADERS,
+        ...SUPABASE_REST_HEADERS,
         'Content-Type': 'application/json',
         Prefer: 'return=minimal'
       }

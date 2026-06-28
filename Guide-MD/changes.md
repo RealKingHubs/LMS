@@ -5,6 +5,22 @@ Whenever a new feature, fix, refactor, or backend update is added, append a new 
 
 ## 2026-06-28
 
+### Automated Testing & CI/CD Setup
+
+What changed:
+
+- created [package.json](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/package.json) to configure dependencies and npm scripts
+- created [tests/lms.test.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/tests/lms.test.js) containing JSDOM-based HTML and data layer unit tests
+- created [.github/workflows/test.yml](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/.github/workflows/test.yml) to configure the GitHub Actions workflow
+- created [.eslintrc.json](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/.eslintrc.json) to configure ESLint code quality rules
+- updated [admin.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/admin.js) to fix an undefined reference bug (`LOGS_REST_HEADERS` -> `SUPABASE_REST_HEADERS`) discovered by the linter
+- updated [about-site.md](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Guide-MD/about-site.md) to document the new testing and CI/CD architecture
+
+Why it changed:
+
+- to prevent regressions and verify that HTML and JS files load and execute correctly before changes are pushed to production
+- to automate syntax checks, code quality linting, and testing on every GitHub push and pull request
+
 ### Customizable Track Semester Count
 
 What changed:

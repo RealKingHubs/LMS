@@ -1,0 +1,23 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "node": true
+  },
+  "extends": "eslint:recommended",
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "script"
+  },
+  "globals": {
+    "supabase": "readonly",
+    "RKH_DATA": "readonly"
+  },
+  "rules": {
+    "no-unused-vars": ["warn", { "vars": "all", "args": "none" }],
+    "no-undef": "error",
+    "no-console": "off",
+    "no-constant-condition": "warn",
+    "no-empty": "warn"
+  }
+}
