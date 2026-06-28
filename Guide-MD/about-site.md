@@ -113,7 +113,7 @@ How curriculum data is built:
 
 1. Track-specific video libraries are defined first.
 2. Curriculum builders generate learning months and hands-on lab months.
-3. Each track is created with 3 semesters.
+3. Predefined tracks are created with 3 semesters. Custom tracks can specify a custom number of semesters (defaulting to 3, but configurable via the `semester_count` field in `lms_track_settings`).
 4. Each semester contains 4 months.
 5. Each month contains weekly items.
 

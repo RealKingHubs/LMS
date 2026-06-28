@@ -615,6 +615,41 @@
   }
 
   function buildFallbackTrack(trackId, trackSettings = {}) {
+    const semesters = [];
+    const totalSemesters = Number(trackSettings.semesterCount || 3);
+    for (let s = 1; s <= totalSemesters; s++) {
+      const months = [];
+      for (let m = 1; m <= 4; m++) {
+        const weeks = [];
+        for (let w = 1; w <= 4; w++) {
+          weeks.push({
+            id: `${trackId}-s${s}-m${m}-w${w}`,
+            title: `Week ${w}: Lesson content`,
+            objective: `Study the core concepts for week ${w} and complete the guided practice.`,
+            type: m === 4 ? 'lab' : 'learning',
+            videoUrl: '',
+            videoUrls: [],
+            resources: [],
+            resourceItems: []
+          });
+        }
+        months.push({
+          id: `${trackId}-semester-${s}-month-${m}`,
+          label: `Month ${m}`,
+          title: m === 4 ? 'Hands-on Lab' : `Topic block ${m}`,
+          summary: m === 4 ? 'A practical lab month focused on guided build work, testing, and final showcase delivery.' : `Curriculum block for Month ${m}.`,
+          phase: m === 4 ? 'Hands-on Lab' : 'Learning',
+          weeks
+        });
+      }
+      semesters.push({
+        id: `${trackId}-semester-${s}`,
+        label: `Semester ${s}`,
+        title: s === 1 ? 'Core Foundations' : s === 2 ? 'Advanced Delivery' : 'Production Integration',
+        months
+      });
+    }
+
     return {
       id: trackId,
       label: trackSettings.label || 'Custom track',
@@ -625,34 +660,7 @@
       liveClasses: [],
       announcements: [],
       assessments: [],
-      semesters: [
-        {
-          id: `${trackId}-semester-1`,
-          label: 'Semester 1',
-          title: 'Foundation pathway',
-          months: [
-            {
-              id: `${trackId}-month-1`,
-              label: 'Month 1',
-              title: 'Foundation',
-              summary: 'Starter structure for the new track.',
-              phase: 'Foundation',
-              weeks: [
-                {
-                  id: `${trackId}-week-1`,
-                  title: 'Welcome and orientation',
-                  objective: 'Set up the new track for learners and administrators.',
-                  type: 'learning',
-                  videoUrl: '',
-                  videoUrls: [],
-                  resources: [],
-                  resourceItems: []
-                }
-              ]
-            }
-          ]
-        }
-      ]
+      semesters
     };
   }
 
@@ -677,6 +685,7 @@
       outcomes: resolvedOutcomes,
       isEnabled: trackSettings.isEnabled !== false,
       sortOrder: Number.isFinite(trackSettings.sortOrder) ? trackSettings.sortOrder : 0,
+      semesterCount: Number.isFinite(trackSettings.semesterCount) ? trackSettings.semesterCount : (baseTrack.semesters?.length || 3),
       semesters: baseTrack.semesters.map(semester => ({
         ...semester,
         months: semester.months.map(month => {
@@ -939,7 +948,7 @@
 
     const { data, error } = await communitySupabase
       .from(TRACK_SETTINGS_TABLE)
-      .select('id, label, summary, outcomes, is_enabled, sort_order')
+      .select('id, label, summary, outcomes, is_enabled, sort_order, semester_count')
       .order('sort_order', { ascending: true });
 
     if (error) {
@@ -954,7 +963,8 @@
         summary: item.summary || '',
         outcomes: Array.isArray(item.outcomes) ? item.outcomes : [],
         isEnabled: item.is_enabled !== false,
-        sortOrder: Number(item.sort_order || 0)
+        sortOrder: Number(item.sort_order || 0),
+        semesterCount: Number(item.semester_count || 3)
       }
     ]));
 

@@ -298,9 +298,12 @@ create table if not exists public.lms_track_settings (
   outcomes jsonb not null default '[]'::jsonb,
   is_enabled boolean not null default true,
   sort_order integer not null default 0,
+  semester_count integer not null default 3,
   updated_by text not null default '',
   updated_at timestamptz not null default now()
 );
+
+alter table public.lms_track_settings add column if not exists semester_count integer not null default 3;
 
 insert into public.lms_track_settings (id, label, summary, outcomes, is_enabled, sort_order)
 values

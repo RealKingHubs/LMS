@@ -143,6 +143,7 @@
     dom.newTrackSummary = document.getElementById('newTrackSummary');
     dom.newTrackOutcomes = document.getElementById('newTrackOutcomes');
     dom.newTrackSort = document.getElementById('newTrackSort');
+    dom.newTrackSemesters = document.getElementById('newTrackSemesters');
     dom.newTrackEnabled = document.getElementById('newTrackEnabled');
     dom.userTrackFilter = document.getElementById('userTrackFilter');
     dom.userList = document.getElementById('userList');
@@ -625,7 +626,7 @@
   async function fetchTrackSettings() {
     const { data, error } = await supabaseClient
       .from(TRACK_SETTINGS_TABLE)
-      .select('id, label, summary, outcomes, is_enabled, sort_order')
+      .select('id, label, summary, outcomes, is_enabled, sort_order, semester_count')
       .order('sort_order', { ascending: true });
 
     if (error) {
@@ -640,7 +641,8 @@
         summary: item.summary || '',
         outcomes: Array.isArray(item.outcomes) ? item.outcomes : [],
         isEnabled: item.is_enabled !== false,
-        sortOrder: Number(item.sort_order || 0)
+        sortOrder: Number(item.sort_order || 0),
+        semesterCount: Number(item.semester_count || 3)
       }
     ]));
 
@@ -771,6 +773,7 @@
       outcomes: Array.isArray(settings.outcomes) && settings.outcomes.length ? settings.outcomes : baseTrack.outcomes,
       isEnabled: settings.isEnabled !== false,
       sortOrder: Number.isFinite(settings.sortOrder) ? settings.sortOrder : 0,
+      semesterCount: Number.isFinite(settings.semesterCount) ? settings.semesterCount : (baseTrack.semesters?.length || 3),
       semesters: baseTrack.semesters.map(semester => ({
         ...semester,
         months: semester.months.map(month => {
@@ -1184,6 +1187,10 @@
               <label>
                 <span>Sort order</span>
                 <input id="track-sort-${track.id}" type="number" value="${escapeAttribute(String(track.sortOrder || 0))}" />
+              </label>
+              <label>
+                <span>Total semesters</span>
+                <input id="track-semesters-${track.id}" type="number" value="${escapeAttribute(String(track.semesterCount || 3))}" min="1" max="6" />
               </label>
               <label>
                 <span>Status</span>
@@ -1620,6 +1627,7 @@
 
     const isEnabled = dom.newTrackEnabled.value !== 'false';
     const sortOrder = Number(dom.newTrackSort.value || 0);
+    const semesterCount = Number(dom.newTrackSemesters.value || 3);
 
     const { error } = await supabaseClient.from(TRACK_SETTINGS_TABLE).upsert({
       id: trackId,
@@ -1628,6 +1636,7 @@
       outcomes,
       is_enabled: isEnabled,
       sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
+      semester_count: Number.isFinite(semesterCount) ? semesterCount : 3,
       updated_by: state.adminEmail
     }, { onConflict: 'id' });
 
@@ -1637,11 +1646,12 @@
     }
 
     if (!window.RKH_DATA.tracks[trackId]) {
-      window.RKH_DATA.tracks[trackId] = buildFallbackTrack(trackId, { label, summary, outcomes });
+      window.RKH_DATA.tracks[trackId] = buildFallbackTrack(trackId, { label, summary, outcomes, semesterCount });
     }
 
     dom.createTrackForm.reset();
     dom.newTrackSort.value = '10';
+    dom.newTrackSemesters.value = '3';
     dom.newTrackEnabled.value = 'true';
     localStorage.setItem('rkh-track-refresh', String(Date.now()));
     showMessage(dom.adminTrackMessage, 'Track created successfully.', 'success');
@@ -1652,6 +1662,41 @@
   }
 
   function buildFallbackTrack(trackId, settings = {}) {
+    const semesters = [];
+    const totalSemesters = Number(settings.semesterCount || 3);
+    for (let s = 1; s <= totalSemesters; s++) {
+      const months = [];
+      for (let m = 1; m <= 4; m++) {
+        const weeks = [];
+        for (let w = 1; w <= 4; w++) {
+          weeks.push({
+            id: `${trackId}-s${s}-m${m}-w${w}`,
+            title: `Week ${w}: Lesson content`,
+            objective: `Study the core concepts for week ${w} and complete the guided practice.`,
+            type: m === 4 ? 'lab' : 'learning',
+            videoUrl: '',
+            videoUrls: [],
+            resources: [],
+            resourceItems: []
+          });
+        }
+        months.push({
+          id: `${trackId}-semester-${s}-month-${m}`,
+          label: `Month ${m}`,
+          title: m === 4 ? 'Hands-on Lab' : `Topic block ${m}`,
+          summary: m === 4 ? 'A practical lab month focused on guided build work, testing, and final showcase delivery.' : `Curriculum block for Month ${m}.`,
+          phase: m === 4 ? 'Hands-on Lab' : 'Learning',
+          weeks
+        });
+      }
+      semesters.push({
+        id: `${trackId}-semester-${s}`,
+        label: `Semester ${s}`,
+        title: s === 1 ? 'Core Foundations' : s === 2 ? 'Advanced Delivery' : 'Production Integration',
+        months
+      });
+    }
+
     return {
       id: trackId,
       label: settings.label || 'New track',
@@ -1660,34 +1705,7 @@
       liveClasses: [],
       announcements: [],
       assessments: [],
-      semesters: [
-        {
-          id: `${trackId}-semester-1`,
-          label: 'Semester 1',
-          title: 'Foundation pathway',
-          months: [
-            {
-              id: `${trackId}-month-1`,
-              label: 'Month 1',
-              title: 'Foundation',
-              summary: 'Starter structure for the new track.',
-              phase: 'Foundation',
-              weeks: [
-                {
-                  id: `${trackId}-week-1`,
-                  title: 'Welcome and orientation',
-                  objective: 'Set up the new track for learners and administrators.',
-                  type: 'learning',
-                  videoUrl: '',
-                  videoUrls: [],
-                  resources: [],
-                  resourceItems: []
-                }
-              ]
-            }
-          ]
-        }
-      ]
+      semesters
     };
   }
 
@@ -1702,6 +1720,7 @@
       .map(item => item.trim())
       .filter(Boolean);
     const sortOrder = Number(document.getElementById(`track-sort-${trackId}`)?.value || 0);
+    const semesterCount = Number(document.getElementById(`track-semesters-${trackId}`)?.value || 3);
     const isEnabled = document.getElementById(`track-enabled-${trackId}`)?.value !== 'false';
 
     const { error } = await supabaseClient.from(TRACK_SETTINGS_TABLE).upsert({
@@ -1711,6 +1730,7 @@
       outcomes,
       is_enabled: isEnabled,
       sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
+      semester_count: Number.isFinite(semesterCount) ? semesterCount : 3,
       updated_by: state.adminEmail
     }, { onConflict: 'id' });
 

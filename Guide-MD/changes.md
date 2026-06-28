@@ -3,6 +3,23 @@
 This file records what changed in the LMS and why it changed.
 Whenever a new feature, fix, refactor, or backend update is added, append a new dated entry here.
 
+## 2026-06-28
+
+### Customizable Track Semester Count
+
+What changed:
+
+- updated [index.html](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/index.html) to add a "Total semesters" input field in the track creation form
+- updated [admin.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/admin.js) to fetch, render, save, and dynamically generate track structures based on `semester_count`
+- updated [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js) to fetch and dynamically build the correct number of semesters on the learner side
+- updated [supabase-community-messages.sql](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Database/supabase-community-messages.sql) with the new `semester_count` column and SQL migration helper
+- updated [about-site.md](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Guide-MD/about-site.md) to document customizable semesters for custom tracks
+
+Why it changed:
+
+- newly added tracks were previously locked to a hardcoded 1-semester/1-month/1-week structure.
+- admins need to be able to create custom tracks of varying lengths (e.g. 2 semesters) directly from the dashboard.
+
 ## 2026-06-10
 
 ### Landing and dashboard visual refresh
