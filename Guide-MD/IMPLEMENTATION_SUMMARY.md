@@ -7,6 +7,7 @@
 #### 1. **Customizable Track Semester Count** ✅
 
 - **Files Updated:**
+  - [index.html](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/index.html)
   - [index.html](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/index.html)
   - [admin.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/admin.js)
   - [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js)
@@ -14,6 +15,8 @@
 - **Bug Found and Fixed (same session):**
   - `getResolvedTrack` in both `admin.js` and `app.js` was always using the hardcoded `baseTrack.semesters` array even when `semesterCount` in the database was set to a different value
   - fixed by checking if `settings.semesterCount` differs from `baseTrack.semesters.length` and, when it does, calling `buildFallbackTrack` to rebuild the correct number of semesters before applying curriculum overrides
+- **Cache-Busting Added:**
+  - Added query version variables (`?v=1.0.2`) on internal JS script files in both `index.html` and `uc-admin/index.html` to prevent browsers from loading stale cached JS files
 - **Action Required (database):**
   ```sql
   ALTER TABLE lms_track_settings

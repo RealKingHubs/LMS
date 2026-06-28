@@ -5,6 +5,19 @@ Whenever a new feature, fix, refactor, or backend update is added, append a new 
 
 ## 2026-06-28
 
+### Fix: Script Cache-Busting for Local & Production Deployment
+
+What changed:
+
+- updated [index.html](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/index.html) — added `?v=1.0.2` version query parameters to all internal script imports (`data.js`, `app.js`, `lms-search.js`, `animations.js`)
+- updated [index.html](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/index.html) — added `?v=1.0.2` version query parameters to `data.js` and `admin.js` imports
+
+Why it changed:
+
+- browsers aggressively cache static JavaScript files on static servers and localhost
+- even after making major functional updates to `app.js` and `admin.js` (such as the dynamic semester count rendering), the browser would continue running the cached old version of `admin.js` (which lacked the "Total semesters" settings list field and update handlers)
+- appending version numbers forces the browser to discard cached assets and load the updated logic immediately
+
 ### Fix: Semester Count Not Applied to Track Structure
 
 What changed:
