@@ -4,7 +4,30 @@
 
 ### Completed Tasks
 
-#### 1. **Customizable Track Semester Count** ✅
+#### 1. **Admin Video Link Sync Fix** âœ…
+
+- **Files Updated:**
+  - [admin.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/admin.js)
+  - [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js)
+  - [service-worker.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/install-as-app/service-worker.js)
+- **Problem Fixed:**
+  - newly saved admin video links could render as blocked iframes, and the admin editor could repopulate the field with the base/default video instead of the saved override
+- **What Changed:**
+  - admin keeps pasted video links in the editor, while learner playback normalizes YouTube watch, short, embed, Shorts, and Live URLs to `youtube-nocookie.com/embed/...`
+  - Vimeo links continue to normalize to player URLs
+  - remote curriculum override arrays are parsed safely from JSON arrays or array-like strings
+  - PWA cache version was bumped so cached JavaScript refreshes
+
+### Verification
+
+- `node --check Page-Js/app.js`
+- `node --check uc-admin/admin.js`
+- `node --check install-as-app/service-worker.js`
+## Date: June 28, 2026
+
+### Completed Tasks
+
+#### 1. **Customizable Track Semester Count** Ã¢Å“â€¦
 
 - **Files Updated:**
   - [index.html](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/index.html)
@@ -15,6 +38,9 @@
 - **Bug Found and Fixed (same session):**
   - `getResolvedTrack` in both `admin.js` and `app.js` was always using the hardcoded `baseTrack.semesters` array even when `semesterCount` in the database was set to a different value
   - fixed by checking if `settings.semesterCount` differs from `baseTrack.semesters.length` and, when it does, calling `buildFallbackTrack` to rebuild the correct number of semesters before applying curriculum overrides
+- **Video Link Formatting & Real-Time Sync:**
+  - Added conversion rules to clean up standard YouTube/Vimeo URLs to embed URLs.
+  - Configured JSON-signature change detection on the learner polling system so updates (e.g. video links) trigger a DOM re-render immediately.
 - **Cache-Busting Added:**
   - Added query version variables (`?v=1.0.2`) on internal JS script files in both `index.html` and `uc-admin/index.html` to prevent browsers from loading stale cached JS files
 - **Action Required (database):**
@@ -23,7 +49,7 @@
     ADD COLUMN IF NOT EXISTS semester_count INTEGER NOT NULL DEFAULT 3;
   ```
 
-#### 2. **Automated Testing & CI/CD Setup** ✅
+#### 2. **Automated Testing & CI/CD Setup** Ã¢Å“â€¦
 
 - **Files Added:**
   - [package.json](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/package.json)
@@ -41,7 +67,7 @@
   - fixed an undefined variable bug (`LOGS_REST_HEADERS` -> `SUPABASE_REST_HEADERS`) in `admin.js` identified by the linter
   - GitHub Actions workflow to run syntax, quality, and unit tests on every push/pull request to `main`
 
-#### 3. **Fix: GitHub Actions Test Glob Pattern** ✅
+#### 3. **Fix: GitHub Actions Test Glob Pattern** Ã¢Å“â€¦
 
 - **Files Updated:**
   - [package.json](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/package.json)
@@ -49,7 +75,7 @@
   - CI pipeline was failing with `Could not find 'tests/**/*.test.js'` on the Linux Ubuntu runner
   - `/bin/sh` on Linux does not expand `**` globs by default (`globstar` is disabled), so the literal string was passed to Node
 - **Fix Applied:**
-  - changed test glob from `tests/**/*.test.js` → `tests/*.test.js`
+  - changed test glob from `tests/**/*.test.js` Ã¢â€ â€™ `tests/*.test.js`
   - single `*` is expanded correctly by all shells on both Windows and Linux
 
 ### Verification
@@ -65,7 +91,7 @@
 
 ### Completed Tasks
 
-#### 1. **Landing and Dashboard Visual Refresh** ✅
+#### 1. **Landing and Dashboard Visual Refresh** Ã¢Å“â€¦
 
 - **Files Updated:**
   - [index.html](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/index.html)
@@ -90,7 +116,7 @@
 
 ### Completed Tasks
 
-#### 1. **Assessments Page** ✅
+#### 1. **Assessments Page** Ã¢Å“â€¦
 
 - **Features Implemented:**
   - Assessment Cards with status badges (Pending, Submitted, Graded)
@@ -101,7 +127,7 @@
 - **Content:** 4 sample assessments + 4 practice quizzes
 - **Page Title:** Clean "Assessments" (emoji removed)
 
-#### 2. **Progress Page** ✅
+#### 2. **Progress Page** Ã¢Å“â€¦
 
 - **Features Implemented:**
   - Overall Progress Metrics (completion %, weeks completed, skills learned, certificates earned)
@@ -113,7 +139,7 @@
   - Semester status tracking (Completed, In Progress, Upcoming)
 - **Page Title:** Clean "My Progress" (emoji removed)
 
-#### 3. **Community Page** ✅
+#### 3. **Community Page** Ã¢Å“â€¦
 
 - **Features Implemented:**
   - Tabbed Interface (Discussions, Messages, Study Groups)
@@ -132,7 +158,7 @@
 - **Page Title:** Clean "Community" (emoji removed)
 - **Total Groups:** 3 sample study groups
 
-#### 4. **Live Sessions Page** ✅
+#### 4. **Live Sessions Page** Ã¢Å“â€¦
 
 - **Features Implemented:**
   - Upcoming Sessions with:
@@ -148,7 +174,7 @@
 - **Page Title:** Clean "Live Sessions" (emoji removed)
 - **Content:** 3 upcoming sessions + 4 recorded sessions
 
-#### 5. **Mentorship Page** ✅
+#### 5. **Mentorship Page** Ã¢Å“â€¦
 
 - **Features Implemented:**
   - Mentorship Statistics (Active Mentors, Sessions Completed, Satisfaction Rate)
@@ -164,7 +190,7 @@
 - **Page Title:** Clean "Mentorship" (emoji removed)
 - **Total Mentors:** 3 available mentors
 
-#### 6. **Certificates Page** ✅
+#### 6. **Certificates Page** Ã¢Å“â€¦
 
 - **Features Implemented:**
   - Certificate Statistics (Earned, In Progress, Available)
@@ -184,12 +210,12 @@
 
 #### Removed Emojis from Page Headers
 
-- Assessments: "📝 Assessments" → "Assessments"
-- Progress: "📊 My Progress" → "My Progress"
-- Community: "💬 Community" → "Community"
-- Live Sessions: "📅 Live Sessions" → "Live Sessions"
-- Mentorship: "🧑‍🏫 Mentorship" → "Mentorship"
-- Certificates: "🏆 Certificates" → "Certificates"
+- Assessments: "Ã°Å¸â€œÂ Assessments" Ã¢â€ â€™ "Assessments"
+- Progress: "Ã°Å¸â€œÅ  My Progress" Ã¢â€ â€™ "My Progress"
+- Community: "Ã°Å¸â€™Â¬ Community" Ã¢â€ â€™ "Community"
+- Live Sessions: "Ã°Å¸â€œâ€¦ Live Sessions" Ã¢â€ â€™ "Live Sessions"
+- Mentorship: "Ã°Å¸Â§â€˜Ã¢â‚¬ÂÃ°Å¸ÂÂ« Mentorship" Ã¢â€ â€™ "Mentorship"
+- Certificates: "Ã°Å¸Ââ€  Certificates" Ã¢â€ â€™ "Certificates"
 
 #### Updated Navigation Links
 
@@ -278,12 +304,12 @@ All pages include functional buttons and click handlers for:
 
 | Feature       | Status      | Content                        | Interactions                |
 | ------------- | ----------- | ------------------------------ | --------------------------- |
-| Assessments   | ✅ Complete | 8 assessments + quizzes        | Start, Submit, View Results |
-| Progress      | ✅ Complete | Skills, Learning Path, Metrics | View Progress Timeline      |
-| Community     | ✅ Complete | Forums, Chat, Study Groups     | Discuss, Message, Join      |
-| Live Sessions | ✅ Complete | Workshops, Q&A, Office Hours   | Join, Remind, Watch         |
-| Mentorship    | ✅ Complete | 3 Mentors, Booking System      | Book, Profile View          |
-| Certificates  | ✅ Complete | Earned, In Progress, Available | Download, Share, Enroll     |
+| Assessments   | Ã¢Å“â€¦ Complete | 8 assessments + quizzes        | Start, Submit, View Results |
+| Progress      | Ã¢Å“â€¦ Complete | Skills, Learning Path, Metrics | View Progress Timeline      |
+| Community     | Ã¢Å“â€¦ Complete | Forums, Chat, Study Groups     | Discuss, Message, Join      |
+| Live Sessions | Ã¢Å“â€¦ Complete | Workshops, Q&A, Office Hours   | Join, Remind, Watch         |
+| Mentorship    | Ã¢Å“â€¦ Complete | 3 Mentors, Booking System      | Book, Profile View          |
+| Certificates  | Ã¢Å“â€¦ Complete | Earned, In Progress, Available | Download, Share, Enroll     |
 
 All pages now feature clean, professional titles without emoji stickers, functional interfaces with interactive elements, and comprehensive user experience improvements.
 
@@ -293,7 +319,7 @@ All pages now feature clean, professional titles without emoji stickers, functio
 
 ### Completed Tasks
 
-#### 1. **PWA Install Flow Repair** ✅
+#### 1. **PWA Install Flow Repair** Ã¢Å“â€¦
 
 - **Files Updated:**
   - [app.webmanifest](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/install-as-app/app.webmanifest)
@@ -308,7 +334,7 @@ All pages now feature clean, professional titles without emoji stickers, functio
 - **Result:**
   - the LMS is installable again as a mobile-friendly web app
 
-#### 2. **Mobile App Icon Support** ✅
+#### 2. **Mobile App Icon Support** Ã¢Å“â€¦
 
 - **Files Added:**
   - [icon-192.png](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Assets/icon-192.png)
@@ -317,7 +343,7 @@ All pages now feature clean, professional titles without emoji stickers, functio
   - phones and install prompts work more reliably with PNG app icons
   - Apple touch icon support is cleaner with PNG than SVG only
 
-#### 3. **Phone Install Fallback Guidance** ✅
+#### 3. **Phone Install Fallback Guidance** Ã¢Å“â€¦
 
 - **File Updated:**
   - [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js)
@@ -325,7 +351,7 @@ All pages now feature clean, professional titles without emoji stickers, functio
   - when the browser exposes a real install prompt, the LMS uses it
   - when the browser does not expose that prompt, the LMS now gives fallback install guidance for mobile users
 
-#### 4. **Documentation Maintenance** ✅
+#### 4. **Documentation Maintenance** Ã¢Å“â€¦
 
 - **Files Updated:**
   - [about-site.md](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Guide-MD/about-site.md)
@@ -352,7 +378,7 @@ All pages now feature clean, professional titles without emoji stickers, functio
 
 ### Completed Tasks
 
-#### 1. **Supabase Project URL Replacement** ✅
+#### 1. **Supabase Project URL Replacement** Ã¢Å“â€¦
 
 - **Files Updated:**
   - [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js)
@@ -363,7 +389,7 @@ All pages now feature clean, professional titles without emoji stickers, functio
 - **What Changed:**
   - replaced the old Supabase base URL with `https://nigzxgzzvyzecezhstdi.supabase.co`
 
-#### 2. **Admin Login Error Diagnosis** ✅
+#### 2. **Admin Login Error Diagnosis** Ã¢Å“â€¦
 
 - **File Updated:**
   - [admin.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/admin.js)
@@ -374,7 +400,7 @@ All pages now feature clean, professional titles without emoji stickers, functio
   - added a reachability check for the Supabase backend when network-style auth failures happen
   - replaced the vague error with clearer guidance about internet access, browser blockers, local/prod origin, Email/Password Auth, and admin user setup
 
-#### 3. **Documentation Update** ✅
+#### 3. **Documentation Update** Ã¢Å“â€¦
 
 - **Files Updated:**
   - [about-site.md](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Guide-MD/about-site.md)

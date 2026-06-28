@@ -5,12 +5,40 @@ Whenever a new feature, fix, refactor, or backend update is added, append a new 
 
 ## 2026-06-28
 
+### Admin video link sync fix
+
+What changed:
+
+- updated [admin.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/admin.js) so the admin editor stores the pasted week video links instead of replacing them with default/base links
+- updated [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js) so learner playback also normalizes existing raw links from Supabase
+- added support for YouTube `watch`, `youtu.be`, `embed`, `shorts`, and `live` URL formats during learner playback
+- hardened remote curriculum override parsing so `video_urls`, `resources`, and `resource_items` work even if returned as JSON strings
+- bumped the PWA cache in [service-worker.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/install-as-app/service-worker.js) so cached learner/admin JavaScript refreshes
+
+Why it changed:
+
+- some newly saved YouTube links were being placed directly inside the learner iframe instead of converted to embed URLs, and the admin editor could repopulate the video field with the base/default link instead of the saved override
+## 2026-06-28
+
+### Fix: Video Link Auto-Embed Formatting & Real-Time Sync
+
+What changed:
+
+- added `toEmbedUrl` helper to [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js) and [admin.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/admin.js) to dynamically convert standard YouTube/Vimeo URLs into secure `iframe`-embeddable sources.
+- updated `normalizeLessonVideoItems` on both admin and learner side to automatically run video URLs through this conversion helper.
+- implemented JSON-signature change detection in `refreshTrackSettings`, `refreshCurriculumOverrides`, and `refreshSemesterResources` inside [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js) to trigger `renderAppShell()` instantly when changes are pulled, rather than keeping updates silent.
+
+Why it changed:
+
+- when copying standard shareable links (e.g. `youtu.be/...` or `youtube.com/watch?v=...`), iframe rendering failed because YouTube blocks non-embed URLs.
+- background polling was fetching changes silently but was not triggering a DOM re-render, preventing the learner dashboard from displaying newly saved video links until a page refresh.
+
 ### Fix: Script Cache-Busting for Local & Production Deployment
 
 What changed:
 
-- updated [index.html](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/index.html) — added `?v=1.0.2` version query parameters to all internal script imports (`data.js`, `app.js`, `lms-search.js`, `animations.js`)
-- updated [index.html](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/index.html) — added `?v=1.0.2` version query parameters to `data.js` and `admin.js` imports
+- updated [index.html](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/index.html) Ã¢â‚¬â€ added `?v=1.0.2` version query parameters to all internal script imports (`data.js`, `app.js`, `lms-search.js`, `animations.js`)
+- updated [index.html](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/index.html) Ã¢â‚¬â€ added `?v=1.0.2` version query parameters to `data.js` and `admin.js` imports
 
 Why it changed:
 
@@ -22,8 +50,8 @@ Why it changed:
 
 What changed:
 
-- updated [admin.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/admin.js) — fixed `getResolvedTrack` to rebuild the semesters array when `semesterCount` from admin settings differs from the base track's hardcoded count
-- updated [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js) — same fix applied on the learner side
+- updated [admin.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/uc-admin/admin.js) Ã¢â‚¬â€ fixed `getResolvedTrack` to rebuild the semesters array when `semesterCount` from admin settings differs from the base track's hardcoded count
+- updated [app.js](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/Page-Js/app.js) Ã¢â‚¬â€ same fix applied on the learner side
 
 Why it changed:
 
@@ -41,7 +69,7 @@ Why it changed:
 
 What changed:
 
-- updated [package.json](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/package.json) — changed test script glob from `tests/**/*.test.js` to `tests/*.test.js`
+- updated [package.json](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/package.json) Ã¢â‚¬â€ changed test script glob from `tests/**/*.test.js` to `tests/*.test.js`
 
 Why it changed:
 

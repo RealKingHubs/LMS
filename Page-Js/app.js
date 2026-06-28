@@ -484,25 +484,85 @@
     }
   }
 
+
+  function normalizeRemoteArray(value) {
+    if (Array.isArray(value)) return value;
+    if (typeof value !== 'string') return [];
+
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      return trimmed.split(/\r?\n|,/).map(item => item.trim()).filter(Boolean);
+    }
+  }
+  function getYouTubeVideoId(url) {
+    const trimmed = String(url || '').trim();
+    if (!trimmed) return '';
+
+    const directMatch = trimmed.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|shorts\/|live\/))([a-zA-Z0-9_-]{11})/i);
+    if (directMatch) return directMatch[1];
+
+    try {
+      const parsed = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+      const host = parsed.hostname.replace(/^www\./, '').replace(/^m\./, '');
+      if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+        const videoId = parsed.searchParams.get('v');
+        return /^[a-zA-Z0-9_-]{11}$/.test(videoId || '') ? videoId : '';
+      }
+    } catch (error) {
+      return '';
+    }
+
+    return '';
+  }
+
+  function toEmbedUrl(url) {
+    if (!url) return '';
+    const trimmed = String(url).trim();
+
+    // YouTube matches normal watch links, short links, embed links, Shorts, and Live URLs.
+    const youtubeVideoId = getYouTubeVideoId(trimmed);
+    if (youtubeVideoId) {
+      return `https://www.youtube-nocookie.com/embed/${youtubeVideoId}`;
+    }
+
+    // Vimeo matches:
+    // - https://vimeo.com/VIDEO_ID
+    // - https://player.vimeo.com/video/VIDEO_ID
+    const vimeoMatch = trimmed.match(/(?:https?:\/\/)?(?:www\.)?(?:player\.)?vimeo\.com\/(?:video\/)?([0-9]+)/i);
+    if (vimeoMatch) {
+      return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+    }
+
+    return trimmed;
+  }
   // Weekly lesson content can come from the base curriculum or admin overrides.
   // These helpers normalize both sources into one consistent shape so the
   // learner player can support playlists and richer resources without knowing
   // where the data came from.
   function normalizeLessonVideoItems(videoItems, fallbackVideoUrl = '') {
-    const resolved = Array.isArray(videoItems) ? videoItems : [];
+    const resolved = Array.isArray(videoItems)
+      ? videoItems
+      : typeof videoItems === 'string'
+        ? videoItems.split(/\r?\n|,/).map(item => item.trim()).filter(Boolean)
+        : [];
     const normalized = resolved
       .map((item, index) => {
         if (typeof item === 'string') {
           const trimmed = item.trim();
-          return trimmed ? { title: `Video ${index + 1}`, url: trimmed } : null;
+          return trimmed ? { title: `Video ${index + 1}`, url: toEmbedUrl(trimmed) } : null;
         }
 
         if (item && typeof item === 'object') {
-          const url = String(item.url || item.videoUrl || '').trim();
+          const url = String(item.url || item.videoUrl || item.video_url || '').trim();
           if (!url) return null;
           return {
             title: String(item.title || `Video ${index + 1}`).trim(),
-            url
+            url: toEmbedUrl(url)
           };
         }
 
@@ -512,7 +572,7 @@
 
     if (normalized.length) return normalized;
     if (fallbackVideoUrl) {
-      return [{ title: 'Lesson video', url: fallbackVideoUrl }];
+      return [{ title: 'Lesson video', url: toEmbedUrl(fallbackVideoUrl) }];
     }
     return [];
   }
@@ -975,6 +1035,8 @@
       return;
     }
 
+    const prevSignature = JSON.stringify(state.trackSettingsById);
+
     state.trackSettingsById = Object.fromEntries((data || []).map(item => [
       item.id,
       {
@@ -987,7 +1049,9 @@
       }
     ]));
 
-    if (!options.silent) {
+    const nextSignature = JSON.stringify(state.trackSettingsById);
+
+    if (prevSignature !== nextSignature || !options.silent) {
       populateRegisterTrackSelect();
       if (getCurrentUser()) renderAppShell();
     }
@@ -1004,6 +1068,11 @@
         .from(WEEK_OVERRIDES_TABLE)
         .select('week_id, title, objective, type, video_url, video_urls, resources, resource_items')
     ]);
+
+    const prevSignature = JSON.stringify({
+      months: state.curriculumMonthOverridesById,
+      weeks: state.curriculumWeekOverridesById
+    });
 
     if (monthError) {
       console.warn('Curriculum month override sync failed', monthError);
@@ -1029,15 +1098,20 @@
           objective: item.objective || '',
           type: item.type || '',
           videoUrl: item.video_url || '',
-          videoUrls: Array.isArray(item.video_urls) ? item.video_urls : [],
-          resources: Array.isArray(item.resources) ? item.resources : [],
-          resourceItems: Array.isArray(item.resource_items) ? item.resource_items : []
+          videoUrls: normalizeRemoteArray(item.video_urls),
+          resources: normalizeRemoteArray(item.resources),
+          resourceItems: normalizeRemoteArray(item.resource_items)
         }
       ]));
     }
 
-    if (!options.silent && getCurrentUser()) {
-      renderAppShell();
+    const nextSignature = JSON.stringify({
+      months: state.curriculumMonthOverridesById,
+      weeks: state.curriculumWeekOverridesById
+    });
+
+    if (prevSignature !== nextSignature || !options.silent) {
+      if (getCurrentUser()) renderAppShell();
     }
   }
 
@@ -1053,13 +1127,17 @@
       return;
     }
 
+    const prevSignature = JSON.stringify(state.semesterResourcesByKey);
+
     state.semesterResourcesByKey = Object.fromEntries((data || []).map(item => [
       `${item.track_id}::${item.semester_id}`,
       Array.isArray(item.resource_links) ? item.resource_links : []
     ]));
 
-    if (!options.silent && getCurrentUser()) {
-      renderAppShell();
+    const nextSignature = JSON.stringify(state.semesterResourcesByKey);
+
+    if (prevSignature !== nextSignature || !options.silent) {
+      if (getCurrentUser()) renderAppShell();
     }
   }
 
@@ -2005,7 +2083,7 @@
       <article class="month-card curriculum-month-card ${isOpen ? 'curriculum-month-open' : ''}">
         <button class="curriculum-month-toggle" type="button" onclick="toggleCurriculumMonth('${month.id}')">
           <div>
-            <strong class="curriculum-month-title">${month.label} · ${month.title}</strong>
+            <strong class="curriculum-month-title">${month.label} Ã‚Â· ${month.title}</strong>
             <span class="month-meta">${month.phase} phase</span>
           </div>
           <div class="curriculum-month-side">
@@ -2028,6 +2106,14 @@
 
   function renderLessonRow(user, lesson) {
     const completed = user.completedLessonIds.includes(lesson.id);
+    // Count how many videos are available for this week so learners can
+    // see before opening the lesson whether it contains a playlist.
+    const videoCount = Array.isArray(lesson.videoItems) && lesson.videoItems.length
+      ? lesson.videoItems.length
+      : (lesson.videoUrls && lesson.videoUrls.length) || (lesson.videoUrl ? 1 : 0);
+    const videoBadge = videoCount > 0
+      ? `<span class="lesson-video-badge">▶ ${videoCount} ${videoCount === 1 ? 'video' : 'videos'}</span>`
+      : '';
     return `
       <div class="lesson-item curriculum-week-row ${state.currentLessonId === lesson.id ? 'curriculum-week-active' : ''}">
         <div class="lesson-item-header curriculum-week-header">
@@ -2035,14 +2121,17 @@
             <span class="curriculum-week-marker ${completed ? 'completed' : ''}"></span>
             <div>
               <strong class="lesson-title">${lesson.title}</strong>
-              <span>${lesson.type === 'lab' ? 'Hands-on lab week with guided build work in the lesson player' : 'Open this lesson in the main lesson player'}</span>
+              <div class="lesson-row-meta">
+                ${videoBadge}
+                <span>${lesson.type === 'lab' ? 'Hands-on lab week' : 'Lesson'}</span>
+              </div>
             </div>
           </div>
           <span class="status-pill ${completed ? 'success' : lesson.type === 'lab' ? 'warning' : 'neutral'}">${completed ? 'Completed' : lesson.type === 'lab' ? 'Lab' : 'Open'}</span>
         </div>
         <div class="lesson-actions">
           <button class="btn btn-secondary btn-small" type="button" onclick="openLesson('${lesson.id}')">View lesson</button>
-          <button class="btn ${completed ? 'btn-secondary' : 'btn-primary'} btn-small" type="button" onclick="toggleLessonCompletion('${lesson.id}')">${completed ? 'Mark incomplete' : 'Mark complete'}</button>
+          <button class="btn ${completed ? 'btn-secondary' : 'btn-primary'} btn-small" type="button" onclick="toggleLessonCompletion('${lesson.id}')">Mark ${completed ? 'incomplete' : 'complete'}</button>
         </div>
       </div>
     `;
@@ -2059,11 +2148,14 @@
       : normalizeLessonVideoItems([], selectedLesson.videoUrl || '');
     const activeVideoIndex = Math.min(state.currentLessonVideoIndex || 0, Math.max(videoItems.length - 1, 0));
     const activeVideo = videoItems[activeVideoIndex] || { title: selectedLesson.title, url: selectedLesson.videoUrl || '' };
+    
+    // Playlist — rendered above the video when there are multiple clips so the
+    // learner immediately sees all available videos without scrolling.
     const videoPlaylist = videoItems.length > 1 ? `
       <div class="lesson-video-playlist">
         <div class="lesson-video-playlist-header">
           <strong>Week videos</strong>
-          <span>${videoItems.length} videos added for this week</span>
+          <span>${videoItems.length} videos in this lesson</span>
         </div>
         <div class="lesson-video-playlist-grid">
           ${videoItems.map((item, index) => `
@@ -2076,13 +2168,19 @@
       </div>
     ` : '';
 
+    // Single-video label shown inside the player header when there is exactly one clip.
+    const singleVideoLabel = videoItems.length === 1
+      ? `<span class="lesson-single-video-label">▶ 1 video</span>`
+      : '';
+
     return `
       <div class="lesson-watch-main lesson-watch-main-single">
+          ${videoPlaylist}
           <div class="iframe-wrap lesson-watch-frame"><iframe src="${activeVideo.url}" title="${activeVideo.title || selectedLesson.title}" allowfullscreen loading="lazy"></iframe></div>
           <div class="lesson-watch-body">
             <div class="lesson-watch-header">
               <div>
-                <p class="section-kicker">Now playing</p>
+                <p class="section-kicker">Now playing ${singleVideoLabel}</p>
                 <h3 class="lesson-watch-title">${activeVideo.title || selectedLesson.title}</h3>
                 <p class="copy-muted">${selectedLesson.objective}</p>
               </div>
@@ -2102,7 +2200,6 @@
             </div>
             <div class="lesson-watch-description">
               <div class="lesson-player-breadcrumb">${lessonContext ? `${lessonContext.semester.label} - ${lessonContext.month.label} - ${lessonContext.month.title}` : track.label}</div>
-              ${videoPlaylist}
             </div>
           </div>
       </div>
@@ -2525,7 +2622,7 @@
         `).join('')}</div>` : '<div class="empty-state">No books have been added yet. Ask the admin to create a book card from the admin dashboard.</div>'}
 
         <div id="bookPreviewModal" class="book-preview-modal hidden" onclick="closeBookPreview()">
-          <button class="book-preview-close" type="button" aria-label="Close preview" onclick="event.stopPropagation(); closeBookPreview();">×</button>
+          <button class="book-preview-close" type="button" aria-label="Close preview" onclick="event.stopPropagation(); closeBookPreview();">Ãƒâ€”</button>
           <img id="bookPreviewImage" src="" alt="Book cover preview" />
         </div>
       </section>

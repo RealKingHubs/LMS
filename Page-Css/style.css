@@ -3449,6 +3449,49 @@ body.modal-open { overflow: hidden; }
   box-shadow: 0 4px 14px rgba(37, 99, 235, 0.10);
 }
 
+/* Row-level metadata line (badge + lesson type label) */
+.lesson-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+
+.lesson-row-meta span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+/* Video count badge shown on each curriculum week row */
+.lesson-video-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.10);
+  color: var(--gold-700);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Inline "▶ 1 video" label shown in the player "Now playing" kicker */
+.lesson-single-video-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.10);
+  color: var(--gold-700);
+  font-size: 0.76rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
 .lesson-watch-resources {
   margin: 0;
   padding: 0;

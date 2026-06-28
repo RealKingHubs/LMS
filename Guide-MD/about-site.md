@@ -217,6 +217,7 @@ How curriculum editing works:
 3. Admin saves override values into Supabase.
 4. Learner LMS fetches those overrides.
 5. Learner LMS merges those values into the live curriculum.
+6. Week video links saved from admin are normalized before playback so YouTube watch, short, embed, Shorts, Live, and Vimeo links can render in the learner lesson iframe.
 
 How semester resources work:
 

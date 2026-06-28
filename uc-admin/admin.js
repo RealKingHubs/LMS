@@ -393,7 +393,7 @@
   async function loadSystemLogs() {
     if (!dom.logsStatus || !dom.systemLogsList) return;
 
-    dom.logsStatus.textContent = 'Loading the latest logs…';
+    dom.logsStatus.textContent = 'Loading the latest logsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦';
     dom.systemLogsList.innerHTML = '';
 
     try {
@@ -437,18 +437,18 @@
     const timestamp = escapeHtml(String(entry?.timestamp || entry?.created_at || 'Unknown time'));
     const width = entry?.viewport?.width || 0;
     const height = entry?.viewport?.height || 0;
-    const resolution = escapeHtml(`${width} × ${height}`);
+    const resolution = escapeHtml(`${width} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${height}`);
     const deviceType = escapeHtml(String(entry?.viewport?.deviceType || entry?.deviceType || (width < 768 ? 'Mobile' : 'Desktop')));
     const logId = escapeHtml(String(entry?.id || ''));
 
     return `
       <article class="log-card ${severity}" data-log-id="${logId}" aria-label="Log entry ${severity}">
         <div class="log-card-header">
-          <span class="log-card-label">${severity.toUpperCase()} • ${escapeHtml(type)}</span>
+          <span class="log-card-label">${severity.toUpperCase()} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${escapeHtml(type)}</span>
           <button class="btn btn-secondary delete-log-btn" type="button" data-log-id="${logId}">Delete Log</button>
         </div>
         <strong class="log-card-message">${message}</strong>
-        <div class="log-card-meta">${escapeHtml(timestamp)} • ${escapeHtml(line)} • ${resolution} (${deviceType})</div>
+        <div class="log-card-meta">${escapeHtml(timestamp)} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${escapeHtml(line)} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${resolution} (${deviceType})</div>
         <div class="log-card-location">Script location: ${location}</div>
         <div class="log-card-url">Page: ${pageUrl}</div>
       </article>
@@ -513,7 +513,7 @@
   async function clearAllLogs() {
     if (!dom.logsStatus || !dom.systemLogsList) return;
 
-    dom.logsStatus.textContent = 'Clearing all logs…';
+    dom.logsStatus.textContent = 'Clearing all logsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦';
 
     const response = await fetch(`${LOGS_DELETE_ENDPOINT}?id=not.is.null`, {
       method: 'DELETE',
@@ -688,9 +688,9 @@
         objective: item.objective || '',
         type: item.type || '',
         videoUrl: item.video_url || '',
-        videoUrls: Array.isArray(item.video_urls) ? item.video_urls : [],
-        resources: Array.isArray(item.resources) ? item.resources : [],
-        resourceItems: Array.isArray(item.resource_items) ? item.resource_items : []
+        videoUrls: normalizeRemoteArray(item.video_urls),
+        resources: normalizeRemoteArray(item.resources),
+        resourceItems: normalizeRemoteArray(item.resource_items)
       }
     ]));
 
@@ -762,6 +762,23 @@
       });
   }
 
+
+  function normalizeRemoteArray(value) {
+    if (Array.isArray(value)) return value;
+    if (typeof value !== 'string') return [];
+
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      return trimmed.split(/\r?\n|,/).map(item => item.trim()).filter(Boolean);
+    }
+  }
+
+
   function getResolvedTrack(trackId) {
     const settings = state.trackSettingsById[trackId] || {};
 
@@ -805,12 +822,16 @@
             phase: monthOverride.phase || month.phase,
             weeks: month.weeks.map(week => {
               const weekOverride = state.weekOverridesById[week.id] || {};
+              // Keep raw URLs in the admin resolved track so the curriculum
+              // editor textarea always shows exactly what was saved to the
+              // database. The learner-side app.js normalizeLessonVideoItems
+              // handles the conversion to embed format for the iframe player.
               return {
                 ...week,
                 title: weekOverride.title || week.title,
                 objective: weekOverride.objective || week.objective,
                 type: weekOverride.type || week.type,
-                videoUrl: weekOverride.videoUrls?.[0] || weekOverride.videoUrl || week.videoUrl,
+                videoUrl: weekOverride.videoUrls?.[0] || weekOverride.videoUrl || week.videoUrl || '',
                 videoUrls: Array.isArray(weekOverride.videoUrls) && weekOverride.videoUrls.length
                   ? weekOverride.videoUrls
                   : [weekOverride.videoUrl || week.videoUrl].filter(Boolean),
@@ -1291,9 +1312,12 @@
     dom.curriculumWeekTitle.value = week?.title || '';
     dom.curriculumWeekObjective.value = week?.objective || '';
     dom.curriculumWeekType.value = week?.type || '';
-    const weekVideoUrls = Array.isArray(week?.videoUrls) && week.videoUrls.length
-      ? week.videoUrls
-      : [week?.videoUrl].filter(Boolean);
+    const weekOverride = state.weekOverridesById[state.curriculumWeekId] || null;
+    const weekVideoUrls = weekOverride
+      ? (Array.isArray(weekOverride.videoUrls) && weekOverride.videoUrls.length
+        ? weekOverride.videoUrls
+        : [weekOverride.videoUrl].filter(Boolean))
+      : [];
     const weekResourceLines = Array.isArray(week?.resourceItems) && week.resourceItems.length
       ? week.resourceItems.map(item => item.url ? `${item.title} | ${item.url}` : item.title)
       : Array.isArray(week?.resources)
