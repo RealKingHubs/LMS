@@ -36,12 +36,23 @@
   - fixed an undefined variable bug (`LOGS_REST_HEADERS` -> `SUPABASE_REST_HEADERS`) in `admin.js` identified by the linter
   - GitHub Actions workflow to run syntax, quality, and unit tests on every push/pull request to `main`
 
+#### 3. **Fix: GitHub Actions Test Glob Pattern** ✅
+
+- **Files Updated:**
+  - [package.json](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/package.json)
+- **Problem Fixed:**
+  - CI pipeline was failing with `Could not find 'tests/**/*.test.js'` on the Linux Ubuntu runner
+  - `/bin/sh` on Linux does not expand `**` globs by default (`globstar` is disabled), so the literal string was passed to Node
+- **Fix Applied:**
+  - changed test glob from `tests/**/*.test.js` → `tests/*.test.js`
+  - single `*` is expanded correctly by all shells on both Windows and Linux
+
 ### Verification
 - Checked database column mapping
 - Tested track fallback generation with different semester counts
 - `npm run syntax-check` (Passed)
 - `npm run lint` (Passed with 0 errors)
-- `npm test` (3 JSDOM tests passed)
+- `npm test` (3 JSDOM tests passed locally with fixed glob)
 
 ---
 

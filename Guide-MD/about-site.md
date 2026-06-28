@@ -303,7 +303,13 @@ How to run tests locally:
 
 1. Run `npm install` to install dependencies.
 2. Run `npm run syntax-check` to verify JavaScript files are free of syntax errors.
-3. Run `npm test` to execute the JSDOM test suite.
+3. Run `npm run lint` to check code quality with ESLint.
+4. Run `npm test` to execute the JSDOM test suite.
+
+Important notes:
+
+- The test script uses `tests/*.test.js` (single `*`), not `tests/**/*.test.js`. On Linux, the shell (`/bin/sh`) does not expand `**` globs by default, which would cause the CI runner to fail with a "Could not find" error. Always use single `*` for cross-platform glob patterns in npm scripts.
+- ESLint is configured in `.eslintrc.json`. Warnings (e.g., unused functions) are allowed but errors (e.g., undefined variables) will fail the CI run.
 
 ## Step-By-Step: How The LMS Was Built
 

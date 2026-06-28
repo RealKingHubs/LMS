@@ -5,6 +5,18 @@ Whenever a new feature, fix, refactor, or backend update is added, append a new 
 
 ## 2026-06-28
 
+### Fix: GitHub Actions Test Glob Pattern
+
+What changed:
+
+- updated [package.json](/C:/Users/user/OneDrive/Documents/RealKingHubs%20Academy/package.json) — changed test script glob from `tests/**/*.test.js` to `tests/*.test.js`
+
+Why it changed:
+
+- on Linux (the GitHub Actions Ubuntu runner), the shell (`/bin/sh`) does not support `**` globbing by default (`globstar` is disabled)
+- the shell was passing the literal string `tests/**/*.test.js` to Node instead of expanding it, causing a "Could not find" error and a failing CI run
+- switching to a single `*` glob works on both Windows and Linux, and all 3 JSDOM tests still pass locally
+
 ### Automated Testing & CI/CD Setup
 
 What changed:
