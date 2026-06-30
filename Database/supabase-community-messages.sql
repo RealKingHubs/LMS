@@ -35,7 +35,7 @@ language sql
 stable
 security definer
 set search_path = public
-as $$
+as $
   select exists (
     select 1
     from public.lms_admin_users
@@ -495,15 +495,44 @@ create table if not exists public.lms_public_profiles (
   is_active boolean not null default true,
   managed_note text not null default '',
   last_seen_at timestamptz,
+  completed_lesson_ids jsonb not null default '[]'::jsonb,
+  joined_class_ids jsonb not null default '[]'::jsonb,
+  last_seen_community_at timestamptz,
+  last_seen_announcements_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.lms_public_profiles add column if not exists completed_lesson_ids jsonb not null default '[]'::jsonb;
+alter table public.lms_public_profiles add column if not exists joined_class_ids jsonb not null default '[]'::jsonb;
+alter table public.lms_public_profiles add column if not exists last_seen_community_at timestamptz;
+alter table public.lms_public_profiles add column if not exists last_seen_announcements_at timestamptz;
+alter table public.lms_public_profiles add column if not exists certificate_issued_at timestamptz;
 
 create index if not exists lms_public_profiles_track_active_idx
   on public.lms_public_profiles (track_id, is_active, updated_at desc);
 
 alter table public.lms_public_profiles enable row level security;
 
+
+drop policy if exists "Public profiles learner read own" on public.lms_public_profiles;
+create policy "Public profiles learner read own"
+on public.lms_public_profiles for select
+to authenticated
+using (lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')));
+
+drop policy if exists "Public profiles learner insert own" on public.lms_public_profiles;
+create policy "Public profiles learner insert own"
+on public.lms_public_profiles for insert
+to authenticated
+with check (lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')));
+
+drop policy if exists "Public profiles learner update own" on public.lms_public_profiles;
+create policy "Public profiles learner update own"
+on public.lms_public_profiles for update
+to authenticated
+using (lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')))
+with check (lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')));
 drop policy if exists "Public profiles admin read" on public.lms_public_profiles;
 create policy "Public profiles admin read"
 on public.lms_public_profiles for select
@@ -541,13 +570,18 @@ returns table (
   avatar_url text,
   is_active boolean,
   managed_note text,
+  completed_lesson_ids jsonb,
+  joined_class_ids jsonb,
+  last_seen_community_at timestamptz,
+  last_seen_announcements_at timestamptz,
+  certificate_issued_at timestamptz,
   updated_at timestamptz
 )
 language sql
 stable
-security definer
+security invoker
 set search_path = public
-as $$
+as $
   select
     p.email,
     p.first_name,
@@ -559,13 +593,18 @@ as $$
     p.avatar_url,
     p.is_active,
     p.managed_note,
+    p.completed_lesson_ids,
+    p.joined_class_ids,
+    p.last_seen_community_at,
+    p.last_seen_announcements_at,
+    p.certificate_issued_at,
     p.updated_at
   from public.lms_public_profiles as p
   where lower(p.email) = lower(profile_email)
   limit 1;
 $$;
 
-grant execute on function public.get_lms_public_profile(text) to anon, authenticated;
+grant execute on function public.get_lms_public_profile(text) to authenticated;
 
 create or replace function public.upsert_lms_public_profile(
   profile_email text,
@@ -576,7 +615,12 @@ create or replace function public.upsert_lms_public_profile(
   profile_headline text,
   profile_bio text,
   profile_avatar_url text,
-  profile_last_seen_at timestamptz default null
+  profile_last_seen_at timestamptz default null,
+  profile_completed_lesson_ids jsonb default '[]'::jsonb,
+  profile_joined_class_ids jsonb default '[]'::jsonb,
+  profile_last_seen_community_at timestamptz default null,
+  profile_last_seen_announcements_at timestamptz default null,
+  profile_certificate_issued_at timestamptz default null
 )
 returns table (
   email text,
@@ -589,12 +633,17 @@ returns table (
   avatar_url text,
   is_active boolean,
   managed_note text,
+  completed_lesson_ids jsonb,
+  joined_class_ids jsonb,
+  last_seen_community_at timestamptz,
+  last_seen_announcements_at timestamptz,
+  certificate_issued_at timestamptz,
   updated_at timestamptz
 )
 language sql
-security definer
+security invoker
 set search_path = public
-as $$
+as $
   with upserted as (
     insert into public.lms_public_profiles as profile_record (
       email,
@@ -606,6 +655,11 @@ as $$
       bio,
       avatar_url,
       last_seen_at,
+      completed_lesson_ids,
+      joined_class_ids,
+      last_seen_community_at,
+      last_seen_announcements_at,
+      certificate_issued_at,
       updated_at
     )
     values (
@@ -618,6 +672,11 @@ as $$
       coalesce(profile_bio, ''),
       coalesce(profile_avatar_url, ''),
       profile_last_seen_at,
+      coalesce(profile_completed_lesson_ids, '[]'::jsonb),
+      coalesce(profile_joined_class_ids, '[]'::jsonb),
+      profile_last_seen_community_at,
+      profile_last_seen_announcements_at,
+      profile_certificate_issued_at,
       now()
     )
     on conflict on constraint lms_public_profiles_pkey do update
@@ -633,6 +692,11 @@ as $$
       bio = excluded.bio,
       avatar_url = excluded.avatar_url,
       last_seen_at = coalesce(excluded.last_seen_at, profile_record.last_seen_at),
+      completed_lesson_ids = coalesce(excluded.completed_lesson_ids, profile_record.completed_lesson_ids),
+      joined_class_ids = coalesce(excluded.joined_class_ids, profile_record.joined_class_ids),
+      last_seen_community_at = coalesce(excluded.last_seen_community_at, profile_record.last_seen_community_at),
+      last_seen_announcements_at = coalesce(excluded.last_seen_announcements_at, profile_record.last_seen_announcements_at),
+      certificate_issued_at = coalesce(excluded.certificate_issued_at, profile_record.certificate_issued_at),
       updated_at = now()
     returning
       profile_record.email,
@@ -645,6 +709,11 @@ as $$
       profile_record.avatar_url,
       profile_record.is_active,
       profile_record.managed_note,
+      profile_record.completed_lesson_ids,
+      profile_record.joined_class_ids,
+      profile_record.last_seen_community_at,
+      profile_record.last_seen_announcements_at,
+      profile_record.certificate_issued_at,
       profile_record.updated_at
   )
   select
@@ -658,11 +727,16 @@ as $$
     upserted.avatar_url,
     upserted.is_active,
     upserted.managed_note,
+    upserted.completed_lesson_ids,
+    upserted.joined_class_ids,
+    upserted.last_seen_community_at,
+    upserted.last_seen_announcements_at,
+    upserted.certificate_issued_at,
     upserted.updated_at
   from upserted;
 $$;
 
-grant execute on function public.upsert_lms_public_profile(text, text, text, text, text, text, text, text, timestamptz) to anon, authenticated;
+grant execute on function public.upsert_lms_public_profile(text, text, text, text, text, text, text, text, timestamptz, jsonb, jsonb, timestamptz, timestamptz, timestamptz) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Community attachment storage
@@ -699,3 +773,10 @@ create policy "Community attachments admin delete"
 on storage.objects for delete
 to authenticated
 using (bucket_id = 'community-attachments' and public.is_lms_admin());
+
+-- ---------------------------------------------------------------------------
+-- Account deletion
+-- Admin-only deletion is enough for now. Learners who truly want to leave
+-- should contact the academy admin through the feedback form so the admin
+-- can remove the Supabase Auth user and the lms_public_profiles record.
+-- ---------------------------------------------------------------------------

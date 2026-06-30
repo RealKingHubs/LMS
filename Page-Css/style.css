@@ -3843,12 +3843,21 @@ body.modal-open { overflow: hidden; }
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--line);
+  max-width: 100%;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.community-attachment-pill span {
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .community-attachment-pill button {
   background: transparent;
   color: var(--gold-600);
   font-weight: 600;
+  flex-shrink: 0;
 }
 
 /* WhatsApp-style integrated composer box */
@@ -3897,30 +3906,30 @@ body.modal-open { overflow: hidden; }
 }
 
 .btn-chat-tool {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   color: var(--subtle);
   background: transparent;
   cursor: pointer;
-  transition: color var(--transition), background-color var(--transition);
+  transition: color var(--transition), background-color var(--transition), transform var(--transition);
 }
 
 .btn-chat-tool:hover {
   color: var(--cyan-500);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .btn-chat-tool.active {
   color: var(--cyan-500);
-  background: rgba(37, 99, 235, 0.12);
+  background: rgba(37, 99, 235, 0.14);
 }
 
 .btn-chat-tool svg {
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
 }
 
 .btn-chat-send {
