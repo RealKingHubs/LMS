@@ -34,27 +34,27 @@
     {
       id: 'celebrate',
       label: 'Celebrate',
-      stickers: ['\u{1F389}', '\u{1F44F}', '\u{1F525}', '\u{1F31F}', '\u{1F3C6}', '\u{1F64C}']
+      stickers: ['\u{1F389}', '\u{1F44F}', '\u{1F3C6}', '\u{1F3AB}', '\u{1F947}', '\u{2728}', '\u{1F389}']
     },
     {
       id: 'support',
       label: 'Support',
-      stickers: ['\u{2705}', '\u{1F4A1}', '\u{1F680}', '\u{1F91D}', '\u{1FAE1}', '\u{1F90D}']
+      stickers: ['\u{2705}', '\u{1F91D}', '\u{1F497}', '\u{1F4A1}', '\u{1F4AA}', '\u{1F49C}', '\u{1F64F}']
     },
     {
       id: 'study',
       label: 'Study',
-      stickers: ['\u{1F4DA}', '\u{1F4BB}', '\u{1F3AF}', '\u{270D}', '\u{1F4D6}', '\u{1F4CB}']
+      stickers: ['\u{1F4DA}', '\u{1F4BB}', '\u{1F4C4}', '\u{1F4D6}', '\u{270D}', '\u{1F4DD}', '\u{1F52C}']
     },
     {
       id: 'energy',
       label: 'Energy',
-      stickers: ['\u{26A1}', '\u{1F525}', '\u{1F4A5}', '\u{1F680}', '\u{1F44A}', '\u{1F31E}']
+      stickers: ['\u{26A1}', '\u{1F31F}', '\u{1F4AA}', '\u{1F308}', '\u{1F526}', '\u{1F30C}', '\u{1F31B}']
     },
     {
       id: 'reaction',
       label: 'Reaction',
-      stickers: ['\u{1F60E}', '\u{1F973}', '\u{1F929}', '\u{1F62E}', '\u{1F914}', '\u{1F440}']
+      stickers: ['\u{1F60A}', '\u{1F970}', '\u{1F60E}', '\u{1F642}', '\u{1F914}', '\u{1F441}', '\u{1F44C}']
     }
   ];
 
@@ -180,7 +180,6 @@
     dom.pageEyebrow = document.getElementById('pageEyebrow');
     dom.topbarAlerts = document.getElementById('topbarAlerts');
     dom.topbarProgress = document.getElementById('topbarProgress');
-    dom.topbarTrack = document.getElementById('topbarTrack');
     dom.topbarAvatar = document.getElementById('topbarAvatar');
     dom.appFooterText = document.getElementById('appFooterText');
     dom.scrollTopButton = document.getElementById('scrollTopButton');
@@ -1859,7 +1858,6 @@
     dom.pageTitle.textContent = titles[state.currentView] || 'Dashboard';
     dom.topbarAlerts.textContent = String(totalAlerts);
     dom.topbarProgress.textContent = `${progress.percent}%`;
-    dom.topbarTrack.textContent = track.label;
     dom.topbarProgress.setAttribute('title', `${progress.completedCount} of ${progress.totalLessons} lessons completed`);
     dom.topbarAvatar.innerHTML = `<img src="${getAvatarSrc(user)}" alt="${escapeAttribute(`${user.firstName} ${user.lastName}`.trim())}" />`;
     dom.appFooterText.textContent = '(c) 2026 RealKingHubs - ' + track.label + ' Student Portal';
@@ -2011,7 +2009,6 @@
         <div class="semester-board-row">
           <div>
             <strong>${semester.label}</strong>
-            <span>${semester.title}</span>
           </div>
           <div class="semester-board-progress">
             <div class="progress-bar"><div class="progress-fill" style="width:${semesterProgress.percent}%"></div></div>
@@ -2046,8 +2043,7 @@
           </article>
           <article class="dashboard-kpi-card">
             <span class="dashboard-kpi-label">Programme structure</span>
-            <strong class="dashboard-kpi-value">3</strong>
-            <p>Each semester contains 3 learning months and 1 hands-on lab month.</p>
+            <strong class="dashboard-kpi-value">${track.semesters.length}</strong>
           </article>
           <article class="dashboard-kpi-card">
             <span class="dashboard-kpi-label">Current lab focus</span>
@@ -2145,7 +2141,6 @@
           <button class="curriculum-semester-header ${isOpen ? 'curriculum-semester-open' : ''}" type="button" onclick="toggleCurriculumSemester('${semester.id}')">
             <div>
               <p class="section-kicker">${semester.label}</p>
-              <h2>${semester.title}</h2>
               <p>${semesterProgress.completed} of ${semesterProgress.total} weeks completed in this semester.</p>
             </div>
             <div class="curriculum-semester-side">
@@ -2165,7 +2160,7 @@
           title: `${track.label} curriculum`,
           description: selectedLesson
             ? 'The active lesson is now in focus. Use this right-side curriculum column to switch months and lessons.'
-            : 'Open one month at a time, review the week list, and click view lesson when you want to watch the selected content.',
+            : '',
           metaItems: [`${track.semesters.length} semesters`, `${track.semesters.flatMap(semester => semester.months).length} months`]
         })}
         <div class="curriculum-course-list">${semestersHtml}</div>
@@ -2382,7 +2377,7 @@
           </div>
         </aside>
         <article class="message-card">
-          <div class="content-header"><div><p class="section-kicker">Shared learner feed</p><h2>${track.label} learner communication</h2><p>The latest messages are shown first. Use view older messages to inspect earlier posts for this programme only.</p></div></div>
+          <div class="content-header"><div><p class="section-kicker">Shared learner feed</p></div></div>
           <div class="message-feed">${visibleMessages.map(message => renderMessageRow(user, message)).join('')}</div>
           <div class="composer-actions">${remaining > 0 ? `<button class="btn btn-secondary btn-small" type="button" onclick="toggleOlderMessages(true)">View ${remaining} older messages</button>` : ''}${state.showOlderMessages && state.communityMessages.length > 5 ? `<button class="btn btn-ghost btn-small" type="button" onclick="toggleOlderMessages(false)">Show latest 5</button>` : ''}</div>
         </article>
@@ -2392,13 +2387,11 @@
 
   function renderCommunityStickerPack() {
     return `
-      <div class="sticker-pack-panel">
+      <div class="sticker-pack-panel sticker-pack-compact">
         <div class="sticker-pack-header">
-          <div>
-            <strong>Sticker pack</strong>
-            <span>Choose one sticker to include with your message.</span>
-          </div>
-          <button class="btn btn-ghost btn-small" type="button" onclick="toggleCommunityStickerPack(false)">Close</button>
+          <button class="btn btn-ghost btn-small sticker-pack-close" type="button" onclick="toggleCommunityStickerPack(false)" aria-label="Close sticker pack">
+            <svg viewBox="0 0 24 24" aria-hidden="true" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
         </div>
         <div class="sticker-pack-groups">
           ${COMMUNITY_STICKER_PACKS.map(pack => `
@@ -2529,7 +2522,7 @@
     }).join('');
 
     return `
-      <section class="dashboard-stack">
+      <section class="dashboard-stack progress-page-shell">
         ${buildContentSurfaceHeader({
           eyebrow: 'Learning progress',
           title: 'Track progress',
@@ -2681,7 +2674,6 @@
             <div>
               <p class="section-kicker">Books</p>
               <h2>Recommended learning books</h2>
-              <p>Browse calm, professional book cards with cover previews, direct links, and quick access to your next reading resource.</p>
             </div>
           </div>
         </article>
@@ -2764,7 +2756,6 @@
           <button class="resource-semester-toggle" type="button" onclick="toggleResourcesSemester('${semester.id}')">
             <div>
               <p class="section-kicker">${semester.label}</p>
-              <h2>${semester.title}</h2>
               <p>Reference links for ${semester.label.toLowerCase()} are organised here in one place.</p>
             </div>
             <div class="resource-semester-side">
@@ -2783,7 +2774,7 @@
           ${buildContentSurfaceHeader({
             eyebrow: 'Semester resources',
             title: `${track.label} resource library`,
-            description: 'Open semester-specific resource links here instead of searching through lessons one by one.',
+            description: '',
             metaItems: [`${track.semesters.length} semesters`, 'Direct links']
           })}
         </article>
