@@ -86,6 +86,7 @@
     communitySelectedSticker: '',
     communityAttachment: null,
     communityComposerMessage: null,
+    communityDeletingMessageId: null,
     assessmentMessage: null,
     communityTrackId: null,
     communitySyncError: '',
@@ -383,10 +384,11 @@
     const payload = parseCommunityPayload(message.content ?? message.body ?? '');
     const trackId = message.trackId || message.track_id || message.room || inferTrackId(message.authorTrack || message.author_track);
     const authorTrack = message.authorTrack || message.author_track || window.RKH_DATA.tracks[trackId]?.label || 'Community';
+    const authorName = message.authorName || message.author_name || message.author_track || message.authorTrack || 'Learner';
     return {
       id: String(message.id),
       authorId: message.authorId || message.author_id || '',
-      authorName: message.authorName || message.author_name || 'Learner',
+      authorName,
       authorEmail: message.authorEmail || message.author_email || '',
       authorTrack,
       trackId,
@@ -2429,16 +2431,33 @@
     `;
   }
 
+  function getFirstName(name) {
+    const first = String(name || '').trim().split(/\s+/).filter(Boolean)[0] || '';
+    return first || 'Learner';
+  }
+
+  function getCommunityAuthorName(message, currentUser) {
+    const authorName = message.authorName || message.author_name || '';
+    if (authorName.trim()) return authorName.trim();
+    const email = message.authorEmail || message.author_email || '';
+    if (currentUser?.email && email.toLowerCase() === currentUser.email.toLowerCase()) {
+      return currentUser.firstName || currentUser.lastName || currentUser.email.split('@')[0] || 'Learner';
+    }
+    return 'Learner';
+  }
+
   function renderMessageRow(user, message) {
     const ownMessage = user.id === message.authorId || user.email === message.authorEmail;
     const canDelete = ownMessage;
+    const authorName = getCommunityAuthorName(message, user);
+    const isDeleting = state.communityDeletingMessageId === String(message.id);
     return `
       <div class="message-row">
-        <div class="meta-row"><strong>${message.authorName}</strong><span class="pill">${message.authorTrack}</span><small>${formatDateTime(message.createdAt)}</small></div>
+        <div class="meta-row"><strong>${escapeHtml(getFirstName(authorName))}</strong><small>${formatDateTime(message.createdAt)}</small></div>
         ${message.sticker ? `<div class="message-sticker">${escapeHtml(message.sticker)}</div>` : ''}
         ${message.body ? `<div class="message-text">${escapeHtml(message.body)}</div>` : ''}
         ${message.attachment ? renderCommunityAttachment(message.attachment) : ''}
-        ${canDelete ? `<div class="card-actions"><button class="btn btn-ghost btn-small" type="button" onclick="deleteCommunityMessage('${message.id}')">Delete</button></div>` : ''}
+        ${canDelete ? `<div class="card-actions"><button class="btn btn-ghost btn-small" type="button" onclick="deleteCommunityMessage('${message.id}')" ${isDeleting ? 'disabled aria-busy="true"' : ''}>${isDeleting ? 'Deleting...' : 'Delete'}</button></div>` : ''}
       </div>
     `;
   }
@@ -3467,6 +3486,9 @@
     const track = getCurrentTrack();
     if (!user || !track) return;
 
+    state.communityDeletingMessageId = String(messageId);
+    renderAppShell();
+
     if (communitySupabase) {
       const { error } = await communitySupabase
         .from('community_messages')
@@ -3474,6 +3496,7 @@
         .eq('id', messageId)
         .eq('author_email', user.email);
       if (error) {
+        state.communityDeletingMessageId = null;
         state.communityComposerMessage = {
           type: 'error',
           text: `Message deletion failed: ${error.message}`
@@ -3487,6 +3510,8 @@
     }
 
     await refreshCommunityMessages(track.id);
+    state.communityDeletingMessageId = null;
+    renderAppShell();
   }
 
   // ---------------------------------------------------------------------------
