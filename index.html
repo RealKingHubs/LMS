@@ -310,8 +310,8 @@
           <div class="auth-tabs">
             <button id="loginTab" class="auth-tab auth-tab-active" type="button" onclick="switchAuthMode('login')">Sign in</button>
             <button id="registerTab" class="auth-tab" type="button" onclick="switchAuthMode('register')">Create account</button>
-            <button id="forgotTab" class="auth-tab" style="display: none;" type="button" onclick="switchAuthMode('forgot')">Forgot Password</button>
-            <button id="resetTab" class="auth-tab" style="display: none;" type="button" onclick="switchAuthMode('reset')">Reset Password</button>
+            <button id="forgotTab" class="auth-tab auth-tab-hidden" type="button" onclick="switchAuthMode('forgot')">Forgot Password</button>
+            <button id="resetTab" class="auth-tab auth-tab-hidden" type="button" onclick="switchAuthMode('reset')">Reset Password</button>
           </div>
 
           <!-- Validation and success feedback from app.js appears here -->
@@ -330,7 +330,7 @@
               </div>
             </div>
             <button class="btn btn-primary btn-block" type="submit">Sign in to dashboard</button>
-            <button class="btn btn-secondary btn-block" style="margin-top: 1rem; border: none; background: none; text-decoration: underline;" type="button" onclick="switchAuthMode('forgot')">Forgot your password?</button>
+            <button class="btn btn-ghost btn-block" type="button" onclick="switchAuthMode('forgot')">Forgot your password?</button>
           </form>
 
           <form id="registerForm" class="auth-form">
@@ -372,18 +372,18 @@
             <button class="btn btn-primary btn-block" type="submit">Create learner account</button>
           </form>
 
-          <form id="forgotPasswordForm" class="auth-form" style="display: none;">
-            <p style="margin-bottom: 1rem; color: var(--copy-muted);">Enter your email address and we'll send you a link to reset your password.</p>
+          <form id="forgotPasswordForm" class="auth-form">
+            <p class="form-hint">Enter your email address and we'll send you a link to reset your password.</p>
             <div class="field-group">
               <label for="forgotEmail">Email address</label>
               <input id="forgotEmail" type="email" placeholder="you@example.com" />
             </div>
             <button class="btn btn-primary btn-block" type="submit">Send reset link</button>
-            <button class="btn btn-secondary btn-block" style="margin-top: 1rem; border: none; background: none; text-decoration: underline;" type="button" onclick="switchAuthMode('login')">Back to login</button>
+            <button class="btn btn-ghost btn-block" type="button" onclick="switchAuthMode('login')">Back to login</button>
           </form>
 
-          <form id="resetPasswordForm" class="auth-form" style="display: none;">
-            <p style="margin-bottom: 1rem; color: var(--copy-muted);">Enter your new password below.</p>
+          <form id="resetPasswordForm" class="auth-form">
+            <p class="form-hint">Enter your new password below.</p>
             <div class="field-group">
               <label for="resetPassword">New Password</label>
               <div class="password-field">

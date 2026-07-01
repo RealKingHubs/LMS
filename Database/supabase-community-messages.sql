@@ -35,7 +35,7 @@ language sql
 stable
 security definer
 set search_path = public
-as $
+as $$
   select exists (
     select 1
     from public.lms_admin_users
@@ -558,6 +558,8 @@ on public.lms_public_profiles for delete
 to authenticated
 using (public.is_lms_admin());
 
+drop function if exists public.get_lms_public_profile(text);
+
 create or replace function public.get_lms_public_profile(profile_email text)
 returns table (
   email text,
@@ -580,8 +582,8 @@ returns table (
 language sql
 stable
 security invoker
-set search_path = public
-as $
+  set search_path = public
+as $$
   select
     p.email,
     p.first_name,
@@ -605,6 +607,23 @@ as $
 $$;
 
 grant execute on function public.get_lms_public_profile(text) to authenticated;
+
+drop function if exists public.upsert_lms_public_profile(
+  profile_email text,
+  profile_first_name text,
+  profile_last_name text,
+  profile_track_id text,
+  profile_timezone text,
+  profile_headline text,
+  profile_bio text,
+  profile_avatar_url text,
+  profile_last_seen_at timestamptz,
+  profile_completed_lesson_ids jsonb,
+  profile_joined_class_ids jsonb,
+  profile_last_seen_community_at timestamptz,
+  profile_last_seen_announcements_at timestamptz,
+  profile_certificate_issued_at timestamptz
+);
 
 create or replace function public.upsert_lms_public_profile(
   profile_email text,
@@ -642,8 +661,8 @@ returns table (
 )
 language sql
 security invoker
-set search_path = public
-as $
+  set search_path = public
+as $$
   with upserted as (
     insert into public.lms_public_profiles as profile_record (
       email,

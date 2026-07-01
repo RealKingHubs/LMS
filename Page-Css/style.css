@@ -1736,16 +1736,21 @@ svg {
 /* -------------------------------------------------------------------------- */
 .auth-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) minmax(320px, 1.1fr);
-  gap: 24px;
+  grid-template-columns: minmax(320px, 0.88fr) minmax(340px, 1.12fr);
+  gap: 28px;
   padding: 36px 0 60px;
+  align-items: start;
 }
 
 .auth-intro {
   color: #fff;
-  background: linear-gradient(175deg, #07111f 0%, #172554 55%, #24324f 100%);
+  background: linear-gradient(175deg, #0a1628 0%, #172554 55%, #1e3a5f 100%);
   position: relative;
   overflow: hidden;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .auth-intro::before {
@@ -1772,7 +1777,7 @@ svg {
 
 .auth-intro .brand-name { color: rgba(255, 255, 255, 0.95); }
 .auth-intro .brand-subtitle { color: rgba(255, 255, 255, 0.6); }
-.auth-intro .section-kicker { color: rgba(37, 99, 235, 0.9); }
+.auth-intro .section-kicker { color: rgba(139, 92, 246, 0.95); }
 
 .auth-intro p {
   max-width: 55ch;
@@ -1782,6 +1787,7 @@ svg {
 
 .auth-intro h2 {
   color: #fff;
+  margin-bottom: 16px;
 }
 
 .auth-side-note {
@@ -1796,6 +1802,8 @@ svg {
 
 .auth-card {
   align-self: start;
+  position: sticky;
+  top: 20px;
 }
 
 /* Auth tabs */
@@ -1817,6 +1825,10 @@ svg {
   font-weight: 600;
   font-size: 0.9rem;
   transition: color var(--transition), background-color var(--transition), box-shadow var(--transition);
+}
+
+.auth-tab-hidden {
+  display: none;
 }
 
 .auth-tab-active {

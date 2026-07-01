@@ -69,6 +69,11 @@
             persistSession: true,
             autoRefreshToken: true,
             detectSessionInUrl: false
+          },
+          global: {
+            headers: {
+              'X-Client-Info': 'realkinghubs-admin'
+            }
           }
         })
       : null;
@@ -309,6 +314,14 @@
 
     const backendReachable = await canReachSupabase();
     if (!backendReachable) {
+      if (window.location.protocol === 'file:') {
+        return 'Open this admin panel through a local web server such as http://localhost:8000 before signing in.';
+      }
+
+      if (!['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) && window.location.protocol !== 'https:') {
+        return 'Use an HTTPS address or localhost before signing in.';
+      }
+
       return 'Could not reach Supabase. Check your internet connection, browser ad blocker, and make sure this page is opened from localhost or your HTTPS domain.';
     }
 

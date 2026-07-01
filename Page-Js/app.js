@@ -16,8 +16,8 @@
   const BOOKS_TABLE = 'lms_books';
   const STATE_NAV_KEY = 'rkh_nav_state';
   const COMMUNITY_KEY = 'rkh_fresh_community';
-  const SUPABASE_URL = 'https://nigzxgzzvyzecezhstdi.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pZ3p4Z3p6dnl6ZWNlemhzdGRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNjk2NzUsImV4cCI6MjA5Mzc0NTY3NX0._gLm_GPtNHlWkeDg2mKXP7lUyFYjZRLP40uk95QYSjY';
+  const SUPABASE_URL = 'https://gelpzfafiiudidxmpofo.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlbHB6ZmFmaWl1ZGlkeG1wb2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTIwNzcsImV4cCI6MjA5MDk4ODA3N30.82lZQg6ZYr1SsK9SFsbszby5QEf6HENgnYn1ynS0ZhE';
   const COMMUNITY_SYNC_INTERVAL_MS = 15000;
   const COMMUNITY_ATTACHMENT_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
   const COMMUNITY_ATTACHMENT_BUCKET = 'community-attachments';
@@ -1389,25 +1389,21 @@
     if (dom.forgotTab) dom.forgotTab.classList.toggle('auth-tab-active', forgotActive);
     if (dom.resetTab) dom.resetTab.classList.toggle('auth-tab-active', resetActive);
 
-    if (dom.forgotTab) dom.loginTab.style.display = (forgotActive || resetActive) ? 'none' : 'block';
-    if (dom.forgotTab) dom.registerTab.style.display = (forgotActive || resetActive) ? 'none' : 'block';
-    if (dom.forgotTab) dom.forgotTab.style.display = forgotActive ? 'block' : 'none';
-    if (dom.resetTab) dom.resetTab.style.display = resetActive ? 'block' : 'none';
+    if (dom.forgotTab) dom.forgotTab.classList.toggle('auth-tab-hidden', !forgotActive);
+    if (dom.resetTab) dom.resetTab.classList.toggle('auth-tab-hidden', !resetActive);
+    dom.loginTab.classList.toggle('auth-tab-hidden', forgotActive || resetActive);
+    dom.registerTab.classList.toggle('auth-tab-hidden', forgotActive || resetActive);
 
     dom.loginForm.classList.toggle('auth-form-active', loginActive);
-    dom.loginForm.style.display = loginActive ? 'flex' : 'none';
 
     dom.registerForm.classList.toggle('auth-form-active', registerActive);
-    dom.registerForm.style.display = registerActive ? 'flex' : 'none';
 
     if (dom.forgotPasswordForm) {
       dom.forgotPasswordForm.classList.toggle('auth-form-active', forgotActive);
-      dom.forgotPasswordForm.style.display = forgotActive ? 'flex' : 'none';
     }
 
     if (dom.resetPasswordForm) {
       dom.resetPasswordForm.classList.toggle('auth-form-active', resetActive);
-      dom.resetPasswordForm.style.display = resetActive ? 'flex' : 'none';
     }
 
     clearAuthMessage();
@@ -1440,6 +1436,21 @@
     }
   }
 
+  function getLearnerAuthErrorMessage(error) {
+    const message = error?.message || 'Authentication failed.';
+    if (!/failed to fetch/i.test(message)) return message;
+
+    if (window.location.protocol === 'file:') {
+      return 'Open this site through a local web server such as http://localhost:8000 before signing in.';
+    }
+
+    if (!['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) && window.location.protocol !== 'https:') {
+      return 'Use an HTTPS address or localhost before signing in.';
+    }
+
+    return 'The authentication request could not reach Supabase. Refresh the page and try again.';
+  }
+
   async function handleForgotPassword(event) {
     event.preventDefault();
     const email = document.getElementById('forgotEmail').value.trim().toLowerCase();
@@ -1455,7 +1466,7 @@
     });
 
     if (error) {
-      showAuthMessage(error.message, 'error');
+      showAuthMessage(getLearnerAuthErrorMessage(error), 'error');
     } else {
       showAuthMessage('Check your email for the password reset link.', 'success');
       document.getElementById('forgotEmail').value = '';
@@ -1477,7 +1488,7 @@
     });
 
     if (error) {
-      showAuthMessage(error.message, 'error');
+      showAuthMessage(getLearnerAuthErrorMessage(error), 'error');
     } else {
       showAuthMessage('Password successfully updated. You can now log in.', 'success');
       switchAuthMode('login');
@@ -1502,7 +1513,7 @@
     });
 
     if (error) {
-      showAuthMessage(error.message, 'error');
+      showAuthMessage(getLearnerAuthErrorMessage(error), 'error');
       return;
     }
 
@@ -1545,7 +1556,7 @@
     });
 
     if (error) {
-      showAuthMessage(error.message, 'error');
+      showAuthMessage(getLearnerAuthErrorMessage(error), 'error');
       return;
     }
 
