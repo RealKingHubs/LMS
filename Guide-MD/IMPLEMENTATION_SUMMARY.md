@@ -1,5 +1,13 @@
 # RealKingHubs Academy - Page Implementation Summary
 
+## Date: July 1, 2026
+
+### Phase 4 Completed
+
+- Learner sign-in and account creation now open the dashboard directly from the returned Supabase session
+- Auth-state handling was tightened so authenticated users remain in the LMS instead of being bounced back to the landing page
+- Shared auth helpers and regression tests were added to preserve dashboard access for future changes
+
 ## Date: June 28, 2026
 
 ### Completed Tasks
@@ -23,6 +31,7 @@
 - `node --check Page-Js/app.js`
 - `node --check uc-admin/admin.js`
 - `node --check install-as-app/service-worker.js`
+
 ## Date: June 28, 2026
 
 ### Completed Tasks
@@ -79,6 +88,7 @@
   - single `*` is expanded correctly by all shells on both Windows and Linux
 
 ### Verification
+
 - Checked database column mapping
 - Tested track fallback generation with different semester counts
 - `npm run syntax-check` (Passed)
@@ -302,8 +312,8 @@ All pages include functional buttons and click handlers for:
 
 ## Summary of Changes
 
-| Feature       | Status      | Content                        | Interactions                |
-| ------------- | ----------- | ------------------------------ | --------------------------- |
+| Feature       | Status           | Content                        | Interactions                |
+| ------------- | ---------------- | ------------------------------ | --------------------------- |
 | Assessments   | Ã¢Å“â€¦ Complete | 8 assessments + quizzes        | Start, Submit, View Results |
 | Progress      | Ã¢Å“â€¦ Complete | Skills, Learning Path, Metrics | View Progress Timeline      |
 | Community     | Ã¢Å“â€¦ Complete | Forums, Chat, Study Groups     | Discuss, Message, Join      |

@@ -3,6 +3,21 @@
 This file records what changed in the LMS and why it changed.
 Whenever a new feature, fix, refactor, or backend update is added, append a new dated entry here.
 
+## 2026-07-01
+
+### Phase 4 completed: learner dashboard access restored
+
+What changed:
+
+- updated the learner auth flow in [Page-Js/app.js](../Page-Js/app.js) so successful sign-in and account creation open the dashboard from the returned Supabase session
+- added shared auth-session helpers in [Page-Js/config.js](../Page-Js/config.js) to build the learner snapshot consistently and keep users on the dashboard after sign-in
+- added regression coverage in [tests/lms.test.js](../tests/lms.test.js) for signed-in session handling and fallback track selection
+
+Why it changed:
+
+- learners were not reliably reaching the dashboard after authentication because the app depended too heavily on the delayed auth callback path
+- the updated flow makes dashboard access immediate and consistent after a successful sign-in
+
 ## 2026-06-28
 
 ### Admin video link sync fix
@@ -18,6 +33,7 @@ What changed:
 Why it changed:
 
 - some newly saved YouTube links were being placed directly inside the learner iframe instead of converted to embed URLs, and the admin editor could repopulate the video field with the base/default link instead of the saved override
+
 ## 2026-06-28
 
 ### Fix: Video Link Auto-Embed Formatting & Real-Time Sync
@@ -60,6 +76,7 @@ Why it changed:
 - the fix checks if `settings.semesterCount` differs from the base track's actual semester count and, when it does, calls `buildFallbackTrack` to generate the correct number of semesters before applying overrides
 
 > **Action required**: Run this SQL in your Supabase console if you have not already:
+>
 > ```sql
 > ALTER TABLE lms_track_settings
 >   ADD COLUMN IF NOT EXISTS semester_count INTEGER NOT NULL DEFAULT 3;

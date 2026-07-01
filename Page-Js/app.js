@@ -16,8 +16,8 @@
   const BOOKS_TABLE = 'lms_books';
   const STATE_NAV_KEY = 'rkh_nav_state';
   const COMMUNITY_KEY = 'rkh_fresh_community';
-  const SUPABASE_URL = 'https://gelpzfafiiudidxmpofo.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlbHB6ZmFmaWl1ZGlkeG1wb2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTIwNzcsImV4cCI6MjA5MDk4ODA3N30.82lZQg6ZYr1SsK9SFsbszby5QEf6HENgnYn1ynS0ZhE';
+  const SUPABASE_URL = window.RKH_CONFIG?.supabase?.url || '';
+  const SUPABASE_ANON_KEY = window.RKH_CONFIG?.supabase?.anonKey || '';
   const COMMUNITY_SYNC_INTERVAL_MS = 15000;
   const COMMUNITY_ATTACHMENT_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
   const COMMUNITY_ATTACHMENT_BUCKET = 'community-attachments';
@@ -104,6 +104,7 @@
   let remoteProfileSyncHealthy = true;
   let remoteProfileSyncWarningShown = false;
   let deferredInstallPrompt = null;
+  let lastObservedAuthUserId = null;
 
   // Cached DOM references are stored here after startup so the app does not keep
   // querying the same elements every time a view changes.
@@ -122,10 +123,12 @@
     seedStorage();
     hydrateState();
     initializeCommunitySync();
-    await bootstrapRemoteLmsData();
     renderFounderShowcase();
     populateRegisterTrackSelect();
     bindEvents();
+    showAppShellReadyState(false);
+
+    await bootstrapRemoteLmsData();
 
     // Supabase onAuthStateChange (set up in initializeCommunitySync) will
     // automatically restore the session if one exists and call openApp().
@@ -142,6 +145,7 @@
       showLandingPage();
     }
     document.documentElement.classList.remove('preload-authenticated');
+    showAppShellReadyState(true);
   }
 
   function bindDom() {
@@ -879,6 +883,27 @@
     ]);
   }
 
+  function applyAuthenticatedSession(session) {
+    if (!session?.user?.id) return false;
+
+    const availableTrackIds = Object.keys(window.RKH_DATA?.tracks || {});
+    const fallbackTrackId = window.RKH_AUTH_HELPERS?.resolveEffectiveTrackId(session?.user?.user_metadata || {}, availableTrackIds) || '';
+    const userSnapshot = window.RKH_AUTH_HELPERS?.buildAuthenticatedUserSnapshot(session, fallbackTrackId) || null;
+
+    if (!userSnapshot) return false;
+
+    lastObservedAuthUserId = userSnapshot.id;
+    state.currentUserId = userSnapshot.id;
+    state.currentUser = userSnapshot;
+
+    if (dom.landingPage && dom.landingPage.style.display !== 'none') {
+      openApp(state.currentView || 'dashboard');
+    }
+
+    void syncCurrentUserProfileFromRemote();
+    return true;
+  }
+
   // The community layer prefers Supabase for cross-browser sync, but the app still
   // keeps local fallbacks so development and offline testing remain possible.
   function initializeCommunitySync() {
@@ -902,32 +927,33 @@
         switchAuthMode('reset');
         return;
       }
-      
-      if (session) {
-        state.currentUserId = session.user.id;
-        const metadata = session.user.user_metadata || {};
-        state.currentUser = {
-          id: session.user.id,
-          email: session.user.email,
-          firstName: metadata.first_name || '',
-          lastName: metadata.last_name || '',
-          trackId: metadata.track_id || '',
-          timezone: metadata.timezone || 'Africa/Lagos',
-          headline: metadata.headline || 'Learner at RealKingHubs Academy',
-          bio: metadata.bio || 'Add your professional summary, learning goals, and revision focus in profile settings.',
-          avatar: metadata.avatar_url || '',
-          completedLessonIds: [],
-          joinedClassIds: [],
-          lastSeenCommunityAt: '',
-          lastSeenAnnouncementsAt: ''
-        };
-        const profileAvailable = await syncCurrentUserProfileFromRemote();
-        if (profileAvailable !== false && dom.landingPage && dom.landingPage.style.display !== 'none') {
-          openApp(state.currentView || 'dashboard');
-        }
-      } else {
+
+      const action = window.RKH_AUTH_HELPERS?.resolveAuthEventAction(event, session, lastObservedAuthUserId) || 'keep-current';
+      const sessionUserId = session?.user?.id || null;
+
+      if (action === 'show-landing' && sessionUserId !== lastObservedAuthUserId) {
         state.currentUserId = null;
         state.currentUser = null;
+        lastObservedAuthUserId = null;
+        if (dom.appPage && dom.appPage.style.display === 'flex') {
+          showLandingPage();
+        }
+        return;
+      }
+
+      if (action === 'open-dashboard' && sessionUserId) {
+        applyAuthenticatedSession(session);
+        return;
+      }
+
+      if (action === 'keep-current' && sessionUserId && sessionUserId === lastObservedAuthUserId) {
+        return;
+      }
+
+      if (!sessionUserId && lastObservedAuthUserId) {
+        state.currentUserId = null;
+        state.currentUser = null;
+        lastObservedAuthUserId = null;
         if (dom.appPage && dom.appPage.style.display === 'flex') {
           showLandingPage();
         }
@@ -1284,6 +1310,7 @@
     closeAppSidebar();
     closeLandingMenu();
     setActivePage('landing');
+    showAppShellReadyState(true);
   }
 
   function showAuthPage(mode) {
@@ -1291,6 +1318,7 @@
     closeLandingMenu();
     setActivePage('auth');
     switchAuthMode(mode);
+    showAppShellReadyState(true);
   }
 
   function openApp(viewId) {
@@ -1302,6 +1330,7 @@
     closeLandingMenu();
     closeAppSidebar();
     setActivePage('app');
+    showAppShellReadyState(false);
     renderAppShell();
   }
 
@@ -1310,6 +1339,11 @@
     dom.authPage.classList.toggle('page-active', pageName === 'auth');
     dom.appPage.classList.toggle('page-active', pageName === 'app');
     handleScrollVisibility();
+  }
+
+  function showAppShellReadyState(isReady) {
+    document.body.classList.toggle('app-shell-ready', isReady);
+    document.documentElement.classList.toggle('app-shell-ready', isReady);
   }
 
   function scrollToTopPage() {
@@ -1384,6 +1418,10 @@
     const forgotActive = mode === 'forgot';
     const resetActive = mode === 'reset';
 
+    if (dom.loginForm?.dataset.busy === 'true' || dom.registerForm?.dataset.busy === 'true' || dom.forgotPasswordForm?.dataset.busy === 'true' || dom.resetPasswordForm?.dataset.busy === 'true') {
+      return;
+    }
+
     dom.loginTab.classList.toggle('auth-tab-active', loginActive);
     dom.registerTab.classList.toggle('auth-tab-active', registerActive);
     if (dom.forgotTab) dom.forgotTab.classList.toggle('auth-tab-active', forgotActive);
@@ -1412,11 +1450,37 @@
   function showAuthMessage(text, type) {
     dom.authMessage.textContent = text;
     dom.authMessage.className = `form-message ${type}`;
+    dom.authMessage.setAttribute('role', 'status');
+    dom.authMessage.setAttribute('aria-live', 'polite');
   }
 
   function clearAuthMessage() {
     dom.authMessage.textContent = '';
     dom.authMessage.className = 'form-message';
+    dom.authMessage.removeAttribute('role');
+    dom.authMessage.removeAttribute('aria-live');
+  }
+
+  function setAuthFormBusy(form, isBusy, loadingLabel) {
+    if (!form) return;
+
+    form.dataset.busy = isBusy ? 'true' : 'false';
+    form.setAttribute('aria-busy', String(isBusy));
+
+    const inputs = form.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+      input.disabled = isBusy;
+    });
+
+    const submitButtons = form.querySelectorAll('button[type="submit"]');
+    submitButtons.forEach(button => {
+      const originalText = button.dataset.originalText || button.textContent.trim();
+      if (!button.dataset.originalText) {
+        button.dataset.originalText = originalText;
+      }
+      button.disabled = isBusy;
+      button.textContent = isBusy ? loadingLabel : originalText;
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -1453,75 +1517,117 @@
 
   async function handleForgotPassword(event) {
     event.preventDefault();
+
+    const form = event.currentTarget;
+    if (form.dataset.busy === 'true') return;
+
     const email = document.getElementById('forgotEmail').value.trim().toLowerCase();
-    if (!email) return;
+    if (!email) {
+      showAuthMessage('Enter your email address to continue.', 'error');
+      return;
+    }
 
     if (!communitySupabase) {
       showAuthMessage('Authentication service is not available.', 'error');
       return;
     }
 
-    const { error } = await communitySupabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + window.location.pathname
-    });
+    setAuthFormBusy(form, true, 'Sending reset link...');
+    try {
+      const { error } = await communitySupabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + window.location.pathname
+      });
 
-    if (error) {
-      showAuthMessage(getLearnerAuthErrorMessage(error), 'error');
-    } else {
-      showAuthMessage('Check your email for the password reset link.', 'success');
-      document.getElementById('forgotEmail').value = '';
+      if (error) {
+        showAuthMessage(getLearnerAuthErrorMessage(error), 'error');
+      } else {
+        showAuthMessage('Check your email for the password reset link.', 'success');
+        document.getElementById('forgotEmail').value = '';
+      }
+    } finally {
+      setAuthFormBusy(form, false, 'Sending reset link...');
     }
   }
 
   async function handleResetPassword(event) {
     event.preventDefault();
+
+    const form = event.currentTarget;
+    if (form.dataset.busy === 'true') return;
+
     const newPassword = document.getElementById('resetPassword').value;
     if (newPassword.length < 8) {
       showAuthMessage('Password must be at least 8 characters.', 'error');
       return;
     }
 
-    if (!communitySupabase) return;
+    if (!communitySupabase) {
+      showAuthMessage('Authentication service is not available.', 'error');
+      return;
+    }
 
-    const { error } = await communitySupabase.auth.updateUser({
-      password: newPassword
-    });
+    setAuthFormBusy(form, true, 'Updating password...');
+    try {
+      const { error } = await communitySupabase.auth.updateUser({
+        password: newPassword
+      });
 
-    if (error) {
-      showAuthMessage(getLearnerAuthErrorMessage(error), 'error');
-    } else {
-      showAuthMessage('Password successfully updated. You can now log in.', 'success');
-      switchAuthMode('login');
-      document.getElementById('resetPassword').value = '';
+      if (error) {
+        showAuthMessage(getLearnerAuthErrorMessage(error), 'error');
+      } else {
+        showAuthMessage('Password successfully updated. You can now log in.', 'success');
+        switchAuthMode('login');
+        document.getElementById('resetPassword').value = '';
+      }
+    } finally {
+      setAuthFormBusy(form, false, 'Updating password...');
     }
   }
 
   async function handleLogin(event) {
     event.preventDefault();
 
+    const form = event.currentTarget;
+    if (form.dataset.busy === 'true') return;
+
     const email = document.getElementById('loginEmail').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value.trim();
+
+    if (!email || !password) {
+      showAuthMessage('Enter your email and password to continue.', 'error');
+      return;
+    }
 
     if (!communitySupabase) {
       showAuthMessage('Authentication service is not available.', 'error');
       return;
     }
 
-    const { error } = await communitySupabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    setAuthFormBusy(form, true, 'Signing in...');
+    try {
+      const { data, error } = await communitySupabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
-    if (error) {
-      showAuthMessage(getLearnerAuthErrorMessage(error), 'error');
-      return;
+      if (error) {
+        showAuthMessage(getLearnerAuthErrorMessage(error), 'error');
+        return;
+      }
+
+      if (data?.session) {
+        applyAuthenticatedSession(data.session);
+      }
+    } finally {
+      setAuthFormBusy(form, false, 'Signing in...');
     }
-
-    // state and UI update will happen in onAuthStateChange
   }
 
   async function handleRegister(event) {
     event.preventDefault();
+
+    const form = event.currentTarget;
+    if (form.dataset.busy === 'true') return;
 
     const firstName = document.getElementById('registerFirstName').value.trim();
     const lastName = document.getElementById('registerLastName').value.trim();
@@ -1541,32 +1647,38 @@
       return;
     }
 
-    const { data, error } = await communitySupabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          track_id: trackId,
-          timezone,
-          headline
+    setAuthFormBusy(form, true, 'Creating account...');
+    try {
+      const { data, error } = await communitySupabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            track_id: trackId,
+            timezone,
+            headline
+          }
         }
+      });
+
+      if (error) {
+        showAuthMessage(getLearnerAuthErrorMessage(error), 'error');
+        return;
       }
-    });
 
-    if (error) {
-      showAuthMessage(getLearnerAuthErrorMessage(error), 'error');
-      return;
+      if (data?.session) {
+        applyAuthenticatedSession(data.session);
+        showAuthMessage('Account created. Opening your dashboard...', 'success');
+        return;
+      }
+
+      showAuthMessage('Account created. You can now sign in.', 'success');
+      switchAuthMode('login');
+    } finally {
+      setAuthFormBusy(form, false, 'Creating account...');
     }
-
-    if (data?.session) {
-      showAuthMessage('Account created. Opening your dashboard...', 'success');
-      return;
-    }
-
-    showAuthMessage('Account created. You can now sign in.', 'success');
-    switchAuthMode('login');
   }
 
   async function logoutUser() {
@@ -1575,6 +1687,7 @@
     }
     state.currentUserId = null;
     state.currentUser = null;
+    lastObservedAuthUserId = null;
     state.currentView = 'dashboard';
     state.currentLessonId = null;
     state.currentLessonVideoIndex = 0;
@@ -1626,8 +1739,8 @@
   function renderSidebar(user, track) {
     const notificationCounts = getNotificationCounts(user, track);
     const navGroups = [
-      { title: 'Workspace', items: ['dashboard', 'curriculum', 'resources', 'books', 'progress'] },
-      { title: 'Collaboration', items: ['community', 'announcements', 'feedback'] },
+      { title: 'Learning', items: ['dashboard', 'curriculum', 'resources', 'books', 'progress'] },
+      { title: 'Community', items: ['community', 'announcements', 'feedback'] },
       { title: 'Account', items: ['certificates', 'profile'] }
     ];
 
@@ -1636,7 +1749,7 @@
         .map(itemId => window.RKH_DATA.navItems.find(item => item.id === itemId))
         .filter(Boolean)
         .map(item => `
-          <button type="button" class="${item.id === state.currentView ? 'nav-active' : ''}" onclick="openDashboardView('${item.id}')" title="${item.label}" aria-label="${item.label}">
+          <button type="button" class="${item.id === state.currentView ? 'nav-active' : ''}" onclick="openDashboardView('${item.id}')" title="${item.label}" aria-label="${item.label}" aria-pressed="${item.id === state.currentView}">
             <span class="nav-icon" aria-hidden="true">${getNavIconMarkup(item.id)}</span>
             <span class="nav-button-copy">${item.label}</span>
             ${notificationCounts[item.id] ? `<span class="nav-badge" title="${notificationCounts[item.id]} new updates">${notificationCounts[item.id] > 9 ? '9+' : notificationCounts[item.id]}</span>` : ''}
@@ -1747,6 +1860,7 @@
     dom.topbarAlerts.textContent = String(totalAlerts);
     dom.topbarProgress.textContent = `${progress.percent}%`;
     dom.topbarTrack.textContent = track.label;
+    dom.topbarProgress.setAttribute('title', `${progress.completedCount} of ${progress.totalLessons} lessons completed`);
     dom.topbarAvatar.innerHTML = `<img src="${getAvatarSrc(user)}" alt="${escapeAttribute(`${user.firstName} ${user.lastName}`.trim())}" />`;
     dom.appFooterText.textContent = '(c) 2026 RealKingHubs - ' + track.label + ' Student Portal';
     document.querySelector('.topbar-alert-button')?.classList.toggle('topbar-alert-active', totalAlerts > 0);
@@ -1993,6 +2107,25 @@
   // The curriculum stays full width until a learner opens a lesson. Once a
   // lesson is opened, the player becomes the main stage and the curriculum
   // moves into a slimmer navigation column on the right.
+  function buildContentSurfaceHeader({ eyebrow, title, description, metaItems = [] } = {}) {
+    const metaHtml = Array.isArray(metaItems) && metaItems.length
+      ? `<div class="content-surface-meta">${metaItems.map(item => `<span>${escapeHtml(item)}</span>`).join('')}</div>`
+      : '';
+
+    return `
+      <div class="content-surface-shell">
+        <div class="content-header">
+          <div>
+            <p class="section-kicker">${escapeHtml(eyebrow || 'Learning surface')}</p>
+            <h2>${escapeHtml(title || 'Content surface')}</h2>
+            <p>${escapeHtml(description || '')}</p>
+          </div>
+          ${metaHtml}
+        </div>
+      </div>
+    `;
+  }
+
   function renderCurriculum(user, track) {
     const allMonths = track.semesters.flatMap(semester => semester.months);
     const selectedLesson = track.semesters
@@ -2027,13 +2160,14 @@
 
     const curriculumPanel = `
       <article class="surface-card curriculum-panel ${selectedLesson ? 'curriculum-panel-condensed' : ''}">
-        <div class="content-header">
-          <div>
-            <p class="section-kicker">Course content</p>
-            <h2>${track.label} curriculum</h2>
-            <p>${selectedLesson ? 'The active lesson is now in focus. Use this right-side curriculum column to switch months and lessons.' : 'Open one month at a time, review the week list, and click view lesson when you want to watch the selected content.'}</p>
-          </div>
-        </div>
+        ${buildContentSurfaceHeader({
+          eyebrow: 'Course content',
+          title: `${track.label} curriculum`,
+          description: selectedLesson
+            ? 'The active lesson is now in focus. Use this right-side curriculum column to switch months and lessons.'
+            : 'Open one month at a time, review the week list, and click view lesson when you want to watch the selected content.',
+          metaItems: [`${track.semesters.length} semesters`, `${track.semesters.flatMap(semester => semester.months).length} months`]
+        })}
         <div class="curriculum-course-list">${semestersHtml}</div>
       </article>
     `;
@@ -2066,7 +2200,7 @@
       <article class="month-card curriculum-month-card ${isOpen ? 'curriculum-month-open' : ''}">
         <button class="curriculum-month-toggle" type="button" onclick="toggleCurriculumMonth('${month.id}')">
           <div>
-            <strong class="curriculum-month-title">${month.label} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¾ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${month.title}</strong>
+            <strong class="curriculum-month-title">${month.label} - ${month.title}</strong>
             <span class="month-meta">${month.phase} phase</span>
           </div>
           <div class="curriculum-month-side">
@@ -2095,7 +2229,7 @@
       ? lesson.videoItems.length
       : (lesson.videoUrls && lesson.videoUrls.length) || (lesson.videoUrl ? 1 : 0);
     const videoBadge = videoCount > 0
-      ? `<span class="lesson-video-badge">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¶ ${videoCount} ${videoCount === 1 ? 'video' : 'videos'}</span>`
+      ? `<span class="lesson-video-badge">${videoCount} ${videoCount === 1 ? "video" : "videos"}</span>`
       : '';
     return `
       <div class="lesson-item curriculum-week-row ${state.currentLessonId === lesson.id ? 'curriculum-week-active' : ''}">
@@ -2131,60 +2265,63 @@
       : normalizeLessonVideoItems([], selectedLesson.videoUrl || '');
     const activeVideoIndex = Math.min(state.currentLessonVideoIndex || 0, Math.max(videoItems.length - 1, 0));
     const activeVideo = videoItems[activeVideoIndex] || { title: selectedLesson.title, url: selectedLesson.videoUrl || '' };
-    
-    // Playlist ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â rendered above the video when there are multiple clips so the
-    // learner immediately sees all available videos without scrolling.
-    const videoPlaylist = videoItems.length > 1 ? `
-      <div class="lesson-video-playlist">
-        <div class="lesson-video-playlist-header">
-          <strong>Week videos</strong>
-          <span>${videoItems.length} videos in this lesson</span>
-        </div>
-        <div class="lesson-video-playlist-grid">
-          ${videoItems.map((item, index) => `
-            <button class="lesson-video-chip ${index === activeVideoIndex ? 'lesson-video-chip-active' : ''}" type="button" onclick="selectLessonVideo(${index})">
-              <span>${index + 1}</span>
-              <strong>${item.title}</strong>
-            </button>
-          `).join('')}
-        </div>
-      </div>
-    ` : '';
+    const videoCount = videoItems.length;
 
-    // Single-video label shown inside the player header when there is exactly one clip.
+    const videoPlaylist = videoItems.length > 0
+      ? `
+        <details class="lesson-video-playlist-details">
+          <summary class="lesson-video-playlist-summary">
+            <div>
+              <strong>Week videos</strong>
+              <span>${videoItems.length} ${videoItems.length === 1 ? 'video' : 'videos'} in this lesson</span>
+            </div>
+            <span class="lesson-video-playlist-icon">▾</span>
+          </summary>
+          <div class="lesson-video-playlist">
+            ${videoItems.map((item, index) => `
+              <button class="lesson-video-chip ${index === activeVideoIndex ? 'lesson-video-chip-active' : ''}" type="button" onclick="selectLessonVideo(${index})">
+                <span>${index + 1}</span>
+                <strong>${item.title}</strong>
+              </button>
+            `).join('')}
+          </div>
+        </details>
+      `
+      : '';
+
     const singleVideoLabel = videoItems.length === 1
-      ? `<span class="lesson-single-video-label">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¶ 1 video</span>`
+      ? `<span class="lesson-single-video-label">${videoCount} ${videoCount === 1 ? 'video' : 'videos'}</span>`
       : '';
 
     return `
       <div class="lesson-watch-main lesson-watch-main-single">
-          ${videoPlaylist}
-          <div class="iframe-wrap lesson-watch-frame"><iframe src="${activeVideo.url}" title="${activeVideo.title || selectedLesson.title}" allowfullscreen loading="lazy"></iframe></div>
-          <div class="lesson-watch-body">
-            <div class="lesson-watch-header">
-              <div>
-                <p class="section-kicker">Now playing ${singleVideoLabel}</p>
-                <h3 class="lesson-watch-title">${activeVideo.title || selectedLesson.title}</h3>
-                <p class="copy-muted">${selectedLesson.objective}</p>
-              </div>
+        <div class="iframe-wrap lesson-watch-frame"><iframe src="${activeVideo.url}" title="${activeVideo.title || selectedLesson.title}" allowfullscreen loading="lazy"></iframe></div>
+        ${videoPlaylist}
+        <div class="lesson-watch-body">
+          <div class="lesson-watch-header">
+            <div>
+              <p class="section-kicker">Now playing ${singleVideoLabel}</p>
+              <h3 class="lesson-watch-title">${activeVideo.title || selectedLesson.title}</h3>
+              <p class="copy-muted">${selectedLesson.objective}</p>
+            </div>
             <div class="lesson-watch-actions">
               <span class="status-pill ${lessonCompleted ? 'success' : selectedLesson.type === 'lab' ? 'warning' : 'neutral'}">${lessonCompleted ? 'Completed' : selectedLesson.type === 'lab' ? 'Hands-on lab' : 'In progress'}</span>
               <button class="btn ${lessonCompleted ? 'btn-secondary' : 'btn-primary'} btn-small" type="button" onclick="toggleLessonCompletion('${selectedLesson.id}')">${lessonCompleted ? 'Mark incomplete' : 'Mark complete'}</button>
               ${nextLessonContext ? `<button class="btn btn-primary btn-small" type="button" onclick="openNextLesson('${selectedLesson.id}')">Next topic</button>` : certificate.unlocked ? `<button class="btn btn-primary btn-small" type="button" onclick="openDashboardView('certificates')">Open certificate</button>` : ''}
               <button class="btn btn-secondary btn-small" type="button" onclick="clearLessonView()">Back to curriculum</button>
             </div>
-            </div>
-            <div class="lesson-watch-channel">
-              <div class="lesson-watch-channel-mark">RK</div>
-              <div class="lesson-watch-channel-copy">
-                <strong>${track.label}</strong>
-                <span>${lessonContext ? `${lessonContext.semester.label} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${lessonContext.month.label} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ${lessonContext.month.title}` : 'Current lesson'}</span>
-              </div>
-            </div>
-            <div class="lesson-watch-description">
-              <div class="lesson-player-breadcrumb">${lessonContext ? `${lessonContext.semester.label} - ${lessonContext.month.label} - ${lessonContext.month.title}` : track.label}</div>
+          </div>
+          <div class="lesson-watch-channel">
+            <div class="lesson-watch-channel-mark">RK</div>
+            <div class="lesson-watch-channel-copy">
+              <strong>${track.label}</strong>
+              <span>${lessonContext ? `${lessonContext.semester.label} - ${lessonContext.month.label} - ${lessonContext.month.title}` : track.label}</span>
             </div>
           </div>
+          <div class="lesson-watch-description">
+            <div class="lesson-player-breadcrumb">${lessonContext ? `${lessonContext.semester.label} - ${lessonContext.month.label} - ${lessonContext.month.title}` : track.label}</div>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -2392,9 +2529,17 @@
     }).join('');
 
     return `
-      <section class="progress-grid">
-        <article class="progress-card"><p class="section-kicker">Overall progress</p><h3>${overall.percent}% complete</h3><p class="copy-muted">${overall.completedCount} of ${overall.totalLessons} weekly items have been completed across the entire track.</p><div class="progress-bar"><div class="progress-fill" style="width:${overall.percent}%"></div></div><div class="dashboard-stack">${semesterRows}</div>${certificate.unlocked ? `<div class="certificate-inline-banner"><strong>Certificate unlocked</strong><button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('certificates')">Open certificate</button></div>` : ''}</article>
-        <article class="progress-card"><p class="section-kicker">Monthly breakdown</p><h3>Completion by month</h3><p class="copy-muted">Three learning months and one hands-on lab month are tracked every semester.</p><div class="dashboard-stack">${monthRows}</div></article>
+      <section class="dashboard-stack">
+        ${buildContentSurfaceHeader({
+          eyebrow: 'Learning progress',
+          title: 'Track progress',
+          description: 'A clearer view of how your programme is progressing across semesters and months.',
+          metaItems: [`${overall.percent}% complete`, `${overall.completedCount}/${overall.totalLessons} lessons done`]
+        })}
+        <div class="progress-grid">
+          <article class="progress-card"><p class="section-kicker">Overall progress</p><h3>${overall.percent}% complete</h3><p class="copy-muted">${overall.completedCount} of ${overall.totalLessons} weekly items have been completed across the entire track.</p><div class="progress-bar"><div class="progress-fill" style="width:${overall.percent}%"></div></div><div class="dashboard-stack">${semesterRows}</div>${certificate.unlocked ? `<div class="certificate-inline-banner"><strong>Certificate unlocked</strong><button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('certificates')">Open certificate</button></div>` : ''}</article>
+          <article class="progress-card"><p class="section-kicker">Monthly breakdown</p><h3>Completion by month</h3><p class="copy-muted">Three learning months and one hands-on lab month are tracked every semester.</p><div class="dashboard-stack">${monthRows}</div></article>
+        </div>
       </section>
     `;
   }
@@ -2635,13 +2780,12 @@
     return `
       <section class="dashboard-stack">
         <article class="surface-card">
-          <div class="content-header">
-            <div>
-              <p class="section-kicker">Semester resources</p>
-              <h2>${track.label} resource library</h2>
-              <p>Open semester-specific resource links here instead of searching through lessons one by one.</p>
-            </div>
-          </div>
+          ${buildContentSurfaceHeader({
+            eyebrow: 'Semester resources',
+            title: `${track.label} resource library`,
+            description: 'Open semester-specific resource links here instead of searching through lessons one by one.',
+            metaItems: [`${track.semesters.length} semesters`, 'Direct links']
+          })}
         </article>
         ${semesterCards}
       </section>
@@ -2652,7 +2796,12 @@
     const announcements = getTrackAnnouncements(track);
     return `
       <section class="surface-card">
-        <div class="content-header"><div><p class="section-kicker">Programme updates</p><h2>Announcements</h2><p>Course notices, lab guidance, and learning updates live here instead of crowding the dashboard.</p></div></div>
+        ${buildContentSurfaceHeader({
+          eyebrow: 'Programme updates',
+          title: 'Announcements',
+          description: 'Course notices, lab guidance, and learning updates live here instead of crowding the dashboard.',
+          metaItems: [announcements.length ? `${announcements.length} updates` : 'No updates yet']
+        })}
         <div class="announcement-grid">${announcements.length ? announcements.map(item => `<article class="announcement-card"><small>${item.date}</small><h3>${item.title}</h3><p>${item.body}</p></article>`).join('') : '<div class="empty-state">No announcement has been published for this track yet.</div>'}</div>
       </section>
     `;
@@ -3666,3 +3815,4 @@
   window.removeProfileImage = removeProfileImage;
   window.getRkhSearchContext = getSearchContext;
 })();
+

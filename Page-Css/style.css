@@ -101,6 +101,17 @@ body.overlay-open {
   overflow: hidden;
 }
 
+body.app-shell-ready .site-shell {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.site-shell {
+  opacity: 0.98;
+  transform: translateY(0);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -1939,14 +1950,25 @@ svg {
 }
 
 .form-message {
-  min-height: 22px;
+  min-height: 24px;
   margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
   font-size: 0.88rem;
   font-weight: 600;
+  background: transparent;
+  color: var(--muted);
 }
 
-.form-message.error   { color: var(--danger); }
-.form-message.success { color: var(--success); }
+.form-message.error {
+  color: var(--danger);
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.form-message.success {
+  color: var(--success);
+  background: rgba(5, 150, 105, 0.1);
+}
 
 .form-hint {
   margin-top: 10px;
@@ -2144,17 +2166,22 @@ svg {
 }
 
 .sidebar-nav-list button.nav-active {
-  color: var(--cyan-500);
-  background: rgba(37, 99, 235, 0.12);
-  border-color: rgba(37, 99, 235, 0.35);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
-  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.24), rgba(124, 58, 237, 0.2));
+  border-color: rgba(125, 211, 252, 0.4);
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.18);
+  font-weight: 700;
 }
 
 .sidebar-nav-list button:hover:not(.nav-active) {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-nav-list button:focus-visible {
+  outline: 2px solid rgba(125, 211, 252, 0.45);
+  outline-offset: 2px;
 }
 
 .app-sidebar:hover .sidebar-nav-list button,
@@ -3054,6 +3081,32 @@ body.modal-open { overflow: hidden; }
   color: var(--ink-900);
 }
 
+.content-surface-shell {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 18px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.content-surface-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.content-surface-meta span {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--gold-700);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
 /* Progress bars */
 .progress-bar,
 .lesson-progress-bar,
@@ -3393,72 +3446,110 @@ body.modal-open { overflow: hidden; }
 .lesson-watch-description { display: grid; gap: 12px; }
 
 /* Playlist */
-.lesson-video-playlist,
-.lesson-resource-panel {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: var(--card);
+.lesson-video-playlist-details {
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.95);
+  overflow: hidden;
 }
 
-.lesson-video-playlist-header { display: grid; gap: 5px; }
-
-.lesson-video-playlist-header strong {
+.lesson-video-playlist-details summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
   color: var(--ink-900);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  list-style: none;
+}
+
+.lesson-video-playlist-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.lesson-video-playlist-details summary .lesson-video-playlist-icon {
+  color: var(--muted);
+  font-size: 0.88rem;
+  transition: transform 0.2s ease;
+}
+
+.lesson-video-playlist-details[open] summary .lesson-video-playlist-icon {
+  transform: rotate(180deg);
+}
+
+.lesson-video-playlist-details summary div {
+  display: grid;
+  gap: 3px;
+}
+
+.lesson-video-playlist-details summary strong {
   font-weight: 600;
 }
 
-.lesson-video-playlist-header span {
+.lesson-video-playlist-details summary span {
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: 0.88rem;
 }
 
-.lesson-video-playlist-grid { display: grid; gap: 10px; }
+.lesson-video-playlist,
+.lesson-resource-panel {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px 16px;
+  background: transparent;
+}
+
+.lesson-video-playlist-grid {
+  display: grid;
+  gap: 10px;
+}
 
 .lesson-video-chip {
   width: 100%;
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
-  gap: 11px;
-  padding: 12px 14px;
+  gap: 10px;
+  padding: 10px 14px;
   text-align: left;
-  border: 1px solid var(--line);
-  border-radius: 13px;
-  background: var(--card);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
   color: var(--ink-900);
-  transition: border-color var(--transition), background-color var(--transition);
+  transition: border-color var(--transition), background-color var(--transition), transform var(--transition);
 }
 
 .lesson-video-chip:hover {
-  border-color: rgba(37, 99, 235, 0.3);
-  background: rgba(37, 99, 235, 0.04);
+  border-color: rgba(37, 99, 235, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
 }
 
 .lesson-video-chip span {
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
   display: grid;
   place-items: center;
-  background: rgba(37, 99, 235, 0.14);
+  background: rgba(37, 99, 235, 0.12);
   color: var(--gold-700);
   font-weight: 700;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
 }
 
 .lesson-video-chip strong {
   font-size: 0.92rem;
   font-weight: 500;
-  line-height: 1.45;
+  line-height: 1.35;
 }
 
 .lesson-video-chip-active {
-  border-color: rgba(37, 99, 235, 0.4);
-  background: rgba(37, 99, 235, 0.07);
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.10);
+  border-color: rgba(37, 99, 235, 0.3);
+  background: rgba(37, 99, 235, 0.08);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.08);
 }
 
 /* Row-level metadata line (badge + lesson type label) */
@@ -4224,7 +4315,7 @@ body.modal-open { overflow: hidden; }
   gap: 4px;
 }
 
-.progress-card { padding: 22px; }
+.progress-card { padding: 22px; border: 1px solid rgba(148, 163, 184, 0.16); background: rgba(255, 255, 255, 0.04); }
 
 .progress-row { display: grid; gap: 10px; }
 

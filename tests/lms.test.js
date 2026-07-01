@@ -2,6 +2,7 @@ const { test, describe } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const { JSDOM } = require('jsdom');
 
 describe('RealKingHubs LMS Tests', () => {
@@ -32,7 +33,7 @@ describe('RealKingHubs LMS Tests', () => {
   test('data.js loads RKH_DATA with correct tracks', () => {
     const dataJsContent = fs.readFileSync(path.resolve(__dirname, '../Page-Js/data.js'), 'utf8');
     const html = `<!DOCTYPE html><html><body><script>${dataJsContent}</script></body></html>`;
-    const dom = new JSDOM(html, { runScripts: "dangerously" });
+    const dom = new JSDOM(html, { runScripts: 'dangerously' });
     const RKH_DATA = dom.window.RKH_DATA;
     
     assert.ok(RKH_DATA, 'RKH_DATA should be defined on the window object');
@@ -46,5 +47,88 @@ describe('RealKingHubs LMS Tests', () => {
       assert.ok(track.semesters, `Track ${trackId} should have semesters`);
       assert.strictEqual(track.semesters.length, 3, `Track ${trackId} should have exactly 3 semesters`);
     });
+  });
+
+  test('shared config script is loaded before the app entry points', () => {
+    const landingHtml = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const adminHtml = fs.readFileSync(path.resolve(__dirname, '../uc-admin/index.html'), 'utf8');
+
+    const landingConfigIndex = landingHtml.indexOf('Page-Js/config.js');
+    const landingAppIndex = landingHtml.indexOf('Page-Js/app.js');
+    assert.ok(landingConfigIndex !== -1, 'Landing page should load the shared config script');
+    assert.ok(landingAppIndex > landingConfigIndex, 'Landing page should load config before app logic');
+
+    const adminConfigIndex = adminHtml.indexOf('/Page-Js/config.js');
+    const adminAppIndex = adminHtml.indexOf('/uc-admin/admin.js');
+    assert.ok(adminConfigIndex !== -1, 'Admin page should load the shared config script');
+    assert.ok(adminAppIndex > adminConfigIndex, 'Admin page should load config before admin logic');
+  });
+
+  test('auth helpers keep the dashboard open for real sign-in sessions', () => {
+    const configJsContent = fs.readFileSync(path.resolve(__dirname, '../Page-Js/config.js'), 'utf8');
+    const dom = new JSDOM(`<!DOCTYPE html><html><body><script>${configJsContent}</script></body></html>`, { runScripts: 'dangerously' });
+    const helpers = dom.window.RKH_AUTH_HELPERS;
+
+    assert.ok(helpers, 'Auth helpers should be exposed from the shared config');
+    assert.strictEqual(helpers.resolveAuthEventAction('SIGNED_IN', { user: { id: 'user-1' } }, null), 'open-dashboard');
+    assert.strictEqual(helpers.resolveAuthEventAction('INITIAL_SESSION', { user: { id: 'user-1' } }, null), 'open-dashboard');
+    assert.strictEqual(helpers.resolveAuthEventAction('TOKEN_REFRESHED', { user: { id: 'user-1' } }, 'user-1'), 'keep-current');
+    assert.strictEqual(helpers.resolveAuthEventAction('SIGNED_OUT', null, 'user-1'), 'show-landing');
+    assert.strictEqual(helpers.resolveAuthEventAction('SIGNED_OUT', null, null), 'keep-current');
+  });
+
+  test('auth helpers choose a fallback track when login metadata omits one', () => {
+    const configJsContent = fs.readFileSync(path.resolve(__dirname, '../Page-Js/config.js'), 'utf8');
+    const dom = new JSDOM(`<!DOCTYPE html><html><body><script>${configJsContent}</script></body></html>`, { runScripts: 'dangerously' });
+    const helpers = dom.window.RKH_AUTH_HELPERS;
+
+    const resolvedTrackId = helpers.resolveEffectiveTrackId({}, ['cloud-engineering', 'frontend-engineering']);
+
+    assert.strictEqual(resolvedTrackId, 'cloud-engineering');
+  });
+
+  test('auth helpers build a learner snapshot from the signed-in session', () => {
+    const configJsContent = fs.readFileSync(path.resolve(__dirname, '../Page-Js/config.js'), 'utf8');
+    const dom = new JSDOM(`<!DOCTYPE html><html><body><script>${configJsContent}</script></body></html>`, { runScripts: 'dangerously' });
+    const helpers = dom.window.RKH_AUTH_HELPERS;
+
+    const snapshot = helpers.buildAuthenticatedUserSnapshot({
+      user: {
+        id: 'user-1',
+        email: 'learner@example.com',
+        user_metadata: {
+          first_name: 'Ada',
+          track_id: 'cloud-engineering'
+        }
+      }
+    }, 'cloud-engineering');
+
+    assert.strictEqual(snapshot.id, 'user-1');
+    assert.strictEqual(snapshot.email, 'learner@example.com');
+    assert.strictEqual(snapshot.firstName, 'Ada');
+    assert.strictEqual(snapshot.trackId, 'cloud-engineering');
+  });
+
+  test('dashboard content surfaces render a structured header shell', () => {
+    const appJsContent = fs.readFileSync(path.resolve(__dirname, '../Page-Js/app.js'), 'utf8');
+    const match = appJsContent.match(/function buildContentSurfaceHeader\([^)]*\) \{[\s\S]*?\n  \}/);
+
+    assert.ok(match, 'The dashboard content-surface helper should be defined');
+
+    const context = { escapeHtml: value => String(value || '') };
+    vm.createContext(context);
+    vm.runInContext(match[0], context);
+
+    const html = context.buildContentSurfaceHeader({
+      eyebrow: 'Course content',
+      title: 'Curriculum',
+      description: 'A calmer view of learning content.',
+      metaItems: ['3 semesters', '12 months']
+    });
+
+    assert.match(html, /content-surface-shell/);
+    assert.match(html, /Course content/);
+    assert.match(html, /Curriculum/);
+    assert.match(html, /3 semesters/);
   });
 });

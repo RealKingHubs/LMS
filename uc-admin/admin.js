@@ -6,8 +6,8 @@
   // into the learner dashboard code.
   // ---------------------------------------------------------------------------
 
-  const SUPABASE_URL = 'https://gelpzfafiiudidxmpofo.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlbHB6ZmFmaWl1ZGlkeG1wb2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTIwNzcsImV4cCI6MjA5MDk4ODA3N30.82lZQg6ZYr1SsK9SFsbszby5QEf6HENgnYn1ynS0ZhE';
+  const SUPABASE_URL = window.RKH_CONFIG?.supabase?.url || '';
+  const SUPABASE_ANON_KEY = window.RKH_CONFIG?.supabase?.anonKey || '';
   const COMMUNITY_TABLE = 'community_messages';
   const ANNOUNCEMENTS_TABLE = 'lms_announcements';
   const FEEDBACK_TABLE = 'lms_feedback';
