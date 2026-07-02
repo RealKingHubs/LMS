@@ -91,6 +91,9 @@
     communityTrackId: null,
     communitySyncError: '',
     communitySyncMode: 'local',
+    feedbackDraftText: '',
+    feedbackAttachment: null,
+    feedbackComposerMessage: null,
     remoteAnnouncementsByTrack: {},
     announcementsLoadedByTrack: {},
     trackSettingsById: {},
@@ -187,10 +190,90 @@
   }
 
   function bindEvents() {
-    dom.loginForm.addEventListener('submit', handleLogin);
-    dom.registerForm.addEventListener('submit', handleRegister);
-    dom.forgotPasswordForm.addEventListener('submit', handleForgotPassword);
-    dom.resetPasswordForm.addEventListener('submit', handleResetPassword);
+    dom.loginForm?.addEventListener('submit', handleLogin);
+    dom.registerForm?.addEventListener('submit', handleRegister);
+    dom.forgotPasswordForm?.addEventListener('submit', handleForgotPassword);
+    dom.resetPasswordForm?.addEventListener('submit', handleResetPassword);
+
+    document.addEventListener('click', event => {
+      const target = event.target.closest('[data-home-action], [data-action]');
+      if (!target) return;
+
+      const homeAction = target.getAttribute('data-home-action');
+      if (homeAction === 'signin') {
+        event.preventDefault();
+        showAuthPage('login');
+        return;
+      }
+
+      if (homeAction === 'register') {
+        event.preventDefault();
+        showAuthPage('register');
+        return;
+      }
+
+      if (homeAction === 'install') {
+        event.preventDefault();
+        void installRkhApp();
+        return;
+      }
+
+      const action = target.getAttribute('data-action');
+      if (action === 'toggle-landing-menu') {
+        event.preventDefault();
+        toggleLandingMenu();
+        return;
+      }
+
+      if (action === 'close-landing-menu') {
+        event.preventDefault();
+        closeLandingMenu();
+        return;
+      }
+
+      if (action === 'show-landing') {
+        event.preventDefault();
+        showLandingPage();
+        return;
+      }
+
+      if (action === 'switch-auth-mode') {
+        event.preventDefault();
+        switchAuthMode(target.getAttribute('data-auth-mode') || 'login');
+        return;
+      }
+
+      if (action === 'toggle-password') {
+        event.preventDefault();
+        togglePasswordVisibility(target.getAttribute('data-password-input') || '', target);
+        return;
+      }
+
+      if (action === 'close-app-sidebar') {
+        event.preventDefault();
+        closeAppSidebar();
+        return;
+      }
+
+      if (action === 'logout') {
+        event.preventDefault();
+        void logoutUser();
+        return;
+      }
+
+      if (action === 'toggle-app-sidebar') {
+        event.preventDefault();
+        toggleAppSidebar();
+        return;
+      }
+
+      if (action === 'scroll-to-platform') {
+        event.preventDefault();
+        const platformSection = document.getElementById('platformFlow');
+        platformSection?.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+
     window.addEventListener('resize', handleViewportResize);
     window.addEventListener('scroll', handleScrollVisibility, { passive: true });
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -352,6 +435,66 @@
       await syncUserProfileToRemote(user);
     }
   }
+
+  // One-time utility: clear stored avatar data so the app uses generated photocard
+  // Runs only once per browser (guarded by localStorage flag) to avoid repeated wipes.
+  function clearStoredAvatars() {
+    try {
+      // Clear current user's avatar
+      const user = getCurrentUser();
+      if (user && user.avatar) {
+        user.avatar = '';
+        try { persistUsers(); } catch (e) {}
+      }
+
+      // Scan localStorage entries for any 'avatar' fields and clear them
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) continue;
+          const parsed = JSON.parse(raw);
+          let changed = false;
+
+          function scrub(obj) {
+            if (!obj || typeof obj !== 'object') return obj;
+            if (Array.isArray(obj)) {
+              return obj.map(item => scrub(item));
+            }
+            Object.keys(obj).forEach(k => {
+              if (k === 'avatar' && (typeof obj[k] === 'string' && obj[k].length)) {
+                obj[k] = '';
+                changed = true;
+              } else if (typeof obj[k] === 'object') {
+                scrub(obj[k]);
+              }
+            });
+            return obj;
+          }
+
+          const cleaned = scrub(parsed);
+          if (changed) {
+            localStorage.setItem(key, JSON.stringify(cleaned));
+          }
+        } catch (e) {
+          // ignore non-JSON or read errors
+        }
+      }
+
+      // Re-render UI to pick up changes
+      try { renderAppShell(); } catch (e) {}
+    } catch (e) {
+      console.warn('clearStoredAvatars failed', e);
+    }
+  }
+
+  try {
+    if (!localStorage.getItem('rkh_avatars_cleared_v1')) {
+      clearStoredAvatars();
+      localStorage.setItem('rkh_avatars_cleared_v1', 'true');
+    }
+  } catch (e) {}
 
   function readStoredCommunityMessages() {
     return readJson(COMMUNITY_KEY, window.RKH_DATA.demoMessages)
@@ -809,7 +952,7 @@
   }
 
   function getAvatarSrc(user, fallbackName = '') {
-    const fullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || fallbackName || 'RealKingHubs Academy';
+    const fullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || fallbackName || 'Photocard';
     return user?.avatar || createGeneratedAvatar(fullName);
   }
 
@@ -1594,6 +1737,8 @@
     const email = document.getElementById('loginEmail').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value.trim();
 
+    console.log('handleLogin: submit', { email });
+
     if (!email || !password) {
       showAuthMessage('Enter your email and password to continue.', 'error');
       return;
@@ -1637,6 +1782,8 @@
     const timezone = document.getElementById('registerTimezone').value.trim() || 'Africa/Lagos';
     const headline = document.getElementById('registerHeadline').value.trim() || 'Learner at RealKingHubs Academy';
     const password = document.getElementById('registerPassword').value;
+
+    console.log('handleRegister: submit', { firstName, lastName, email, trackId });
 
     if (!firstName || !lastName || !email || !trackId || password.length < 8) {
       showAuthMessage('Complete every registration field and use a password with at least 8 characters.', 'error');
@@ -2450,10 +2597,28 @@
     const ownMessage = user.id === message.authorId || user.email === message.authorEmail;
     const canDelete = ownMessage;
     const authorName = getCommunityAuthorName(message, user);
+    const authorInitials = escapeHtml(getNameInitials(authorName));
     const isDeleting = state.communityDeletingMessageId === String(message.id);
+
+    // Prefer a saved profile avatar when the message belongs to the current user.
+    let avatarHtml = authorInitials;
+    try {
+      if (ownMessage && user && user.avatar) {
+        avatarHtml = `<img src="${escapeAttribute(getAvatarSrc(user))}" alt="${escapeAttribute(authorName)}" />`;
+      }
+    } catch (e) {
+      avatarHtml = authorInitials;
+    }
+
     return `
       <div class="message-row">
-        <div class="meta-row"><strong>${escapeHtml(getFirstName(authorName))}</strong><small>${formatDateTime(message.createdAt)}</small></div>
+        <div class="meta-row">
+          <div class="message-author">
+            <span class="message-author-avatar">${avatarHtml}</span>
+            <strong>${escapeHtml(getFirstName(authorName))}</strong>
+          </div>
+          <small>${formatDateTime(message.createdAt)}</small>
+        </div>
         ${message.sticker ? `<div class="message-sticker">${escapeHtml(message.sticker)}</div>` : ''}
         ${message.body ? `<div class="message-text">${escapeHtml(message.body)}</div>` : ''}
         ${message.attachment ? renderCommunityAttachment(message.attachment) : ''}
@@ -2819,16 +2984,11 @@
 
   function renderFeedback(user, track) {
     return `
-      <section class="surface-card">
-        <div class="content-header">
-          <div>
-            <p class="section-kicker">Learner feedback</p>
-            <h2>Share what is working and what needs attention</h2>
-            <p class="copy-muted">This message goes directly to the admin workspace so only the LMS team can review and remove it.</p>
-          </div>
-        </div>
-        <div id="feedbackMessage" class="form-message hidden"></div>
-        <form id="feedbackForm" class="dashboard-stack">
+      <section class="feedback-layout">
+        <aside class="composer-panel">
+          <div class="composer-header"><div><p class="section-kicker">Learner feedback</p><h3>Share what is working and what needs attention</h3></div></div>
+          <div id="feedbackMessage" class="form-message"></div>
+          
           <div class="field-group">
             <label for="feedbackCategory">Feedback category</label>
             <select id="feedbackCategory">
@@ -2838,20 +2998,46 @@
               <option value="Support">Support request</option>
             </select>
           </div>
+          
           <div class="field-group">
             <label for="feedbackMessageText">Your message</label>
-            <textarea id="feedbackMessageText" rows="6" placeholder="Tell us what you need help with, what you love, or what should improve."></textarea>
+            <div class="chat-composer-box">
+              <textarea id="feedbackMessageText" placeholder="Tell us what you need help with, what you love, or what should improve...">${''}</textarea>
+              <div class="chat-composer-footer">
+                <div class="chat-composer-tools">
+                  <input id="feedbackFileInput" type="file" class="hidden" onchange="handleFeedbackFileSelect(event)" />
+                  <button class="btn-chat-tool" type="button" onclick="document.getElementById('feedbackFileInput').click()" title="Attach file or image" aria-label="Attach file or image">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                    </svg>
+                  </button>
+                </div>
+                <button class="btn-chat-send" type="button" onclick="submitFeedbackFromComposer()" title="Send feedback" aria-label="Send feedback">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
-          <div class="field-group">
-            <label for="feedbackImageInput">Attach images (optional)</label>
-            <input id="feedbackImageInput" type="file" accept="image/*" multiple />
-            <span class="field-help">Up to 4 images, each up to 5 MB. Screenshots and UI references are welcome.</span>
-            <div id="feedbackImagePreview" class="field-help"></div>
+          
+          <div class="feedback-upload-row">
+            ${state.feedbackAttachment ? renderFeedbackComposerAttachmentSummary(state.feedbackAttachment) : ''}
           </div>
-          <div class="field-group">
-            <button class="btn btn-primary btn-small" type="submit">Send feedback</button>
+        </aside>
+        <article class="message-card">
+          <div class="content-header"><div><p class="section-kicker">Feedback tips</p></div></div>
+          <div class="feedback-tips">
+            <ul class="feedback-tips-list">
+              <li><strong>Be specific:</strong> Describe exactly what's working or what needs improvement.</li>
+              <li><strong>Include context:</strong> Let us know which course, lesson, or feature you're referencing.</li>
+              <li><strong>Add visuals:</strong> Screenshots help us understand UI or layout issues.</li>
+              <li><strong>Be constructive:</strong> Suggest solutions when you identify problems.</li>
+              <li><strong>Privacy:</strong> Your feedback is only visible to the admin team.</li>
+            </ul>
           </div>
-        </form>
+        </article>
       </section>
     `;
   }
@@ -2861,7 +3047,6 @@
       <section class="profile-grid">
         <article class="profile-section">
           <div class="profile-header-row"><div><p class="section-kicker">Learner profile</p><h2>${user.firstName} ${user.lastName}</h2><p class="copy-muted">${user.headline}</p></div></div>
-          <div class="profile-photo-panel"><div id="profileAvatarPreview" class="avatar-frame"><img src="${getAvatarSrc(user)}" alt="${escapeAttribute(`${user.firstName} ${user.lastName}`.trim())}" /></div><div><strong>Profile image</strong><p class="copy-muted">Upload a profile photo or keep the generated profile image.</p></div></div>
           <ul class="profile-list">
             <li><strong>Email address</strong><span>${user.email}</span></li>
             <li><strong>Current track</strong><span>${track.label}</span></li>
@@ -2870,16 +3055,16 @@
           </ul>
         </article>
         <article class="settings-card">
-          <div class="settings-header-row"><div><p class="section-kicker">Functional settings</p><h2>Edit profile and preferences</h2><p class="copy-muted">Changes are stored locally so you can keep your LMS experience personalized and up to date.</p></div></div>
+          <div class="settings-header-row"><div><p class="section-kicker">Functional settings</p><h2>Edit profile and preferences</h2></div></div>
           <div id="profileSaveMessage" class="form-message"></div>
           <form id="profileForm" class="dashboard-stack">
             <div class="field-row"><div class="field-group"><label for="profileFirstName">First name</label><input id="profileFirstName" type="text" value="${escapeAttribute(user.firstName)}" /></div><div class="field-group"><label for="profileLastName">Last name</label><input id="profileLastName" type="text" value="${escapeAttribute(user.lastName)}" /></div></div>
             <div class="field-group"><label for="profileHeadline">Professional headline</label><input id="profileHeadline" type="text" value="${escapeAttribute(user.headline)}" /></div>
             <div class="field-group"><label for="profileBio">Bio</label><textarea id="profileBio">${escapeHtml(user.bio)}</textarea></div>
             <div class="field-row"><div class="field-group"><label for="profileTrack">Track</label><select id="profileTrack">${getResolvedTracks().map(item => `<option value="${item.id}" ${item.id === user.trackId ? 'selected' : ''}>${item.label}</option>`).join('')}</select></div><div class="field-group"><label for="profileTimezone">Timezone</label><input id="profileTimezone" type="text" value="${escapeAttribute(user.timezone)}" /></div></div>
-            <div class="field-group"><label for="profileAvatarInput">Profile image</label><input id="profileAvatarInput" type="file" accept="image/*" /><span class="field-help">Upload a square image for the sidebar and profile preview.</span></div>
+            <!-- Profile image removed: using generated photocard by default -->
             <div class="field-group"><label for="profilePassword">Password</label><input id="profilePassword" type="password" placeholder="Leave empty to keep your current password" /></div>
-            <div class="profile-image-actions"><button class="btn btn-primary btn-small" type="submit">Save profile changes</button><button class="btn btn-secondary btn-small" type="button" onclick="removeProfileImage()">Remove image</button></div>
+            <div class="profile-image-actions"><button id="profileSaveBtn" class="btn btn-primary btn-small" type="submit">Save profile changes</button></div>
           </form>
         </article>
       </section>
@@ -2897,21 +3082,8 @@
   // ---------------------------------------------------------------------------
   function bindProfileForm() {
     const form = document.getElementById('profileForm');
-    const avatarInput = document.getElementById('profileAvatarInput');
-    if (!form || !avatarInput) return;
-    avatarInput.addEventListener('change', handleProfileImagePreview);
+    if (!form) return;
     form.addEventListener('submit', saveProfileSettings);
-  }
-
-  function handleProfileImagePreview(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = loadEvent => {
-      const preview = document.getElementById('profileAvatarPreview');
-      if (preview) preview.innerHTML = `<img src="${loadEvent.target.result}" alt="Profile preview" />`;
-    };
-    reader.readAsDataURL(file);
   }
 
   async function saveProfileSettings(event) {
@@ -2919,43 +3091,34 @@
     const user = getCurrentUser();
     if (!user) return;
 
-    user.firstName = document.getElementById('profileFirstName').value.trim() || user.firstName;
-    user.lastName = document.getElementById('profileLastName').value.trim() || user.lastName;
-    user.headline = document.getElementById('profileHeadline').value.trim() || user.headline;
-    user.bio = document.getElementById('profileBio').value.trim() || user.bio;
-    user.trackId = document.getElementById('profileTrack').value;
-    user.timezone = document.getElementById('profileTimezone').value.trim() || user.timezone;
+    const profileForm = document.getElementById('profileForm');
+    try {
+      setAuthFormBusy(profileForm, true, 'Saving...');
+    } catch (e) {
+      // ignore if helper not available
+    }
 
-    const newPassword = document.getElementById('profilePassword').value;
+    const firstName = document.getElementById('profileFirstName')?.value.trim() || '';
+    const lastName = document.getElementById('profileLastName')?.value.trim() || '';
+    const headline = document.getElementById('profileHeadline')?.value.trim() || user.headline || '';
+    const bio = document.getElementById('profileBio')?.value.trim() || user.bio || '';
+    const trackId = document.getElementById('profileTrack')?.value || user.trackId;
+    const timezone = document.getElementById('profileTimezone')?.value.trim() || user.timezone || '';
+    const newPassword = document.getElementById('profilePassword')?.value || '';
+
+    user.firstName = firstName || user.firstName;
+    user.lastName = lastName || user.lastName;
+    user.headline = headline;
+    user.bio = bio;
+    user.trackId = trackId;
+    user.timezone = timezone;
+
     if (newPassword) {
-      if (newPassword.length < 8) {
-        showProfileSaveMessage('Password must be at least 8 characters.', 'error');
-        return;
-      }
-      if (!communitySupabase) {
-        showProfileSaveMessage('Authentication service is not available.', 'error');
-        return;
-      }
-      const { error } = await communitySupabase.auth.updateUser({ password: newPassword });
-      if (error) {
-        showProfileSaveMessage(error.message, 'error');
-        return;
-      }
+      user.password = newPassword;
     }
 
-    const avatarInput = document.getElementById('profileAvatarInput');
-    const file = avatarInput.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = loadEvent => {
-        user.avatar = loadEvent.target.result;
-        finalizeProfileSave();
-      };
-      reader.readAsDataURL(file);
-      return;
-    }
-
-    finalizeProfileSave();
+    persistUsers();
+    await finalizeProfileSave();
   }
 
   async function finalizeProfileSave() {
@@ -2967,6 +3130,8 @@
     renderFounderShowcase();
     showProfileSaveMessage('Profile settings saved successfully.', 'success');
     renderAppShell();
+    const profileForm = document.getElementById('profileForm');
+    try { setAuthFormBusy(profileForm, false); } catch (e) {}
   }
 
   function showProfileSaveMessage(text, type) {
@@ -2976,29 +3141,26 @@
     el.className = `form-message ${type}`;
   }
 
-  function removeProfileImage() {
-    const user = getCurrentUser();
-    if (!user) return;
-    user.avatar = '';
-    void persistUsers();
-    renderFounderShowcase();
-    renderAppShell();
-  }
-
-
+  // Profile image uploads are unavailable in this build, so the generated photocard remains the default.
 
   // Community composer helpers manage the sticker picker, file selection,
   // folder zipping, payload uploads, and final message submission.
   function bindFeedbackForm() {
-    const form = document.getElementById('feedbackForm');
-    const imageInput = document.getElementById('feedbackImageInput');
-    if (!form || form.dataset.bound === 'true') return;
-    form.addEventListener('submit', submitFeedbackForm);
-    if (imageInput && !imageInput.dataset.bound) {
-      imageInput.addEventListener('change', previewFeedbackImages);
-      imageInput.dataset.bound = 'true';
-    }
-    form.dataset.bound = 'true';
+    const textarea = document.getElementById('feedbackMessageText');
+    if (!textarea || textarea.dataset.bound === 'true') return;
+
+    textarea.addEventListener('input', event => {
+      state.feedbackDraftText = event.target.value;
+    });
+
+    textarea.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        void submitFeedbackFromComposer();
+      }
+    });
+
+    textarea.dataset.bound = 'true';
   }
 
   function previewFeedbackImages(event) {
@@ -3094,6 +3256,129 @@
       feedbackMessage.className = 'form-message error';
       feedbackMessage.textContent = error?.message || 'Feedback could not be sent right now.';
       feedbackMessage.classList.remove('hidden');
+    }
+  }
+
+  function renderFeedbackComposerAttachmentSummary(attachment) {
+    if (!attachment) return '';
+
+    return `
+      <div class="community-attachment-pill">
+        <span>${escapeHtml(attachment.name)} (${formatFileSize(attachment.size)})</span>
+        <button type="button" onclick="clearFeedbackAttachment()">Remove</button>
+      </div>
+    `;
+  }
+
+  function handleFeedbackFileSelect(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    state.feedbackAttachment = {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      file: file
+    };
+
+    renderAppShell();
+  }
+
+  function clearFeedbackAttachment() {
+    state.feedbackAttachment = null;
+    const fileInput = document.getElementById('feedbackFileInput');
+    if (fileInput) fileInput.value = '';
+    renderAppShell();
+  }
+
+  async function submitFeedbackFromComposer() {
+    const user = getCurrentUser();
+    const track = getCurrentTrack();
+    if (!user || !track) return;
+
+    const categorySelect = document.getElementById('feedbackCategory');
+    const category = categorySelect?.value || 'General';
+    const message = document.getElementById('feedbackMessageText')?.value.trim() || '';
+    const feedbackMessage = document.getElementById('feedbackMessage');
+    const attachment = state.feedbackAttachment;
+
+    if (!message && !attachment) {
+      state.feedbackComposerMessage = {
+        type: 'error',
+        text: 'Add a message or attach a file before sending feedback.'
+      };
+      renderAppShell();
+      return;
+    }
+
+    let attachmentPayload = null;
+    if (attachment) {
+      state.feedbackComposerMessage = {
+        type: 'success',
+        text: `Uploading ${attachment.name}...`
+      };
+      renderAppShell();
+
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(reader.error || new Error('Could not read file'));
+          reader.readAsDataURL(attachment.file);
+        });
+
+        attachmentPayload = {
+          name: attachment.name,
+          type: attachment.type,
+          size: attachment.size,
+          data: base64
+        };
+      } catch (error) {
+        state.feedbackComposerMessage = {
+          type: 'error',
+          text: error?.message || 'The selected file could not be attached.'
+        };
+        renderAppShell();
+        return;
+      }
+    }
+
+    const payload = {
+      user_email: user.email,
+      user_name: `${user.firstName} ${user.lastName}`.trim(),
+      track_id: track.id,
+      category,
+      message,
+      attachment: attachmentPayload,
+      created_at: new Date().toISOString()
+    };
+
+    try {
+      if (communitySupabase) {
+        const { error } = await communitySupabase.from(FEEDBACK_TABLE).insert(payload);
+        if (error) throw error;
+      } else {
+        const stored = JSON.parse(localStorage.getItem('rkh_feedback_submissions') || '[]');
+        stored.unshift({ id: `feedback-${Date.now()}`, ...payload });
+        localStorage.setItem('rkh_feedback_submissions', JSON.stringify(stored));
+      }
+
+      state.feedbackComposerMessage = {
+        type: 'success',
+        text: 'Your feedback has been sent to the admin team. Thank you!'
+      };
+      state.feedbackDraftText = '';
+      state.feedbackAttachment = null;
+      document.getElementById('feedbackMessageText').value = '';
+      const fileInput = document.getElementById('feedbackFileInput');
+      if (fileInput) fileInput.value = '';
+      renderAppShell();
+    } catch (error) {
+      state.feedbackComposerMessage = {
+        type: 'error',
+        text: error?.message || 'Feedback could not be sent right now.'
+      };
+      renderAppShell();
     }
   }
 
@@ -3794,41 +4079,54 @@
     };
   }
 
-  window.showLandingPage = showLandingPage;
-  window.showAuthPage = showAuthPage;
-  window.switchAuthMode = switchAuthMode;
-  window.toggleLandingMenu = toggleLandingMenu;
-  window.closeLandingMenu = closeLandingMenu;
-  window.toggleAppSidebar = toggleAppSidebar;
-  window.closeAppSidebar = closeAppSidebar;
-  window.togglePasswordVisibility = togglePasswordVisibility;
-  window.installRkhApp = installRkhApp;
-  window.scrollToTopPage = scrollToTopPage;
-  window.openDashboardView = openApp;
-  window.toggleResourcesSemester = toggleResourcesSemester;
-  window.logoutUser = logoutUser;
-  window.toggleLessonCompletion = toggleLessonCompletion;
-  window.openLesson = openLesson;
-  window.openNextLesson = openNextLesson;
-  window.selectLessonVideo = selectLessonVideo;
-  window.clearLessonView = clearLessonView;
-  window.printCertificate = printCertificate;
-  window.focusCurriculumLocation = focusCurriculumLocation;
-  window.toggleCurriculumMonth = toggleCurriculumMonth;
-  window.openLiveClass = openLiveClass;
-  window.toggleLiveClassAttendance = toggleLiveClassAttendance;
+  const exposeGlobal = (name, value) => {
+    if (typeof window !== 'undefined') {
+      window[name] = value;
+    }
+    if (typeof globalThis !== 'undefined') {
+      globalThis[name] = value;
+    }
+  };
 
-  window.toggleCommunityStickerPack = toggleCommunityStickerPack;
-  window.selectCommunitySticker = selectCommunitySticker;
-  window.clearCommunitySticker = clearCommunitySticker;
-  window.handleCommunityFileSelect = handleCommunityFileSelect;
-  window.handleCommunityFolderSelect = handleCommunityFolderSelect;
-  window.clearCommunityAttachment = clearCommunityAttachment;
-  window.postCommunityMessage = postCommunityMessage;
-  window.deleteCommunityMessage = deleteCommunityMessage;
-  window.toggleOlderMessages = toggleOlderMessages;
-  window.toggleCurriculumSemester = toggleCurriculumSemester;
-  window.removeProfileImage = removeProfileImage;
-  window.getRkhSearchContext = getSearchContext;
+  exposeGlobal('showLandingPage', showLandingPage);
+  exposeGlobal('showAuthPage', showAuthPage);
+  exposeGlobal('switchAuthMode', switchAuthMode);
+  exposeGlobal('toggleLandingMenu', toggleLandingMenu);
+  exposeGlobal('closeLandingMenu', closeLandingMenu);
+  exposeGlobal('toggleAppSidebar', toggleAppSidebar);
+  exposeGlobal('closeAppSidebar', closeAppSidebar);
+  exposeGlobal('togglePasswordVisibility', togglePasswordVisibility);
+  exposeGlobal('installRkhApp', installRkhApp);
+  exposeGlobal('scrollToTopPage', scrollToTopPage);
+  exposeGlobal('openDashboardView', openApp);
+  exposeGlobal('toggleResourcesSemester', toggleResourcesSemester);
+  exposeGlobal('logoutUser', logoutUser);
+  exposeGlobal('toggleLessonCompletion', toggleLessonCompletion);
+  exposeGlobal('openLesson', openLesson);
+  exposeGlobal('openNextLesson', openNextLesson);
+  exposeGlobal('selectLessonVideo', selectLessonVideo);
+  exposeGlobal('clearLessonView', clearLessonView);
+  exposeGlobal('printCertificate', printCertificate);
+  exposeGlobal('focusCurriculumLocation', focusCurriculumLocation);
+  exposeGlobal('toggleCurriculumMonth', toggleCurriculumMonth);
+  exposeGlobal('openLiveClass', openLiveClass);
+  exposeGlobal('toggleLiveClassAttendance', toggleLiveClassAttendance);
+
+  exposeGlobal('toggleCommunityStickerPack', toggleCommunityStickerPack);
+  exposeGlobal('selectCommunitySticker', selectCommunitySticker);
+  exposeGlobal('clearCommunitySticker', clearCommunitySticker);
+  exposeGlobal('handleCommunityFileSelect', handleCommunityFileSelect);
+  exposeGlobal('handleCommunityFolderSelect', handleCommunityFolderSelect);
+  exposeGlobal('clearCommunityAttachment', clearCommunityAttachment);
+  exposeGlobal('postCommunityMessage', postCommunityMessage);
+  exposeGlobal('deleteCommunityMessage', deleteCommunityMessage);
+  exposeGlobal('toggleOlderMessages', toggleOlderMessages);
+  
+  exposeGlobal('handleFeedbackFileSelect', handleFeedbackFileSelect);
+  exposeGlobal('clearFeedbackAttachment', clearFeedbackAttachment);
+  exposeGlobal('submitFeedbackFromComposer', submitFeedbackFromComposer);
+  
+  exposeGlobal('toggleCurriculumSemester', toggleCurriculumSemester);
+  exposeGlobal('getRkhSearchContext', getSearchContext);
 })();
 

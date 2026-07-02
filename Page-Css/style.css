@@ -395,6 +395,14 @@ svg {
   transform: translateY(0);
 }
 
+.btn[disabled],
+.btn[aria-busy="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 .btn:focus-visible,
 .auth-tab:focus-visible,
 .sidebar-nav-list button:focus-visible,
@@ -2341,6 +2349,8 @@ svg {
   position: relative;
   min-width: min(100%, 260px);
   max-width: 300px;
+  z-index: 99999;
+  overflow: visible !important;
 }
 
 .topbar-search {
@@ -2395,11 +2405,11 @@ svg {
 }
 
 .topbar-search-panel {
-  position: absolute;
-  top: calc(100% + 8px);
+  position: fixed;
+  top: 0;
   left: 0;
-  right: 0;
-  z-index: 30;
+  right: auto;
+  z-index: 999999999 !important;
   display: grid;
   gap: 6px;
   padding: 8px;
@@ -2409,6 +2419,11 @@ svg {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  max-height: min(44vh, 340px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  pointer-events: auto;
 }
 
 .search-result-item {
@@ -4307,6 +4322,34 @@ body.modal-open { overflow: hidden; }
   font-size: 0.9rem;
 }
 
+.message-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.message-author-avatar {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(124, 58, 237, 0.95));
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.message-author-avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
 .meta-row strong {
   color: #f8fbff;
   font-weight: 700;
@@ -4546,6 +4589,45 @@ body.modal-open { overflow: hidden; }
   font-size: 0.92rem;
 }
 
+/* Feedback layout - similar to community layout */
+.feedback-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.18fr);
+  gap: 20px;
+}
+
+.feedback-upload-row {
+  display: grid;
+  gap: 10px;
+}
+
+.feedback-tips {
+  padding: 0;
+}
+
+.feedback-tips-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 16px;
+}
+
+.feedback-tips-list li {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(129, 140, 248, 0.08);
+  border: 1px solid rgba(129, 140, 248, 0.14);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.feedback-tips-list strong {
+  color: var(--brand-4);
+  font-weight: 600;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Scrollbar                                                                   */
 /* -------------------------------------------------------------------------- */
@@ -4574,6 +4656,7 @@ body.modal-open { overflow: hidden; }
   .curriculum-layout,
   .curriculum-viewing-layout,
   .community-layout,
+  .feedback-layout,
   .live-grid,
   .profile-grid,
   .settings-grid,

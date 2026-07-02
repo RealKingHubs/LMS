@@ -60,13 +60,13 @@
           </div>
         </div>
         <!-- Mobile uses this trigger to open the landing navigation as a right-side drawer. -->
-        <button id="landingMenuToggle" class="mobile-menu-button marketing-menu-toggle" type="button" onclick="toggleLandingMenu()" aria-label="Open navigation" aria-expanded="false" aria-controls="landingMenuDrawer">
+        <button id="landingMenuToggle" class="mobile-menu-button marketing-menu-toggle" type="button" data-action="toggle-landing-menu" aria-label="Open navigation" aria-expanded="false" aria-controls="landingMenuDrawer">
           <svg viewBox="0 0 24 24" aria-hidden="true" class="icon-menu">
             <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
           </svg>
         </button>
         <div id="landingMenuDrawer" class="marketing-drawer">
-          <button class="drawer-close-btn" type="button" onclick="closeLandingMenu()" aria-label="Close menu">
+          <button class="drawer-close-btn" type="button" data-action="close-landing-menu" aria-label="Close menu">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M6 18L18 6M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
             </svg>
@@ -77,13 +77,13 @@
             <a href="https://selar.com/m/kingsleyodo" target="_blank" rel="noreferrer">BOOKS</a>
           </nav>
           <div class="marketing-actions">
-            <button id="installAppBtn" class="btn btn-ghost" type="button" onclick="installRkhApp()">Install app</button>
-            <button class="btn btn-secondary" type="button" onclick="showAuthPage('login')">Sign in</button>
-            <button class="btn btn-primary" type="button" onclick="showAuthPage('register')">Start learning</button>
+            <button id="installAppBtn" class="btn btn-ghost" type="button" data-home-action="install">Install app</button>
+            <button id="landingSignInBtn" class="btn btn-secondary" type="button" data-home-action="signin">Sign in</button>
+            <button id="landingStartBtn" class="btn btn-primary" type="button" data-home-action="register">Start learning</button>
           </div>
         </div>
       </header>
-      <div id="landingMenuOverlay" class="marketing-menu-overlay" onclick="closeLandingMenu()"></div>
+      <div id="landingMenuOverlay" class="marketing-menu-overlay" data-action="close-landing-menu"></div>
 
       <main class="marketing-main">
         <!-- Public hero: first impression, key value proposition, and quick access into the LMS -->
@@ -99,8 +99,8 @@
               Master Cloud, Frontend, and Backend skills with guided videos, labs, and a calm LMS flow.
             </p>
             <div class="hero-actions">
-              <button class="btn btn-primary" type="button" onclick="showAuthPage('register')">Create account</button>
-              <button class="btn btn-secondary" type="button" onclick="document.getElementById('platformFlow').scrollIntoView({ behavior: 'smooth' })">Explore platform</button>
+              <button id="heroCreateAccountBtn" class="btn btn-primary" type="button" data-home-action="register">Create account</button>
+              <button class="btn btn-secondary" type="button" data-action="scroll-to-platform">Explore platform</button>
             </div>
           </div>
         </section>
@@ -302,16 +302,16 @@
           <p>
             Use the forms on this page to register a learner profile, choose your track, and continue straight into the dashboard.
           </p>
-          <button class="btn btn-secondary" type="button" onclick="showLandingPage()">Back to landing</button>
+          <button class="btn btn-secondary" type="button" data-action="show-landing">Back to landing</button>
         </div>
 
         <div class="auth-card">
           <!-- Tabs swap the visible form without leaving the page -->
           <div class="auth-tabs">
-            <button id="loginTab" class="auth-tab auth-tab-active" type="button" onclick="switchAuthMode('login')">Sign in</button>
-            <button id="registerTab" class="auth-tab" type="button" onclick="switchAuthMode('register')">Create account</button>
-            <button id="forgotTab" class="auth-tab auth-tab-hidden" type="button" onclick="switchAuthMode('forgot')">Forgot Password</button>
-            <button id="resetTab" class="auth-tab auth-tab-hidden" type="button" onclick="switchAuthMode('reset')">Reset Password</button>
+            <button id="loginTab" class="auth-tab auth-tab-active" type="button" data-action="switch-auth-mode" data-auth-mode="login">Sign in</button>
+            <button id="registerTab" class="auth-tab" type="button" data-action="switch-auth-mode" data-auth-mode="register">Create account</button>
+            <button id="forgotTab" class="auth-tab auth-tab-hidden" type="button" data-action="switch-auth-mode" data-auth-mode="forgot">Forgot Password</button>
+            <button id="resetTab" class="auth-tab auth-tab-hidden" type="button" data-action="switch-auth-mode" data-auth-mode="reset">Reset Password</button>
           </div>
 
           <!-- Validation and success feedback from app.js appears here -->
@@ -326,11 +326,11 @@
               <label for="loginPassword">Password</label>
               <div class="password-field">
                 <input id="loginPassword" type="password" placeholder="Enter password" />
-                <button class="password-toggle" type="button" aria-pressed="false" onclick="togglePasswordVisibility('loginPassword', this)">Show</button>
+                <button class="password-toggle" type="button" aria-pressed="false" data-action="toggle-password" data-password-input="loginPassword">Show</button>
               </div>
             </div>
             <button class="btn btn-primary btn-block" type="submit">Sign in to dashboard</button>
-            <button class="btn btn-ghost btn-block" type="button" onclick="switchAuthMode('forgot')">Forgot your password?</button>
+            <button class="btn btn-ghost btn-block" type="button" data-action="switch-auth-mode" data-auth-mode="forgot">Forgot your password?</button>
           </form>
 
           <form id="registerForm" class="auth-form">
@@ -366,7 +366,7 @@
               <label for="registerPassword">Password</label>
               <div class="password-field">
                 <input id="registerPassword" type="password" placeholder="Minimum 8 characters" />
-                <button class="password-toggle" type="button" aria-pressed="false" onclick="togglePasswordVisibility('registerPassword', this)">Show</button>
+                <button class="password-toggle" type="button" aria-pressed="false" data-action="toggle-password" data-password-input="registerPassword">Show</button>
               </div>
             </div>
             <button class="btn btn-primary btn-block" type="submit">Create learner account</button>
@@ -379,7 +379,7 @@
               <input id="forgotEmail" type="email" placeholder="you@example.com" />
             </div>
             <button class="btn btn-primary btn-block" type="submit">Send reset link</button>
-            <button class="btn btn-ghost btn-block" type="button" onclick="switchAuthMode('login')">Back to login</button>
+            <button class="btn btn-ghost btn-block" type="button" data-action="switch-auth-mode" data-auth-mode="login">Back to login</button>
           </form>
 
           <form id="resetPasswordForm" class="auth-form">
@@ -388,7 +388,7 @@
               <label for="resetPassword">New Password</label>
               <div class="password-field">
                 <input id="resetPassword" type="password" placeholder="Minimum 8 characters" />
-                <button class="password-toggle" type="button" aria-pressed="false" onclick="togglePasswordVisibility('resetPassword', this)">Show</button>
+                <button class="password-toggle" type="button" aria-pressed="false" data-action="toggle-password" data-password-input="resetPassword">Show</button>
               </div>
             </div>
             <button class="btn btn-primary btn-block" type="submit">Set new password</button>
@@ -400,7 +400,7 @@
     <!-- Main LMS shell shown after login -->
     <section id="appPage" class="page">
       <div class="app-shell">
-        <div id="appSidebarOverlay" class="app-sidebar-overlay" onclick="closeAppSidebar()"></div>
+        <div id="appSidebarOverlay" class="app-sidebar-overlay" data-action="close-app-sidebar"></div>
         <!-- Sidebar navigation is rendered dynamically so labels stay in sync -->
         <aside id="appSidebar" class="app-sidebar">
           <div class="sidebar-brand" title="RealKingHubs Academy">
@@ -414,7 +414,7 @@
           <nav id="appNav" class="sidebar-nav-list"></nav>
 
           <div class="sidebar-footer">
-            <button class="topbar-icon-btn sidebar-logout-btn" type="button" onclick="logoutUser()" title="Log out" aria-label="Log out">
+            <button class="topbar-icon-btn sidebar-logout-btn" type="button" data-action="logout" title="Log out" aria-label="Log out">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M10 17l5-5-5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
                 <path d="M15 12H4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
@@ -428,7 +428,7 @@
           <!-- Top bar: page title, LMS search, quick actions, and learner avatar -->
           <header class="app-topbar">
             <div class="topbar-leading">
-              <button id="appSidebarToggle" class="topbar-icon-btn topbar-menu-toggle" type="button" onclick="toggleAppSidebar()" aria-label="Open dashboard navigation" aria-expanded="false" aria-controls="appSidebar">
+              <button id="appSidebarToggle" class="topbar-icon-btn topbar-menu-toggle" type="button" data-action="toggle-app-sidebar" aria-label="Open dashboard navigation" aria-expanded="false" aria-controls="appSidebar">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M4 7h16M4 12h16M4 17h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
                 </svg>
@@ -504,12 +504,12 @@
   </button>
 
   <!-- Script order matters: config first, data second, app third, search last -->
-  <script defer src="Page-Js/config.js?v=1.0.3"></script>
-  <script defer src="Page-Js/data.js?v=1.0.3"></script>
+  <script defer src="Page-Js/config.js?v=1.0.4"></script>
+  <script defer src="Page-Js/data.js?v=1.0.4"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script defer src="Page-Js/app.js?v=1.0.3"></script>
-  <script defer src="Page-Js/lms-search.js?v=1.0.3"></script>
-  <script defer src="Page-Js/animations.js?v=1.0.3"></script>
+  <script defer src="Page-Js/app.js?v=1.0.4"></script>
+  <script defer src="Page-Js/lms-search.js?v=1.0.4"></script>
+  <script defer src="Page-Js/animations.js?v=1.0.4"></script>
 </body>
 </html>

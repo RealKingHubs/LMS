@@ -35,6 +35,10 @@
     dom.input.addEventListener('keydown', handleSearchKeyDown);
     dom.panel.addEventListener('click', handleSearchPanelClick);
 
+    attachPanelToBody();
+    window.addEventListener('scroll', updateSearchPanelPosition, true);
+    window.addEventListener('resize', updateSearchPanelPosition);
+
     document.addEventListener('click', handleDocumentClick);
     document.addEventListener('keydown', handleDocumentKeyDown);
   }
@@ -73,6 +77,25 @@
     if (dom.input.value.trim()) {
       renderSearchResults(dom.input.value);
     }
+  }
+
+  function attachPanelToBody() {
+    if (!dom.panel || dom.panel.parentElement === document.body) return;
+    document.body.appendChild(dom.panel);
+    dom.panel.style.position = 'fixed';
+    dom.panel.style.transform = 'none';
+    dom.panel.style.margin = '0';
+    dom.panel.style.zIndex = '999999999';
+  }
+
+  function updateSearchPanelPosition() {
+    if (!dom.panel || dom.panel.classList.contains('hidden')) return;
+    const rect = dom.input.getBoundingClientRect();
+    dom.panel.style.position = 'fixed';
+    dom.panel.style.left = `${Math.max(8, rect.left)}px`;
+    dom.panel.style.top = `${rect.bottom + 8}px`;
+    dom.panel.style.width = `${rect.width}px`;
+    dom.panel.style.maxWidth = `${rect.width}px`;
   }
 
   function handleSearchKeyDown(event) {
@@ -234,6 +257,17 @@
       closeSearchPanel();
       return;
     }
+
+    const rect = dom.input.getBoundingClientRect();
+    dom.panel.style.position = 'fixed';
+    dom.panel.style.left = `${rect.left + window.scrollX}px`;
+    dom.panel.style.top = `${rect.bottom + window.scrollY + 8}px`;
+    dom.panel.style.width = `${rect.width}px`;
+    dom.panel.style.maxWidth = `${rect.width}px`;
+    dom.panel.style.zIndex = '999999999';
+    dom.panel.style.right = 'auto';
+    dom.panel.style.bottom = 'auto';
+    dom.panel.style.margin = '0';
 
     state.results = getSearchResults(trimmed);
     dom.panel.classList.remove('hidden');
