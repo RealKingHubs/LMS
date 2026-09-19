@@ -363,20 +363,6 @@
     };
   }
 
-  function buildAssessments(trackKey, definitions) {
-    return definitions.map((item, index) => ({
-      id: `${trackKey}-assessment-${index + 1}`,
-      title: item.title,
-      semester: item.semester,
-      module: item.module,
-      brief: item.brief,
-      createdAt: item.createdAt,
-      dueAt: item.dueAt,
-      submissionType: 'Link submission',
-      resources: item.resources || ['Repository link', 'Live link', 'Short delivery note']
-    }));
-  }
-
   // This is the main academic dataset consumed by the dashboard and search layer.
   const TRACKS = {
     'cloud-engineering': {

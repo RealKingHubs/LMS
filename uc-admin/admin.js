@@ -406,7 +406,7 @@
   async function loadSystemLogs() {
     if (!dom.logsStatus || !dom.systemLogsList) return;
 
-    dom.logsStatus.textContent = 'Loading the latest logsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦';
+    dom.logsStatus.textContent = 'Loading the latest logs…';
     dom.systemLogsList.innerHTML = '';
 
     try {
@@ -450,18 +450,18 @@
     const timestamp = escapeHtml(String(entry?.timestamp || entry?.created_at || 'Unknown time'));
     const width = entry?.viewport?.width || 0;
     const height = entry?.viewport?.height || 0;
-    const resolution = escapeHtml(`${width} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${height}`);
+    const resolution = escapeHtml(`${width} × ${height}`);
     const deviceType = escapeHtml(String(entry?.viewport?.deviceType || entry?.deviceType || (width < 768 ? 'Mobile' : 'Desktop')));
     const logId = escapeHtml(String(entry?.id || ''));
 
     return `
       <article class="log-card ${severity}" data-log-id="${logId}" aria-label="Log entry ${severity}">
         <div class="log-card-header">
-          <span class="log-card-label">${severity.toUpperCase()} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${escapeHtml(type)}</span>
+          <span class="log-card-label">${severity.toUpperCase()} • ${escapeHtml(type)}</span>
           <button class="btn btn-secondary delete-log-btn" type="button" data-log-id="${logId}">Delete Log</button>
         </div>
         <strong class="log-card-message">${message}</strong>
-        <div class="log-card-meta">${escapeHtml(timestamp)} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${escapeHtml(line)} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${resolution} (${deviceType})</div>
+        <div class="log-card-meta">${escapeHtml(timestamp)} • ${escapeHtml(line)} • ${resolution} (${deviceType})</div>
         <div class="log-card-location">Script location: ${location}</div>
         <div class="log-card-url">Page: ${pageUrl}</div>
       </article>
@@ -526,7 +526,7 @@
   async function clearAllLogs() {
     if (!dom.logsStatus || !dom.systemLogsList) return;
 
-    dom.logsStatus.textContent = 'Clearing all logsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦';
+    dom.logsStatus.textContent = 'Clearing all logs…';
 
     const response = await fetch(`${LOGS_DELETE_ENDPOINT}?id=not.is.null`, {
       method: 'DELETE',
