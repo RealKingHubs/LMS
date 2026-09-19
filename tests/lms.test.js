@@ -1,134 +1,300 @@
-const { test, describe } = require('node:test');
-const assert = require('node:assert');
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
-const { JSDOM } = require('jsdom');
+const { test, describe } = require("node:test");
+const assert = require("node:assert");
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+const { JSDOM } = require("jsdom");
 
-describe('RealKingHubs LMS Tests', () => {
+describe("RealKingHubs LMS Tests", () => {
   // Test 1: Verify index.html structure
-  test('index.html loads and has correct container elements', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+  test("index.html loads and has correct container elements", () => {
+    const html = fs.readFileSync(
+      path.resolve(__dirname, "../index.html"),
+      "utf8",
+    );
     const dom = new JSDOM(html);
     const document = dom.window.document;
-    
-    assert.strictEqual(document.title, 'RealKingHubs Academy');
-    assert.ok(document.getElementById('landingPage'), 'Should have a landing page element');
-    assert.ok(document.getElementById('authPage'), 'Should have an auth page element');
-    assert.ok(document.getElementById('appPage'), 'Should have an app page element');
+
+    assert.strictEqual(document.title, "RealKingHubs Academy");
+    assert.ok(
+      document.getElementById("landingPage"),
+      "Should have a landing page element",
+    );
+    assert.ok(
+      document.getElementById("authPage"),
+      "Should have an auth page element",
+    );
+    assert.ok(
+      document.getElementById("appPage"),
+      "Should have an app page element",
+    );
   });
 
   // Test 2: Verify uc-admin/index.html structure
-  test('uc-admin/index.html loads and has admin elements', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../uc-admin/index.html'), 'utf8');
+  test("uc-admin/index.html loads and has admin elements", () => {
+    const html = fs.readFileSync(
+      path.resolve(__dirname, "../uc-admin/index.html"),
+      "utf8",
+    );
     const dom = new JSDOM(html);
     const document = dom.window.document;
-    
-    assert.strictEqual(document.title, 'RealKingHubs Admin');
-    assert.ok(document.getElementById('adminGate'), 'Should have an admin gate sign-in container');
-    assert.ok(document.getElementById('adminApp'), 'Should have the main admin app container');
+
+    assert.strictEqual(document.title, "RealKingHubs Admin");
+    assert.ok(
+      document.getElementById("adminGate"),
+      "Should have an admin gate sign-in container",
+    );
+    assert.ok(
+      document.getElementById("adminApp"),
+      "Should have the main admin app container",
+    );
   });
 
   // Test 3: Verify data.js loads and populates RKH_DATA
-  test('data.js loads RKH_DATA with correct tracks', () => {
-    const dataJsContent = fs.readFileSync(path.resolve(__dirname, '../Page-Js/data.js'), 'utf8');
+  test("data.js loads RKH_DATA with correct tracks", () => {
+    const dataJsContent = fs.readFileSync(
+      path.resolve(__dirname, "../Page-Js/data.js"),
+      "utf8",
+    );
     const html = `<!DOCTYPE html><html><body><script>${dataJsContent}</script></body></html>`;
-    const dom = new JSDOM(html, { runScripts: 'dangerously' });
+    const dom = new JSDOM(html, { runScripts: "dangerously" });
     const RKH_DATA = dom.window.RKH_DATA;
-    
-    assert.ok(RKH_DATA, 'RKH_DATA should be defined on the window object');
-    assert.ok(RKH_DATA.tracks, 'RKH_DATA should contain tracks');
-    
+
+    assert.ok(RKH_DATA, "RKH_DATA should be defined on the window object");
+    assert.ok(RKH_DATA.tracks, "RKH_DATA should contain tracks");
+
     // Check that core tracks exist
-    const expectedTracks = ['cloud-engineering', 'frontend-engineering', 'backend-engineering'];
-    expectedTracks.forEach(trackId => {
+    const expectedTracks = [
+      "cloud-engineering",
+      "frontend-engineering",
+      "backend-engineering",
+    ];
+    expectedTracks.forEach((trackId) => {
       assert.ok(RKH_DATA.tracks[trackId], `Track ${trackId} should be defined`);
       const track = RKH_DATA.tracks[trackId];
       assert.ok(track.semesters, `Track ${trackId} should have semesters`);
-      assert.strictEqual(track.semesters.length, 3, `Track ${trackId} should have exactly 3 semesters`);
+      assert.strictEqual(
+        track.semesters.length,
+        3,
+        `Track ${trackId} should have exactly 3 semesters`,
+      );
     });
   });
 
-  test('shared config script is loaded before the app entry points', () => {
-    const landingHtml = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
-    const adminHtml = fs.readFileSync(path.resolve(__dirname, '../uc-admin/index.html'), 'utf8');
+  test("shared config script is loaded before the app entry points", () => {
+    const landingHtml = fs.readFileSync(
+      path.resolve(__dirname, "../index.html"),
+      "utf8",
+    );
+    const adminHtml = fs.readFileSync(
+      path.resolve(__dirname, "../uc-admin/index.html"),
+      "utf8",
+    );
 
-    const landingConfigIndex = landingHtml.indexOf('Page-Js/config.js');
-    const landingAppIndex = landingHtml.indexOf('Page-Js/app.js');
-    assert.ok(landingConfigIndex !== -1, 'Landing page should load the shared config script');
-    assert.ok(landingAppIndex > landingConfigIndex, 'Landing page should load config before app logic');
+    const landingConfigIndex = landingHtml.indexOf("Page-Js/config.js");
+    const landingAppIndex = landingHtml.indexOf("Page-Js/app.js");
+    assert.ok(
+      landingConfigIndex !== -1,
+      "Landing page should load the shared config script",
+    );
+    assert.ok(
+      landingAppIndex > landingConfigIndex,
+      "Landing page should load config before app logic",
+    );
 
-    const adminConfigIndex = adminHtml.indexOf('/Page-Js/config.js');
-    const adminAppIndex = adminHtml.indexOf('/uc-admin/admin.js');
-    assert.ok(adminConfigIndex !== -1, 'Admin page should load the shared config script');
-    assert.ok(adminAppIndex > adminConfigIndex, 'Admin page should load config before admin logic');
+    const adminConfigIndex = adminHtml.indexOf("/Page-Js/config.js");
+    const adminAppIndex = adminHtml.indexOf("/uc-admin/admin.js");
+    assert.ok(
+      adminConfigIndex !== -1,
+      "Admin page should load the shared config script",
+    );
+    assert.ok(
+      adminAppIndex > adminConfigIndex,
+      "Admin page should load config before admin logic",
+    );
   });
 
-  test('auth helpers keep the dashboard open for real sign-in sessions', () => {
-    const configJsContent = fs.readFileSync(path.resolve(__dirname, '../Page-Js/config.js'), 'utf8');
-    const dom = new JSDOM(`<!DOCTYPE html><html><body><script>${configJsContent}</script></body></html>`, { runScripts: 'dangerously' });
+  test("auth helpers keep the dashboard open for real sign-in sessions", () => {
+    const configJsContent = fs.readFileSync(
+      path.resolve(__dirname, "../Page-Js/config.js"),
+      "utf8",
+    );
+    const dom = new JSDOM(
+      `<!DOCTYPE html><html><body><script>${configJsContent}</script></body></html>`,
+      { runScripts: "dangerously" },
+    );
     const helpers = dom.window.RKH_AUTH_HELPERS;
 
-    assert.ok(helpers, 'Auth helpers should be exposed from the shared config');
-    assert.strictEqual(helpers.resolveAuthEventAction('SIGNED_IN', { user: { id: 'user-1' } }, null), 'open-dashboard');
-    assert.strictEqual(helpers.resolveAuthEventAction('INITIAL_SESSION', { user: { id: 'user-1' } }, null), 'open-dashboard');
-    assert.strictEqual(helpers.resolveAuthEventAction('TOKEN_REFRESHED', { user: { id: 'user-1' } }, 'user-1'), 'keep-current');
-    assert.strictEqual(helpers.resolveAuthEventAction('SIGNED_OUT', null, 'user-1'), 'show-landing');
-    assert.strictEqual(helpers.resolveAuthEventAction('SIGNED_OUT', null, null), 'keep-current');
+    assert.ok(helpers, "Auth helpers should be exposed from the shared config");
+    assert.strictEqual(
+      helpers.resolveAuthEventAction(
+        "SIGNED_IN",
+        { user: { id: "user-1" } },
+        null,
+      ),
+      "open-dashboard",
+    );
+    assert.strictEqual(
+      helpers.resolveAuthEventAction(
+        "INITIAL_SESSION",
+        { user: { id: "user-1" } },
+        null,
+      ),
+      "open-dashboard",
+    );
+    assert.strictEqual(
+      helpers.resolveAuthEventAction(
+        "TOKEN_REFRESHED",
+        { user: { id: "user-1" } },
+        "user-1",
+      ),
+      "keep-current",
+    );
+    assert.strictEqual(
+      helpers.resolveAuthEventAction("SIGNED_OUT", null, "user-1"),
+      "show-landing",
+    );
+    assert.strictEqual(
+      helpers.resolveAuthEventAction("SIGNED_OUT", null, null),
+      "keep-current",
+    );
   });
 
-  test('auth helpers choose a fallback track when login metadata omits one', () => {
-    const configJsContent = fs.readFileSync(path.resolve(__dirname, '../Page-Js/config.js'), 'utf8');
-    const dom = new JSDOM(`<!DOCTYPE html><html><body><script>${configJsContent}</script></body></html>`, { runScripts: 'dangerously' });
+  test("auth helpers choose a fallback track when login metadata omits one", () => {
+    const configJsContent = fs.readFileSync(
+      path.resolve(__dirname, "../Page-Js/config.js"),
+      "utf8",
+    );
+    const dom = new JSDOM(
+      `<!DOCTYPE html><html><body><script>${configJsContent}</script></body></html>`,
+      { runScripts: "dangerously" },
+    );
     const helpers = dom.window.RKH_AUTH_HELPERS;
 
-    const resolvedTrackId = helpers.resolveEffectiveTrackId({}, ['cloud-engineering', 'frontend-engineering']);
+    const resolvedTrackId = helpers.resolveEffectiveTrackId({}, [
+      "cloud-engineering",
+      "frontend-engineering",
+    ]);
 
-    assert.strictEqual(resolvedTrackId, 'cloud-engineering');
+    assert.strictEqual(resolvedTrackId, "cloud-engineering");
   });
 
-  test('auth helpers build a learner snapshot from the signed-in session', () => {
-    const configJsContent = fs.readFileSync(path.resolve(__dirname, '../Page-Js/config.js'), 'utf8');
-    const dom = new JSDOM(`<!DOCTYPE html><html><body><script>${configJsContent}</script></body></html>`, { runScripts: 'dangerously' });
+  test("auth helpers build a learner snapshot from the signed-in session", () => {
+    const configJsContent = fs.readFileSync(
+      path.resolve(__dirname, "../Page-Js/config.js"),
+      "utf8",
+    );
+    const dom = new JSDOM(
+      `<!DOCTYPE html><html><body><script>${configJsContent}</script></body></html>`,
+      { runScripts: "dangerously" },
+    );
     const helpers = dom.window.RKH_AUTH_HELPERS;
 
-    const snapshot = helpers.buildAuthenticatedUserSnapshot({
-      user: {
-        id: 'user-1',
-        email: 'learner@example.com',
-        user_metadata: {
-          first_name: 'Ada',
-          track_id: 'cloud-engineering'
-        }
-      }
-    }, 'cloud-engineering');
+    const snapshot = helpers.buildAuthenticatedUserSnapshot(
+      {
+        user: {
+          id: "user-1",
+          email: "learner@example.com",
+          user_metadata: {
+            first_name: "Ada",
+            track_id: "cloud-engineering",
+          },
+        },
+      },
+      "cloud-engineering",
+    );
 
-    assert.strictEqual(snapshot.id, 'user-1');
-    assert.strictEqual(snapshot.email, 'learner@example.com');
-    assert.strictEqual(snapshot.firstName, 'Ada');
-    assert.strictEqual(snapshot.trackId, 'cloud-engineering');
+    assert.strictEqual(snapshot.id, "user-1");
+    assert.strictEqual(snapshot.email, "learner@example.com");
+    assert.strictEqual(snapshot.firstName, "Ada");
+    assert.strictEqual(snapshot.trackId, "cloud-engineering");
   });
 
-  test('dashboard content surfaces render a structured header shell', () => {
-    const appJsContent = fs.readFileSync(path.resolve(__dirname, '../Page-Js/app.js'), 'utf8');
-    const match = appJsContent.match(/function buildContentSurfaceHeader\([^)]*\) \{[\s\S]*?\n  \}/);
+  test("dashboard content surfaces render a structured header shell", () => {
+    const appJsContent = fs.readFileSync(
+      path.resolve(__dirname, "../Page-Js/app.js"),
+      "utf8",
+    );
+    const match = appJsContent.match(
+      /function buildContentSurfaceHeader\([^)]*\) \{[\s\S]*?\n  \}/,
+    );
 
-    assert.ok(match, 'The dashboard content-surface helper should be defined');
+    assert.ok(match, "The dashboard content-surface helper should be defined");
 
-    const context = { escapeHtml: value => String(value || '') };
+    const context = { escapeHtml: (value) => String(value || "") };
     vm.createContext(context);
     vm.runInContext(match[0], context);
 
     const html = context.buildContentSurfaceHeader({
-      eyebrow: 'Course content',
-      title: 'Curriculum',
-      description: 'A calmer view of learning content.',
-      metaItems: ['3 semesters', '12 months']
+      eyebrow: "Course content",
+      title: "Curriculum",
+      description: "A calmer view of learning content.",
+      metaItems: ["3 semesters", "12 months"],
     });
 
     assert.match(html, /content-surface-shell/);
     assert.match(html, /Course content/);
     assert.match(html, /Curriculum/);
     assert.match(html, /3 semesters/);
+  });
+
+  test("direct video file links render with an HTML5 player instead of an iframe", () => {
+    const appJsContent = fs.readFileSync(
+      path.resolve(__dirname, "../Page-Js/app.js"),
+      "utf8",
+    );
+    const mediaHelpersMatch = appJsContent.match(
+      /function normalizeMediaUrlForPlayer\([^)]*\) \{[\s\S]*?function buildLessonMediaPlayerHtml\([^)]*\) \{[\s\S]*?\n  \}/,
+    );
+
+    assert.ok(
+      mediaHelpersMatch,
+      "The app should include direct media detection and player helpers",
+    );
+
+    const context = {
+      escapeHtml: (value) =>
+        String(value || "").replace(
+          /[&<>"']/g,
+          (ch) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[ch],
+        ),
+      escapeAttribute: (value) =>
+        String(value || "").replace(
+          /[&<>"']/g,
+          (ch) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[ch],
+        ),
+    };
+    vm.createContext(context);
+    vm.runInContext(mediaHelpersMatch[0], context);
+
+    assert.strictEqual(
+      context.isDirectVideoUrl("https://example.com/video.mp4"),
+      true,
+    );
+    assert.strictEqual(
+      context.isDirectVideoUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+      false,
+    );
+    const html = context.buildLessonMediaPlayerHtml(
+      "https://example.com/video.mp4",
+      "Intro lesson",
+    );
+    assert.match(html, /<video/i);
+    assert.match(html, /src="https:\/\/example.com\/video.mp4"/);
+    assert.doesNotMatch(html, /<iframe/i);
   });
 });
