@@ -541,7 +541,10 @@
           let changed = false;
 
           const scrubbed = scrub(parsed);
-          const hasAvatarClears = scrubbed && typeof scrubbed === "object" && scrubbed.__rkh_avatar_cleared;
+          const hasAvatarClears =
+            scrubbed &&
+            typeof scrubbed === "object" &&
+            scrubbed.__rkh_avatar_cleared;
           if (hasAvatarClears) {
             changed = true;
             delete scrubbed.__rkh_avatar_cleared;
@@ -2780,9 +2783,7 @@
         ${buildContentSurfaceHeader({
           eyebrow: "Course content",
           title: `${track.label} curriculum`,
-          description: selectedLesson
-            ? "The active lesson is now in focus. Use this right-side curriculum column to switch months and lessons."
-            : "",
+          description: "",
           metaItems: [
             `${track.semesters.length} semesters`,
             `${track.semesters.flatMap((semester) => semester.months).length} months`,
@@ -2908,6 +2909,11 @@
       url: selectedLesson.videoUrl || "",
     };
     const videoCount = videoItems.length;
+    const lessonResourceItems = Array.isArray(selectedLesson.resourceItems)
+      ? selectedLesson.resourceItems.filter(
+          (item) => item && (item.url || item.title),
+        )
+      : [];
 
     const videoPlaylist =
       videoItems.length > 0
@@ -2936,6 +2942,38 @@
       `
         : "";
 
+    const lessonResourceMarkup = lessonResourceItems.length
+      ? `
+        <div class="lesson-resource-panel">
+          <div class="lesson-resource-header">
+            <strong>Lesson resources</strong>
+            <span>${lessonResourceItems.length} ${lessonResourceItems.length === 1 ? "link" : "links"}</span>
+          </div>
+          <div class="resource-link-grid">
+            ${lessonResourceItems
+              .map((item) => {
+                const url = typeof item === "string" ? item : item.url || "";
+                if (!url) return "";
+                const title =
+                  typeof item === "string"
+                    ? item
+                    : item.title || buildResourceLabel(url, 0);
+                return `
+                  <a class="resource-link-card" href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">
+                    <div>
+                      <strong>${escapeHtml(title)}</strong>
+                      <span>${escapeHtml(url)}</span>
+                    </div>
+                    <span class="resource-link-action">Open</span>
+                  </a>
+                `;
+              })
+              .join("")}
+          </div>
+        </div>
+      `
+      : "";
+
     const singleVideoLabel =
       videoItems.length === 1
         ? `<span class="lesson-single-video-label">${videoCount} ${videoCount === 1 ? "video" : "videos"}</span>`
@@ -2945,6 +2983,7 @@
       <div class="lesson-watch-main lesson-watch-main-single">
         ${buildLessonMediaPlayerHtml(activeVideo.url, activeVideo.title || selectedLesson.title)}
         ${videoPlaylist}
+        ${lessonResourceMarkup}
         <div class="lesson-watch-body">
           <div class="lesson-watch-header">
             <div>
@@ -2956,7 +2995,6 @@
               <span class="status-pill ${lessonCompleted ? "success" : selectedLesson.type === "lab" ? "warning" : "neutral"}">${lessonCompleted ? "Completed" : selectedLesson.type === "lab" ? "Hands-on lab" : "In progress"}</span>
               <button class="btn ${lessonCompleted ? "btn-secondary" : "btn-primary"} btn-small" type="button" onclick="toggleLessonCompletion('${selectedLesson.id}')">${lessonCompleted ? "Mark incomplete" : "Mark complete"}</button>
               ${nextLessonContext ? `<button class="btn btn-primary btn-small" type="button" onclick="openNextLesson('${selectedLesson.id}')">Next topic</button>` : certificate.unlocked ? `<button class="btn btn-primary btn-small" type="button" onclick="openDashboardView('certificates')">Open certificate</button>` : ""}
-              <button class="btn btn-secondary btn-small" type="button" onclick="clearLessonView()">Back to curriculum</button>
             </div>
           </div>
           <div class="lesson-watch-channel">

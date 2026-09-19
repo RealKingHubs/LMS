@@ -297,4 +297,109 @@ describe("RealKingHubs LMS Tests", () => {
     assert.match(html, /src="https:\/\/example.com\/video.mp4"/);
     assert.doesNotMatch(html, /<iframe/i);
   });
+
+  test("lesson resource links render for students inside the lesson player", () => {
+    const appJsContent = fs.readFileSync(
+      path.resolve(__dirname, "../Page-Js/app.js"),
+      "utf8",
+    );
+    const renderMatch = appJsContent.match(
+      /function renderLessonPlayer\([^)]*\) \{[\s\S]*?\n  \}/,
+    );
+
+    assert.ok(renderMatch, "The lesson player should render resource links");
+
+    const context = {
+      state: { currentLessonVideoIndex: 0 },
+      escapeHtml: (value) =>
+        String(value || "").replace(
+          /[&<>"']/g,
+          (ch) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[ch],
+        ),
+      escapeAttribute: (value) =>
+        String(value || "").replace(
+          /[&<>"']/g,
+          (ch) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[ch],
+        ),
+      normalizeLessonVideoItems: (videoItems, fallbackVideoUrl = "") => {
+        const resolved = Array.isArray(videoItems)
+          ? videoItems
+          : typeof videoItems === "string"
+            ? videoItems
+                .split(/\r?\n|,/)
+                .map((item) => item.trim())
+                .filter(Boolean)
+            : [];
+
+        const normalized = resolved.map((item, index) => {
+          if (typeof item === "string") {
+            return { title: `Video ${index + 1}`, url: item.trim() };
+          }
+
+          if (item && typeof item === "object") {
+            const url = String(item.url || item.videoUrl || "").trim();
+            if (!url) return null;
+            return {
+              title: String(item.title || `Video ${index + 1}`).trim(),
+              url,
+            };
+          }
+
+          return null;
+        });
+
+        const filtered = normalized.filter(Boolean);
+        if (filtered.length) return filtered;
+        if (fallbackVideoUrl) {
+          return [{ title: "Lesson video", url: fallbackVideoUrl }];
+        }
+        return [];
+      },
+      getLessonContext: () => ({
+        semester: { label: "Semester 1" },
+        month: { label: "Month 1", title: "Learning" },
+      }),
+      getNextLessonContext: () => null,
+      getCertificateData: () => ({ unlocked: false }),
+      buildLessonMediaPlayerHtml: (url, title) =>
+        `<video src="${url}" controls title="${title}"></video>`,
+    };
+
+    vm.createContext(context);
+    vm.runInContext(renderMatch[0], context);
+
+    const html = context.renderLessonPlayer(
+      { label: "Cloud Engineering" },
+      { completedLessonIds: [] },
+      {
+        id: "week-1",
+        title: "Intro lesson",
+        objective: "Learn a core concept.",
+        type: "learning",
+        videoItems: [],
+        videoUrl: "",
+        resourceItems: [
+          { title: "Class notes", url: "https://example.com/notes" },
+        ],
+      },
+    );
+
+    assert.match(html, /resource-link-card/i);
+    assert.match(html, /Class notes/i);
+    assert.match(html, /https:\/\/example.com\/notes/i);
+  });
 });
