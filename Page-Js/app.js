@@ -2525,6 +2525,71 @@
     };
   }
 
+  function getDefaultCertificateTemplate(track = null) {
+    return {
+      brandName: "RealKingHubs Academy",
+      title: "Certificate of Completion",
+      subtitle: "This certifies that",
+      accentColor: "#c8a15c",
+      signatureName: "Odo Kingsley Uchenna",
+      signatureRole: "Founder, RealKingHubs Academy",
+      footerNote: "Verified and issued by RealKingHubs Academy",
+      trackCopy: track?.label
+        ? `has successfully completed the full ${track.label} learning programme across 3 semesters at RealKingHubs Academy.`
+        : "has successfully completed the full programme at RealKingHubs Academy.",
+      badgeText: "Verified",
+    };
+  }
+
+  function getSavedCertificateTemplates() {
+    try {
+      const raw = localStorage.getItem("rkh_certificate_templates");
+      return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function getCertificateTemplate(track = null) {
+    const stored = getSavedCertificateTemplates();
+    const trackId = track?.id || "";
+    const fallback = getDefaultCertificateTemplate(track);
+    const chosen = trackId ? stored[trackId] || {} : {};
+    return { ...fallback, ...chosen };
+  }
+
+  function hexToRgba(hex, alpha) {
+    const cleanHex = String(hex || "#d4af37").replace("#", "");
+    const normalized =
+      cleanHex.length === 3
+        ? cleanHex
+            .split("")
+            .map((part) => part + part)
+            .join("")
+        : cleanHex;
+    const value = Number.parseInt(normalized, 16);
+    const red = (value >> 16) & 255;
+    const green = (value >> 8) & 255;
+    const blue = value & 255;
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+  }
+
+  function shiftHexColor(hex, amount) {
+    const cleanHex = String(hex || "#d4af37").replace("#", "");
+    const normalized =
+      cleanHex.length === 3
+        ? cleanHex
+            .split("")
+            .map((part) => part + part)
+            .join("")
+        : cleanHex;
+    const value = Number.parseInt(normalized, 16);
+    const red = Math.max(0, Math.min(255, ((value >> 16) & 255) + amount));
+    const green = Math.max(0, Math.min(255, ((value >> 8) & 255) + amount));
+    const blue = Math.max(0, Math.min(255, (value & 255) + amount));
+    return `rgb(${red}, ${green}, ${blue})`;
+  }
+
   function calculateSemesterProgress(user, semester) {
     const lessons = semester.months.flatMap((month) => month.weeks);
     const completed = lessons.filter((lesson) =>
@@ -3306,6 +3371,7 @@
 
   function renderCertificates(user, track) {
     const certificate = getCertificateData(user, track);
+    const template = getCertificateTemplate(track);
 
     if (!certificate.unlocked) {
       return `
@@ -3323,43 +3389,57 @@
       `;
     }
 
+    const brandName = template.brandName || "RealKingHubs Academy";
+    const titleText = template.title || "Certificate of Completion";
+    const subtitleText = template.subtitle || "This certifies that";
+    const completionText =
+      template.trackCopy ||
+      `For successfully completing the course`;
+    const accentColor = template.accentColor || "#3b82f6";
+    const accentDark = shiftHexColor(accentColor, -26);
+    const accentSoft = hexToRgba(accentColor, 0.18);
+    const certificateDate = formatCertificateDate(certificate.issuedAt);
+
     return `
       <section class="certificate-page">
         <article class="surface-card certificate-actions-bar">
           <div>
             <p class="section-kicker">Programme certificate</p>
-            <h2>${track.label} completion certificate</h2>
-            <p>This certificate was generated automatically when the full 3-semester programme was completed.</p>
+            <h2>${escapeHtml(track.label)} completion certificate</h2>
+            <p>${escapeHtml(template.footerNote || "This certificate was generated automatically when the full programme was completed.")}</p>
           </div>
           <div class="card-actions">
             <button class="btn btn-primary btn-small" type="button" onclick="printCertificate()">Download / Print</button>
           </div>
         </article>
-        <article id="certificateCard" class="certificate-card">
-          <div class="certificate-card-inner">
-            <div class="certificate-brand-row">
-              <div class="brand-mark">RK</div>
-              <div>
-                <strong>RealKingHubs Academy</strong>
-                <span>Certificate of Programme Completion</span>
+        <article id="certificateCard" class="certificate-card certificate-reference-sample" style="--certificate-accent: ${escapeAttribute(accentColor)}; --certificate-accent-soft: ${escapeAttribute(accentSoft)}; border-color: ${escapeAttribute(accentSoft)}; background: linear-gradient(180deg, #f3f3f1 0%, #eeeeeb 100%);">
+          <div class="certificate-topbar">
+            <div class="certificate-brand-name">${escapeHtml(brandName)}</div>
+          </div>
+          <div class="certificate-sample-diagonal" style="background: linear-gradient(135deg, ${escapeAttribute(accentDark)} 0%, ${escapeAttribute(accentColor)} 100%);"></div>
+          <div class="certificate-sample-brand">${escapeHtml(brandName)}</div>
+          <div class="certificate-sample-inner">
+            <div class="certificate-sample-header">
+              <div class="certificate-sample-title-wrap">
+                <h2>${escapeHtml((titleText || "Certificate of Completion").toUpperCase())}</h2>
+                <span>${escapeHtml((subtitleText || "This certifies that").toUpperCase())}</span>
               </div>
             </div>
-            <div class="certificate-copy">
-              <p class="certificate-overline">This certifies that</p>
-              <h3>${user.firstName} ${user.lastName}</h3>
-              <p class="certificate-track-line">has successfully completed the full ${track.label} learning programme across 3 semesters at RealKingHubs Academy.</p>
-            </div>
-            <div class="certificate-meta-grid">
-              <div><span>Track</span><strong>${track.label}</strong></div>
-              <div><span>Date issued</span><strong>${formatCertificateDate(certificate.issuedAt)}</strong></div>
-              <div><span>Certificate ID</span><strong>${certificate.certificateId}</strong></div>
-            </div>
-            <div class="certificate-signature-row">
-              <div class="certificate-signature-block">
-                <strong>Odo Kingsley Uchenna</strong>
-                <span>Founder, RealKingHubs Academy</span>
+
+            <div class="certificate-sample-name">${escapeHtml(`${user.firstName} ${user.lastName}`)}</div>
+            <div class="certificate-sample-rule"></div>
+            <div class="certificate-sample-copy">${escapeHtml(completionText)}</div>
+            <div class="certificate-sample-course">${escapeHtml(track.label)}</div>
+
+            <div class="certificate-sample-footer">
+              <div class="certificate-sample-meta">
+                <span>${escapeHtml(template.signatureName || "Instructor Name")}</span>
+                <small>COURSE INSTRUCTOR</small>
               </div>
-              <div class="certificate-seal">Verified</div>
+              <div class="certificate-sample-meta">
+                <span>${escapeHtml(certificateDate)}</span>
+                <small>COURSE COMPLETED</small>
+              </div>
             </div>
           </div>
         </article>

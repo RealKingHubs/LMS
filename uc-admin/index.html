@@ -63,6 +63,7 @@
         <button class="admin-nav-pill" type="button" data-section="feedback">Feedback</button>
         <button class="admin-nav-pill" type="button" data-section="curriculum">Curriculum</button>
         <button class="admin-nav-pill" type="button" data-section="tracks">Tracks</button>
+        <button class="admin-nav-pill" type="button" data-section="certificates">Certificates</button>
         <button class="admin-nav-pill" type="button" data-section="resources">Resources</button>
         <button class="admin-nav-pill" type="button" data-section="books">Books</button>
         <button class="admin-nav-pill" type="button" data-section="learners">Learners</button>
@@ -327,6 +328,101 @@
 
             <div id="adminTrackMessage" class="form-message hidden"></div>
             <div id="trackSettingsList" class="admin-list"></div>
+          </article>
+        </section>
+
+        <section data-admin-section="certificates" class="admin-panel">
+          <article class="admin-panel compact-section-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Certificate generator</p>
+                <h2>Build a track certificate</h2>
+              </div>
+            </div>
+
+            <div class="certificate-generator-layout">
+              <form id="certificateTemplateForm" class="admin-form compact-form-card">
+                <div class="panel-header compact">
+                  <div>
+                    <p class="eyebrow">Certificate template</p>
+                    <h3>Design the learner certificate</h3>
+                  </div>
+                </div>
+
+                <label>
+                  <span>Track</span>
+                  <select id="certificateTemplateTrackSelect"></select>
+                </label>
+
+                <div class="certificate-toolbar">
+                  <button id="certificatePreviewBtn" class="btn btn-primary btn-small" type="button" aria-live="polite">Live preview</button>
+                </div>
+
+                <div class="form-columns">
+                  <label>
+                    <span>Brand name</span>
+                    <input id="certificateBrandName" type="text" placeholder="RealKingHubs Academy" />
+                  </label>
+                  <label>
+                    <span>Accent color</span>
+                    <input id="certificateAccentColor" type="color" value="#3b82f6" />
+                  </label>
+                </div>
+
+                <div class="form-columns">
+                  <label>
+                    <span>Certificate title</span>
+                    <input id="certificateTitle" type="text" placeholder="Certificate of Completion" />
+                  </label>
+                  <label>
+                    <span>Subtitle line</span>
+                    <input id="certificateSubtitle" type="text" placeholder="This certifies that" />
+                  </label>
+                </div>
+
+                <label>
+                  <span>Track completion text</span>
+                  <textarea id="certificateTrackCopy" rows="3" placeholder="has successfully completed the full track at RealKingHubs Academy."></textarea>
+                </label>
+
+                <div class="form-columns">
+                  <label>
+                    <span>Signature name</span>
+                    <input id="certificateSignatureName" type="text" placeholder="Odo Kingsley Uchenna" />
+                  </label>
+                  <label>
+                    <span>Signature role</span>
+                    <input id="certificateSignatureRole" type="text" placeholder="Founder, RealKingHubs Academy" />
+                  </label>
+                </div>
+
+                <div class="form-columns">
+                  <label>
+                    <span>Footer note</span>
+                    <input id="certificateFooterNote" type="text" placeholder="Verified and issued by RealKingHubs Academy" />
+                  </label>
+                  <label>
+                    <span>Badge text</span>
+                    <input id="certificateBadgeText" type="text" placeholder="Verified" />
+                  </label>
+                </div>
+
+                <div class="button-row">
+                  <button class="btn btn-primary" type="submit">Save certificate template</button>
+                  <button id="resetCertificateTemplateBtn" class="btn btn-secondary" type="button">Reset to default</button>
+                </div>
+              </form>
+
+              <aside class="certificate-preview-panel">
+                <div class="panel-header compact">
+                  <div>
+                    <p class="eyebrow">Live preview</p>
+                    <h3>Sample certificate</h3>
+                  </div>
+                </div>
+                <div id="certificateTemplatePreview" class="certificate-template-preview" aria-live="polite"></div>
+              </aside>
+            </div>
           </article>
         </section>
 

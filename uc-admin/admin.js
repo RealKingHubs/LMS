@@ -49,12 +49,6 @@
 
   const dom = {};
   let supabaseClient = null;
-  const LOGS_ENDPOINT = `${SUPABASE_URL}/rest/v1/system_logs?select=*&order=timestamp.desc&limit=50`;
-  const LOGS_DELETE_ENDPOINT = `${SUPABASE_URL}/rest/v1/system_logs`;
-  const SUPABASE_REST_HEADERS = {
-    apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-  };
 
   document.addEventListener("DOMContentLoaded", () => {
     void initAdmin();
@@ -178,6 +172,38 @@
     dom.newTrackSort = document.getElementById("newTrackSort");
     dom.newTrackSemesters = document.getElementById("newTrackSemesters");
     dom.newTrackEnabled = document.getElementById("newTrackEnabled");
+    dom.certificateTemplateForm = document.getElementById(
+      "certificateTemplateForm",
+    );
+    dom.certificateTemplateTrackSelect = document.getElementById(
+      "certificateTemplateTrackSelect",
+    );
+    dom.certificateBrandName = document.getElementById("certificateBrandName");
+    dom.certificateAccentColor = document.getElementById(
+      "certificateAccentColor",
+    );
+    dom.certificateTitle = document.getElementById("certificateTitle");
+    dom.certificateSubtitle = document.getElementById("certificateSubtitle");
+    dom.certificateTrackCopy = document.getElementById("certificateTrackCopy");
+    dom.certificateSignatureName = document.getElementById(
+      "certificateSignatureName",
+    );
+    dom.certificateSignatureRole = document.getElementById(
+      "certificateSignatureRole",
+    );
+    dom.certificateFooterNote = document.getElementById(
+      "certificateFooterNote",
+    );
+    dom.certificateBadgeText = document.getElementById("certificateBadgeText");
+    dom.certificateTemplatePreview = document.getElementById(
+      "certificateTemplatePreview",
+    );
+    dom.certificatePreviewBtn = document.getElementById(
+      "certificatePreviewBtn",
+    );
+    dom.resetCertificateTemplateBtn = document.getElementById(
+      "resetCertificateTemplateBtn",
+    );
     dom.userTrackFilter = document.getElementById("userTrackFilter");
     dom.userList = document.getElementById("userList");
     dom.resourceTrackSelect = document.getElementById("resourceTrackSelect");
@@ -279,6 +305,36 @@
     );
     dom.userForm.addEventListener("submit", saveUserProfile);
     dom.createTrackForm.addEventListener("submit", createTrackFromAdmin);
+    dom.certificateTemplateForm?.addEventListener(
+      "submit",
+      saveCertificateTemplate,
+    );
+    dom.certificateTemplateTrackSelect?.addEventListener(
+      "change",
+      handleCertificateTemplateTrackChange,
+    );
+    dom.certificatePreviewBtn?.addEventListener("click", () => {
+      renderCertificateTemplatePreview();
+      showMessage(dom.adminTrackMessage, "Live preview updated.", "success");
+    });
+    [
+      dom.certificateBrandName,
+      dom.certificateAccentColor,
+      dom.certificateTitle,
+      dom.certificateSubtitle,
+      dom.certificateTrackCopy,
+      dom.certificateSignatureName,
+      dom.certificateSignatureRole,
+      dom.certificateFooterNote,
+      dom.certificateBadgeText,
+    ].forEach((field) => {
+      field?.addEventListener("input", renderCertificateTemplatePreview);
+      field?.addEventListener("change", renderCertificateTemplatePreview);
+    });
+    dom.resetCertificateTemplateBtn?.addEventListener(
+      "click",
+      resetCertificateTemplate,
+    );
     dom.bookForm.addEventListener("submit", handleBookSubmit);
     dom.bookImage?.addEventListener("change", previewBookImage);
     dom.deleteUserBtn.addEventListener("click", deleteSelectedUserProfile);
@@ -323,6 +379,9 @@
     dom.curriculumTrackSelect.innerHTML = trackOnlyOptions;
     dom.resourceTrackSelect.innerHTML = trackOnlyOptions;
     dom.userTrack.innerHTML = trackOnlyOptions;
+    if (dom.certificateTemplateTrackSelect) {
+      dom.certificateTemplateTrackSelect.innerHTML = trackOnlyOptions;
+    }
 
     if (!state.curriculumTrackId) {
       state.curriculumTrackId = Object.keys(window.RKH_DATA.tracks)[0] || "";
@@ -335,6 +394,281 @@
     dom.userTrackFilter.value = state.userTrackFilter;
     dom.curriculumTrackSelect.value = state.curriculumTrackId;
     dom.resourceTrackSelect.value = state.resourceTrackId;
+    if (dom.certificateTemplateTrackSelect) {
+      state.certificateTemplateTrackId =
+        state.certificateTemplateTrackId || tracks[0]?.id || "";
+      dom.certificateTemplateTrackSelect.value =
+        state.certificateTemplateTrackId;
+      loadCertificateTemplateEditor();
+    }
+  }
+
+  function getDefaultCertificateTemplate(track = null) {
+    return {
+      brandName: "RealKingHubs Academy",
+      title: "Certificate of Completion",
+      subtitle: "This certifies that",
+      accentColor: "#c8a15c",
+      signatureName: "Odo Kingsley Uchenna",
+      signatureRole: "Founder, RealKingHubs Academy",
+      footerNote: "Verified and issued by RealKingHubs Academy",
+      trackCopy: track?.label
+        ? `has successfully completed the full ${track.label} learning programme across 3 semesters at RealKingHubs Academy.`
+        : "has successfully completed the full programme at RealKingHubs Academy.",
+      badgeText: "Verified",
+    };
+  }
+
+  function readCertificateTemplates() {
+    try {
+      const raw = localStorage.getItem("rkh_certificate_templates");
+      return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function writeCertificateTemplates(templates) {
+    localStorage.setItem(
+      "rkh_certificate_templates",
+      JSON.stringify(templates),
+    );
+  }
+
+  function getActiveCertificateTemplate() {
+    const track =
+      getResolvedTrack(state.certificateTemplateTrackId) ||
+      getResolvedTracks()[0];
+    const stored = readCertificateTemplates();
+    const currentSaved = track ? stored[track.id] || {} : {};
+
+    return {
+      ...getDefaultCertificateTemplate(track),
+      ...currentSaved,
+      brandName:
+        dom.certificateBrandName?.value.trim() ||
+        currentSaved.brandName ||
+        "RealKingHubs Academy",
+      accentColor:
+        dom.certificateAccentColor?.value ||
+        currentSaved.accentColor ||
+        "#3b82f6",
+      title:
+        dom.certificateTitle?.value.trim() ||
+        currentSaved.title ||
+        "Certificate of Completion",
+      subtitle:
+        dom.certificateSubtitle?.value.trim() ||
+        currentSaved.subtitle ||
+        "This certifies that",
+      trackCopy:
+        dom.certificateTrackCopy?.value.trim() ||
+        currentSaved.trackCopy ||
+        getDefaultCertificateTemplate(track).trackCopy,
+      signatureName:
+        dom.certificateSignatureName?.value.trim() ||
+        currentSaved.signatureName ||
+        "Odo Kingsley Uchenna",
+      signatureRole:
+        dom.certificateSignatureRole?.value.trim() ||
+        currentSaved.signatureRole ||
+        "Founder, RealKingHubs Academy",
+      footerNote:
+        dom.certificateFooterNote?.value.trim() ||
+        currentSaved.footerNote ||
+        "Verified and issued by RealKingHubs Academy",
+      badgeText:
+        dom.certificateBadgeText?.value.trim() ||
+        currentSaved.badgeText ||
+        "Verified",
+    };
+  }
+
+  function renderCertificateTemplatePreview() {
+    if (!dom.certificateTemplatePreview) return;
+
+    const track =
+      getResolvedTrack(state.certificateTemplateTrackId) ||
+      getResolvedTracks()[0];
+    const template = getActiveCertificateTemplate();
+    const studentName = "Ada Morgan";
+    const issuedDate = new Date().toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+    const accentColor = template.accentColor || "#d4af37";
+    const accentDark = shiftHexColor(accentColor, -28);
+    const accentSoft = hexToRgba(accentColor, 0.16);
+    const brandName = template.brandName || "The SpringBoard Digital Hub";
+    const headingText = template.title || "CERTIFICATE";
+    const subtitleText = template.subtitle || "This certifies that";
+    const completionSentence =
+      template.trackCopy ||
+      `For successfully completing the course`;
+    const courseTitle = track?.label || "PMP Certification Bootcamp";
+    const signatureName = template.signatureName || "Odo Kingsley Uchenna";
+    const signatureRole = template.signatureRole || "COURSE INSTRUCTOR";
+
+    dom.certificateTemplatePreview.innerHTML = `
+      <article class="certificate-card certificate-reference-sample" style="--certificate-accent: ${escapeHtml(accentColor)}; --certificate-accent-soft: ${escapeHtml(accentSoft)}; background: linear-gradient(180deg, #f2f2f0 0%, #efefed 100%); border-color: ${escapeHtml(accentSoft)};">
+        <div class="certificate-sample-diagonal" style="background: linear-gradient(135deg, ${escapeHtml(accentDark)} 0%, ${escapeHtml(accentColor)} 100%);"></div>
+        <div class="certificate-sample-brand certificate-brand-name">${escapeHtml(brandName)}</div>
+        <div class="certificate-sample-inner">
+          <div class="certificate-sample-header">
+            <div class="certificate-sample-title-wrap">
+              <h2>${escapeHtml((headingText || "CERTIFICATE").toUpperCase())}</h2>
+              <span>${escapeHtml((subtitleText || "OF COMPLETION").toUpperCase())}</span>
+            </div>
+          </div>
+
+          <div class="certificate-sample-name">${escapeHtml(studentName)}</div>
+          <div class="certificate-sample-rule"><span></span></div>
+          <div class="certificate-track-copy certificate-sample-copy">${escapeHtml(completionSentence)}</div>
+          <div class="certificate-sample-course">${escapeHtml(courseTitle)}</div>
+
+          <div class="certificate-sample-footer">
+            <div class="certificate-sample-meta">
+              <span>${escapeHtml(signatureName)}</span>
+              <small>${escapeHtml(signatureRole)}</small>
+            </div>
+            <div class="certificate-sample-meta">
+              <span>${escapeHtml(issuedDate)}</span>
+              <small>COURSE COMPLETED</small>
+            </div>
+          </div>
+
+          <div class="certificate-footer-note">${escapeHtml(template.footerNote || "Verified and issued by RealKingHubs Academy")}</div>
+        </div>
+      </article>
+    `;
+  }
+
+  function hexToRgba(hex, alpha) {
+    const cleanHex = String(hex || "#d4af37").replace("#", "");
+    const normalized =
+      cleanHex.length === 3
+        ? cleanHex
+            .split("")
+            .map((part) => part + part)
+            .join("")
+        : cleanHex;
+    const value = Number.parseInt(normalized, 16);
+    const red = (value >> 16) & 255;
+    const green = (value >> 8) & 255;
+    const blue = value & 255;
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+  }
+
+  function shiftHexColor(hex, amount) {
+    const cleanHex = String(hex || "#d4af37").replace("#", "");
+    const normalized =
+      cleanHex.length === 3
+        ? cleanHex
+            .split("")
+            .map((part) => part + part)
+            .join("")
+        : cleanHex;
+    const value = Number.parseInt(normalized, 16);
+    const red = Math.max(0, Math.min(255, ((value >> 16) & 255) + amount));
+    const green = Math.max(0, Math.min(255, ((value >> 8) & 255) + amount));
+    const blue = Math.max(0, Math.min(255, (value & 255) + amount));
+    return `rgb(${red}, ${green}, ${blue})`;
+  }
+
+  function loadCertificateTemplateEditor() {
+    const track =
+      getResolvedTrack(state.certificateTemplateTrackId) ||
+      getResolvedTracks()[0];
+    if (!track || !dom.certificateTemplateTrackSelect) return;
+    state.certificateTemplateTrackId = track.id;
+    dom.certificateTemplateTrackSelect.value = track.id;
+
+    const stored = readCertificateTemplates();
+    const template = {
+      ...getDefaultCertificateTemplate(track),
+      ...(stored[track.id] || {}),
+    };
+
+    dom.certificateBrandName.value = template.brandName || "";
+    dom.certificateAccentColor.value = template.accentColor || "#3b82f6";
+    dom.certificateTitle.value = template.title || "";
+    dom.certificateSubtitle.value = template.subtitle || "";
+    dom.certificateTrackCopy.value = template.trackCopy || "";
+    dom.certificateSignatureName.value = template.signatureName || "";
+    dom.certificateSignatureRole.value = template.signatureRole || "";
+    dom.certificateFooterNote.value = template.footerNote || "";
+    dom.certificateBadgeText.value = template.badgeText || "";
+    renderCertificateTemplatePreview();
+  }
+
+  function handleCertificateTemplateTrackChange() {
+    state.certificateTemplateTrackId = dom.certificateTemplateTrackSelect.value;
+    loadCertificateTemplateEditor();
+  }
+
+  function saveCertificateTemplate(event) {
+    event.preventDefault();
+    const track =
+      getResolvedTrack(state.certificateTemplateTrackId) ||
+      getResolvedTracks()[0];
+    if (!track) {
+      showMessage(
+        dom.adminTrackMessage,
+        "Select a valid track before saving the certificate template.",
+        "error",
+      );
+      return;
+    }
+
+    const template = {
+      brandName:
+        dom.certificateBrandName.value.trim() || "RealKingHubs Academy",
+      title:
+        dom.certificateTitle.value.trim() ||
+        "Certificate of Programme Completion",
+      subtitle: dom.certificateSubtitle.value.trim() || "This certifies that",
+      accentColor: dom.certificateAccentColor.value || "#3b82f6",
+      trackCopy:
+        dom.certificateTrackCopy.value.trim() ||
+        `has successfully completed the full ${track.label} learning programme at RealKingHubs Academy.`,
+      signatureName:
+        dom.certificateSignatureName.value.trim() || "Odo Kingsley Uchenna",
+      signatureRole:
+        dom.certificateSignatureRole.value.trim() ||
+        "Founder, RealKingHubs Academy",
+      footerNote:
+        dom.certificateFooterNote.value.trim() ||
+        "Verified and issued by RealKingHubs Academy",
+      badgeText: dom.certificateBadgeText.value.trim() || "Verified",
+    };
+
+    const stored = readCertificateTemplates();
+    stored[track.id] = template;
+    writeCertificateTemplates(stored);
+
+    showMessage(
+      dom.adminTrackMessage,
+      "Certificate template saved for this track.",
+      "success",
+    );
+  }
+
+  function resetCertificateTemplate() {
+    const track =
+      getResolvedTrack(state.certificateTemplateTrackId) ||
+      getResolvedTracks()[0];
+    if (!track) return;
+
+    const stored = readCertificateTemplates();
+    delete stored[track.id];
+    writeCertificateTemplates(stored);
+    loadCertificateTemplateEditor();
+    showMessage(
+      dom.adminTrackMessage,
+      "Certificate template reset to the default design.",
+      "success",
+    );
   }
 
   async function restoreAdminSession() {
@@ -498,25 +832,21 @@
     dom.systemLogsList.innerHTML = "";
 
     try {
-      const response = await fetch(LOGS_ENDPOINT, {
-        method: "GET",
-        headers: {
-          ...SUPABASE_REST_HEADERS,
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        throw new Error(`Unable to load logs (${response.status})`);
+      if (!supabaseClient) {
+        throw new Error("Supabase admin client is unavailable.");
       }
 
-      const data = await response.json();
-      const records = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.logs)
-          ? data.logs
-          : [];
+      const { data, error } = await supabaseClient
+        .from("system_logs")
+        .select("*")
+        .order("timestamp", { ascending: false })
+        .limit(50);
+
+      if (error) {
+        throw error;
+      }
+
+      const records = Array.isArray(data) ? data : [];
 
       if (!records.length) {
         dom.logsStatus.textContent =
@@ -583,21 +913,14 @@
   }
 
   async function deleteLogById(logId) {
-    if (!logId) return false;
+    if (!logId || !supabaseClient) return false;
 
-    const response = await fetch(
-      `${LOGS_DELETE_ENDPOINT}?id=eq.${encodeURIComponent(logId)}`,
-      {
-        method: "DELETE",
-        headers: {
-          ...SUPABASE_REST_HEADERS,
-          "Content-Type": "application/json",
-          Prefer: "return=minimal",
-        },
-      },
-    );
+    const { error } = await supabaseClient
+      .from("system_logs")
+      .delete()
+      .eq("id", logId);
 
-    return response.ok;
+    return !error;
   }
 
   function handleSystemLogsClick(event) {
@@ -647,16 +970,18 @@
 
     dom.logsStatus.textContent = "Clearing all logs…";
 
-    const response = await fetch(`${LOGS_DELETE_ENDPOINT}?id=not.is.null`, {
-      method: "DELETE",
-      headers: {
-        ...SUPABASE_REST_HEADERS,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
-    });
+    if (!supabaseClient) {
+      dom.logsStatus.textContent =
+        "Unable to clear logs. Try refreshing instead.";
+      return;
+    }
 
-    if (!response.ok) {
+    const { error } = await supabaseClient
+      .from("system_logs")
+      .delete()
+      .neq("id", 0);
+
+    if (error) {
       dom.logsStatus.textContent =
         "Unable to clear logs. Try refreshing instead.";
       return;

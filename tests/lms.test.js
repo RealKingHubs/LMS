@@ -238,6 +238,60 @@ describe("RealKingHubs LMS Tests", () => {
     assert.match(html, /3 semesters/);
   });
 
+  test("admin log panel uses the authenticated Supabase client for reads and deletes", () => {
+    const adminJsContent = fs.readFileSync(
+      path.resolve(__dirname, "../uc-admin/admin.js"),
+      "utf8",
+    );
+
+    assert.match(
+      adminJsContent,
+      /from\(["']system_logs["']\)\s*\.select\(\s*["']\*['"]\s*\)/,
+      "The admin log feed should query the authenticated system_logs table.",
+    );
+    assert.match(
+      adminJsContent,
+      /from\(["']system_logs["']\)\s*\.delete\(\)\s*\.eq\(\s*["']id["']\s*,\s*logId\s*\)/,
+      "Log deletion should use the authenticated Supabase client.",
+    );
+  });
+
+  test("certificate preview reflects the current brand and footer values", () => {
+    const adminJsContent = fs.readFileSync(
+      path.resolve(__dirname, "../uc-admin/admin.js"),
+      "utf8",
+    );
+
+    assert.match(
+      adminJsContent,
+      /certificate-brand-name|certificate-track-copy|certificate-footer-note/,
+      "The certificate preview markup should render the live brand, track text, and footer note.",
+    );
+  });
+
+  test("learner certificate uses a professional certificate of completion template", () => {
+    const appJsContent = fs.readFileSync(
+      path.resolve(__dirname, "../Page-Js/app.js"),
+      "utf8",
+    );
+
+    assert.match(
+      appJsContent,
+      /title:\s*"Certificate of Completion"/,
+      "The default learner certificate should use a professional Certificate of Completion title.",
+    );
+    assert.match(
+      appJsContent,
+      /This certifies that/,
+      "The learner certificate should keep the modern certifying line.",
+    );
+    assert.match(
+      appJsContent,
+      /certificate-brand-name|certificate-pro-badge/,
+      "The live learner certificate should include the premium branded top bar.",
+    );
+  });
+
   test("direct video file links render with an HTML5 player instead of an iframe", () => {
     const appJsContent = fs.readFileSync(
       path.resolve(__dirname, "../Page-Js/app.js"),
