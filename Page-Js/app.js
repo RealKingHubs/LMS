@@ -220,7 +220,6 @@
     dom.pageTitle = document.getElementById("pageTitle");
     dom.pageEyebrow = document.getElementById("pageEyebrow");
     dom.topbarAlerts = document.getElementById("topbarAlerts");
-    dom.topbarProgress = document.getElementById("topbarProgress");
     dom.topbarAvatar = document.getElementById("topbarAvatar");
     dom.appFooterText = document.getElementById("appFooterText");
     dom.scrollTopButton = document.getElementById("scrollTopButton");
@@ -2388,7 +2387,6 @@
   }
 
   function renderTopbar(user, track) {
-    const progress = calculateTrackProgress(user, track);
     const notificationCounts = getNotificationCounts(user, track);
     const totalAlerts = Object.values(notificationCounts).reduce(
       (sum, count) => sum + count,
@@ -2407,7 +2405,7 @@
       profile: "Profile and Settings",
     };
     const eyebrows = {
-      dashboard: "Track workspace",
+      dashboard: "",
       curriculum: "Semester learning plan",
       resources: "Semester resource library",
       books: "Recommended learning books",
@@ -2423,11 +2421,6 @@
       eyebrows[state.currentView] || "RealKingHubs Academy LMS";
     dom.pageTitle.textContent = titles[state.currentView] || "Dashboard";
     dom.topbarAlerts.textContent = String(totalAlerts);
-    dom.topbarProgress.textContent = `${progress.percent}%`;
-    dom.topbarProgress.setAttribute(
-      "title",
-      `${progress.completedCount} of ${progress.totalLessons} lessons completed`,
-    );
     dom.topbarAvatar.innerHTML = `<img src="${getAvatarSrc(user)}" alt="${escapeAttribute(`${user.firstName} ${user.lastName}`.trim())}" />`;
     dom.appFooterText.textContent =
       "(c) 2026 RealKingHubs - " + track.label + " Student Portal";
@@ -2692,16 +2685,13 @@
       <section class="surface-card dashboard-workspace-card">
         <div class="content-header">
           <div>
-            <p class="section-kicker">Track workspace</p>
-            <h2>${track.label} dashboard</h2>
-            <p>A structured operational view of your programme, community updates, and semester delivery status.</p>
+            <h2>${track.label}</h2>
           </div>
           <div class="dashboard-toolbar">
             <span class="dashboard-toolbar-chip">${track.semesters.length} semesters</span>
             <span class="dashboard-toolbar-chip">12 academic months</span>
             <span class="dashboard-toolbar-chip">Month 4 hands-on lab</span>
             <button class="btn btn-primary btn-small" type="button" onclick="openDashboardView('curriculum')">Continue curriculum</button>
-            <button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('community')">Open community</button>
           </div>
         </div>
         <div class="dashboard-overview-grid">
@@ -2729,7 +2719,7 @@
 
       <section class="dashboard-shell-grid">
         <article class="surface-card dashboard-side-card">
-          <div class="content-header"><div><h2>Latest announcement</h2><p>Programme notices stay here instead of filling the main dashboard.</p></div></div>
+          <div class="content-header"><div><h2>Latest announcement</h2></div></div>
           ${
             latestAnnouncement
               ? `
@@ -2743,7 +2733,7 @@
           }
         </article>
         <article class="surface-card dashboard-side-card">
-          <div class="content-header"><div><h2>Community activity</h2><p>The newest message in your track room appears here.</p></div></div>
+          <div class="content-header"><div><h2>Community activity</h2></div></div>
           ${
             latestCommunityMessage
               ? `
@@ -3090,7 +3080,7 @@
     return `
       <section class="community-layout">
         <aside class="composer-panel">
-          <div class="composer-header"><div><p class="section-kicker">Communication room</p><h3>${track.label} community room</h3><p class="copy-muted">Only learners in ${track.label} can see the messages posted in this room.</p></div></div>
+          <div class="composer-header"><div><p class="section-kicker">Communication room</p><h3>${track.label}</h3></div></div>
           <div class="community-sync-status ${state.communitySyncError ? "error" : "success"}">${state.communitySyncError ? `Sync issue: ${escapeHtml(state.communitySyncError)}` : state.communitySyncMode === "remote" ? "Connected" : "Community is using local browser storage only."}</div>
           <div id="communityComposerMessage" class="form-message ${state.communityComposerMessage ? state.communityComposerMessage.type : ""}">${state.communityComposerMessage ? state.communityComposerMessage.text : ""}</div>
           
@@ -3354,8 +3344,6 @@
         ${buildContentSurfaceHeader({
           eyebrow: "Learning progress",
           title: "Track progress",
-          description:
-            "A clearer view of how your programme is progressing across semesters and months.",
           metaItems: [
             `${overall.percent}% complete`,
             `${overall.completedCount}/${overall.totalLessons} lessons done`,
@@ -3363,7 +3351,7 @@
         })}
         <div class="progress-grid">
           <article class="progress-card"><p class="section-kicker">Overall progress</p><h3>${overall.percent}% complete</h3><p class="copy-muted">${overall.completedCount} of ${overall.totalLessons} weekly items have been completed across the entire track.</p><div class="progress-bar"><div class="progress-fill" style="width:${overall.percent}%"></div></div><div class="dashboard-stack">${semesterRows}</div>${certificate.unlocked ? `<div class="certificate-inline-banner"><strong>Certificate unlocked</strong><button class="btn btn-secondary btn-small" type="button" onclick="openDashboardView('certificates')">Open certificate</button></div>` : ""}</article>
-          <article class="progress-card"><p class="section-kicker">Monthly breakdown</p><h3>Completion by month</h3><p class="copy-muted">Three learning months and one hands-on lab month are tracked every semester.</p><div class="dashboard-stack">${monthRows}</div></article>
+          <article class="progress-card"><p class="section-kicker">Monthly breakdown</p><h3>Completion by month</h3><div class="dashboard-stack">${monthRows}</div></article>
         </div>
       </section>
     `;
@@ -3380,7 +3368,6 @@
             <div>
               <p class="section-kicker">Programme certificate</p>
               <h2>Certificate not unlocked yet</h2>
-              <p>Complete all 3 semesters and every weekly topic in ${track.label} to generate your certificate automatically.</p>
             </div>
             <span class="status-pill neutral">${certificate.progress.percent}% complete</span>
           </div>
@@ -3393,8 +3380,7 @@
     const titleText = template.title || "Certificate of Completion";
     const subtitleText = template.subtitle || "This certifies that";
     const completionText =
-      template.trackCopy ||
-      `For successfully completing the course`;
+      template.trackCopy || `For successfully completing the course`;
     const accentColor = template.accentColor || "#3b82f6";
     const accentDark = shiftHexColor(accentColor, -26);
     const accentSoft = hexToRgba(accentColor, 0.18);
