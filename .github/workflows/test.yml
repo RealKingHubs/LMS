@@ -1,33 +1,124 @@
 name: Test Website
 
+permissions:
+  contents: write
+  pull-requests: write
+
 on:
-  push:
-    branches: [ main ]
+  push: # run on pushes to any branch (we'll only auto-PR non-main branches)
+    branches: ["**"]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
 
-    - name: Install dependencies
-      run: npm install
+      - name: Install dependencies
+        run: npm install
 
-    - name: Syntax check JS files
-      run: npm run syntax-check
+      - name: Syntax check JS files
+        run: npm run syntax-check
 
-    - name: Check code quality (lint)
-      run: npm run lint
+      - name: Check code quality (lint)
+        run: npm run lint
 
-    - name: Run tests
-      run: npm test
+      - name: Run tests
+        run: npm test
+
+  create_pr:
+    needs: test
+    if: github.ref != 'refs/heads/main' && success()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create pull request to main
+        id: create_pr
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const head = context.ref.replace('refs/heads/','');
+            const base = 'main';
+            const title = `Automated PR: merge ${head} into ${base}`;
+            const body = 'This pull request was created automatically after CI passed.';
+            let pr;
+            try {
+              const { data } = await github.rest.pulls.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                head,
+                base,
+                title,
+                body,
+              });
+              pr = data;
+            } catch (e) {
+              if (e.status === 422) {
+                const { data: prs } = await github.rest.pulls.list({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'open',
+                  head: `${context.repo.owner}:${head}`,
+                  base,
+                });
+                if (prs.length) pr = prs[0];
+                else throw e;
+              } else {
+                throw e;
+              }
+            }
+            return pr.number;
+
+      - name: Merge the pull request
+        uses: actions/github-script@v6
+        env:
+          PR_NUMBER: ${{ steps.create_pr.outputs.result }}
+        with:
+          script: |
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Get head branch for the PR
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+            const head = pr.head.ref;
+
+            // Inspect recent commits on main to find highest existing #N prefix
+            // Page through up to 10 pages (100 commits per page) => checks up to 1,000 commits
+            let max = 0;
+            const perPage = 100;
+            const maxPages = 10;
+            for (let page = 1; page <= maxPages; page++) {
+              const commitsResp = await github.rest.repos.listCommits({ owner, repo, sha: 'main', per_page: perPage, page });
+              if (!commitsResp.data || commitsResp.data.length === 0) break;
+              for (const c of commitsResp.data) {
+                const m = c.commit.message.match(/^#(\d+)\b/);
+                if (m) max = Math.max(max, Number(m[1]));
+              }
+              if (commitsResp.data.length < perPage) break; // no more pages
+            }
+            const next = max + 1;
+
+            const commit_title = `#${next} Merge ${head} into main`;
+            const commit_message = `#${next} Automated merge of ${head} into main\n\nMerged by CI.`;
+
+            await github.rest.pulls.merge({
+              owner,
+              repo,
+              pull_number: prNumber,
+              merge_method: 'merge',
+              commit_title,
+              commit_message,
+            });
